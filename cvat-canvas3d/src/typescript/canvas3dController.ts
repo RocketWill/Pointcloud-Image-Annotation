@@ -16,6 +16,7 @@ export interface Canvas3dController {
     group(groupData: GroupData): void;
 }
 
+// 全局的控制器
 export class Canvas3dControllerImpl implements Canvas3dController {
     private model: Canvas3dModel;
 

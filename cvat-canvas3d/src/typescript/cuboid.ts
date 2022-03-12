@@ -10,6 +10,7 @@ export interface Indexable {
     [key: string]: any;
 }
 
+// 一个model要在四个视图显示，但每个视图都是不关联的（需要创建4次）
 export class CuboidModel {
     public perspective: THREE.Mesh;
     public top: THREE.Mesh;
@@ -19,12 +20,13 @@ export class CuboidModel {
     public constructor(outline: string, outlineColor: string) {
         const geometry = new THREE.BoxGeometry(1, 1, 1);
         const material = new THREE.MeshBasicMaterial({
-            color: 0x00ff00,
-            wireframe: false,
+            color: 0x00ff00,  // Lime（刚拉出框的颜色，默认绿色）
+            wireframe: false,  // 则将材质渲染成线框
             transparent: true,
             opacity: 0.4,
         });
         this.perspective = new THREE.Mesh(geometry, material);
+        // 创建外框线的3D框（合起来就是绿色带白色边框的cube）
         const geo = new THREE.EdgesGeometry(this.perspective.geometry);
         const wireframe = new THREE.LineSegments(
             geo,
@@ -36,6 +38,7 @@ export class CuboidModel {
                     gapSize: 0.05,
                 }),
         );
+        // 使用虚线材质的话，必须调用 computeLineDistances()方法
         wireframe.computeLineDistances();
         wireframe.renderOrder = 1;
         this.perspective.add(wireframe);
@@ -92,7 +95,7 @@ export class CuboidModel {
     }
 
     public getReferenceCoordinates(viewType: string): THREE.Vector3 {
-        const { elements } = (this as Indexable)[viewType].getObjectByName(constants.CAMERA_REFERENCE).matrixWorld;
+        const { elements } = (this as Indexable)[viewType].getObjectByName(constants.CAMERA_REFERENCE).matrixWorld;  // 世界矩阵，长度 16
         return new THREE.Vector3(elements[12], elements[13], elements[14]);
     }
 
@@ -136,7 +139,7 @@ export function setTranslationHelper(instance: THREE.Mesh): void {
     instance.geometry.deleteAttribute('uv');
     // eslint-disable-next-line no-param-reassign
     instance.geometry = BufferGeometryUtils.mergeVertices(instance.geometry);
-    const vertices = [];
+    const vertices = [];  // 长度为 8
     const positionAttribute = instance.geometry.getAttribute('position');
     for (let i = 0; i < positionAttribute.count; i++) {
         const vertex = new THREE.Vector3();
