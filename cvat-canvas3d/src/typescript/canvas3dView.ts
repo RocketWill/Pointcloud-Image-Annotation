@@ -275,10 +275,10 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             }
         });
         canvasPerspectiveView.addEventListener('mousedown', this.startAction.bind(this, 'perspective'));
-        canvasPerspectiveView.addEventListener('mousemove', this.moveAction.bind(this, 'perspective'));
-        canvasPerspectiveView.addEventListener('mouseup', this.completeActions.bind(this));
-        canvasPerspectiveView.addEventListener('mouseleave', this.completeActions.bind(this));
-        canvasPerspectiveView.addEventListener('click', this.completeActions.bind(this));
+        // canvasPerspectiveView.addEventListener('mousemove', this.moveAction.bind(this, 'perspective'));
+        // canvasPerspectiveView.addEventListener('mouseup', this.completeActions.bind(this));
+        // canvasPerspectiveView.addEventListener('mouseleave', this.completeActions.bind(this));
+        // canvasPerspectiveView.addEventListener('click', this.completeActions.bind(this));
 
         canvasTopView.addEventListener('mousedown', this.startAction.bind(this, 'top'));
         canvasSideView.addEventListener('mousedown', this.startAction.bind(this, 'side'));
@@ -1344,8 +1344,9 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             // 获取射中的目标
             if (intersects.length !== 0) {
                 const clientID = intersects[0].object.name;
-                this.control.attach(intersects[0].object);
-                this.views.perspective.scene.add(this.control);
+                // [CY]
+                // this.control.attach(intersects[0].object);
+                // this.views.perspective.scene.add(this.control);
 
                 if (clientID === undefined || clientID === '' || this.model.data.focusData.clientID === clientID) {
                     return;
@@ -1424,22 +1425,38 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 // 改变 perspective 中的目标
                 viewType.rayCaster.renderer.setFromCamera(viewType.rayCaster.mouseVector, viewType.camera);
                 const originObject = this.views.perspective.scene.getObjectByName(clientID);
-                let originPosition = originObject?.position;
+                // 只有在edit模式下才显示transform control，否则从scene移除
+                if (this.model.mode === Mode.IDLE) {
+                    this.control.enabled = false;
+                    this.control.detach();
+                    this.views.perspective.scene.remove(this.control);
+                }
                 if (this.action.scan === view) {
                     if (!(this.action.translation.status || this.action.resize.status || this.action.rotation.status)) {
                         this.initiateActionPerspective(view, viewType);
                     }
-                    if (this.action.detected) {
+                    if (this.action.detected && originObject) {
+                        // 显示transform control
+                        this.control.attach(originObject);
+                        this.views.perspective.scene.add(this.control);
+                        this.control.enabled = true;
                         if (this.action.translation.status) {
                             this.control.addEventListener('objectChange', (e: any) => {
                                 const object = e.target.object;
                                 this.renderTranslateActionPerspective(object);
+                            });
+                            // 鼠标起来触发
+                            this.control.addEventListener('mouseUp', (e: any) => {
+                                this.completeActions();
                             });
                         }
                         this.updateResizeHelperPos();
                         this.updateRotationHelperPos();
                     } else {
                         this.resetActions();
+                        this.control.enabled = false;
+                        this.control.detach();
+                        this.views.perspective.scene.remove(this.control);
                     }
                 }
 
@@ -2046,7 +2063,11 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             this.views.top.controls.enabled = false;
             this.views.side.controls.enabled = false;
             this.views.front.controls.enabled = false;
-            9
+            const { x, y, z } = this.model.data.selected[view].scale;
+            this.action.resize.initScales = { x, y, z };
+            this.action.resize.memScales = { x, y, z };
+            this.action.resize.frontBool = false;
+            this.action.resize.resizeVector = new THREE.Vector3(0, 0, 0);
             return;
         }
         const intersectsHelperRotation = viewType.rayCaster.renderer.intersectObjects(
