@@ -1450,6 +1450,51 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                                 this.completeActions();
                             });
                         }
+                        // 旋转cube
+                        else if (this.action.rotation.status) {
+                            this.control.addEventListener('objectChange', (e: any) => {
+                                const oRotation = originObject.rotation;
+                                const object = e.target.object;
+                                const { rotation } = object;
+                                let rview = undefined;
+                                let isLeft = undefined;
+                                let rotateValue =undefined;
+                                if (oRotation.x === rotation.x && oRotation.y === rotation.y && oRotation.z === rotation.z) {
+                                    return;
+                                }
+                                let xChange = rotation.x - oRotation.x;
+                                let yChange = rotation.y - oRotation.y;
+                                let zChange = rotation.z - oRotation.z;
+                                const changes = [xChange, yChange, zChange];
+                                const rviews = [this.views.front, this.views.side, this.views.top]
+                                changes.map((offset: number, idx: number) => {
+                                    if (offset !== 0) {
+                                        rview = rviews[idx];
+                                        isLeft = true ? offset > 0 : false;
+                                        rotateValue = offset
+                                    }
+                                })
+                                // if (rview !== undefined && rotateValue !== undefined) {
+                                //     this.renderRotateActionPerspective(rview as ViewType, rotateValue);
+                                // }
+                                // this.renderRotateActionPerspective(this.views.side, true);
+                            });
+                            // 鼠标起来触发
+                            this.control.addEventListener('mouseUp', (e: any) => {
+                                this.completeActions();
+                            });
+                        }
+                        // cube更改尺寸
+                        else if (this.action.resize.status) {
+                            // this.control.addEventListener('objectChange', (e: any) => {
+                            //     const object = e.target.object;
+                            //     this.renderTranslateActionPerspective(object);
+                            // });
+                            // 鼠标起来触发
+                            this.control.addEventListener('mouseUp', (e: any) => {
+                                this.completeActions();
+                            });
+                        }
                         this.updateResizeHelperPos();
                         this.updateRotationHelperPos();
                     } else {
@@ -1459,20 +1504,27 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                         this.views.perspective.scene.remove(this.control);
                     }
                 }
+                // 不能加，会导致三视图无法调整
+                // else {
+                //     this.resetActions();
+                //     this.control.enabled = false;
+                //     this.control.detach();
+                //     this.views.perspective.scene.remove(this.control);
+                // }
 
-                // window.addEventListener('keydown', (event: any) => {
-                //     switch (event.code) {
-                //         case 'KeyG':
-                //             this.control.setMode('translate')
-                //             break
-                //         case 'KeyR':
-                //             this.control.setMode('rotate')
-                //             break
-                //         case 'KeyS':
-                //             this.control.setMode('scale')
-                //             break
-                //     }
-                // });
+                window.addEventListener('keydown', (event: any) => {
+                    switch (event.code) {
+                        case 'KeyG':
+                            this.control.setMode('translate')
+                            break
+                        case 'KeyR':
+                            this.control.setMode('rotate')
+                            break
+                        case 'KeyW':
+                            this.control.setMode('scale')
+                            break
+                    }
+                });
             }
         });
         if (this.action.detachCam && this.action.detachCamRef === this.model.data.activeElement.clientID) {
@@ -1717,7 +1769,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) > 0;
     }
 
-    private rotateCube(instance: CuboidModel, direction: number, view: ViewType): void {
+    private  rotateCube(instance: CuboidModel, direction: number, view: ViewType): void {
         switch (view) {
             case ViewType.TOP:
                 instance.perspective.rotateZ(direction);
@@ -1996,6 +2048,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
     }
 
     private renderRotateAction(view: ViewType, viewType: any): void {
+        console.log("🤡 ~ file: canvas3dView.ts ~ line 2029 ~ Canvas3dViewImpl ~ renderRotateAction ~ view", view)
         const rotationSpeed = Math.PI / CONST.ROTATION_SPEED;
         const { renderer } = viewType;
         const canvas = renderer.domElement;
@@ -2004,6 +2057,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             x: canvas.offsetLeft + canvas.offsetWidth / 2,
             y: canvas.offsetTop + canvas.offsetHeight / 2,
         };
+
         if (
             this.action.rotation.screenInit.x === this.action.rotation.screenMove.x &&
             this.action.rotation.screenInit.y === this.action.rotation.screenMove.y
@@ -2031,18 +2085,72 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         this.action.rotation.screenInit.y = this.action.rotation.screenMove.y;
     }
 
+    // [CY] Rotation 旋转cube
+    private renderRotateActionPerspective(view: ViewType, rotateValue: number): void {
+        // const rotationSpeed = Math.PI / CONST.ROTATION_SPEED;
+        // this.action.rotation.recentMouseVector = this.views[view].rayCaster.mouseVector.clone();
+        // if (
+        //     this.action.rotation.screenInit.x === this.action.rotation.screenMove.x &&
+        //     this.action.rotation.screenInit.y === this.action.rotation.screenMove.y
+        // ) {
+        //     return;
+        // }
+
+        // if (
+        //     this.action.rotation.recentMouseVector.x === this.views[view].rayCaster.mouseVector.x &&
+        //     this.action.rotation.recentMouseVector.y === this.views[view].rayCaster.mouseVector.y
+        // ) {
+        //     return;
+        // }
+        // 只记录旋转方向
+        // if (isLeft) {
+        //     this.rotateCube(this.model.data.selected, -rotateValue, view);
+        //     this.rotatePlane(-rotateValue, view);
+        // } else {
+        //     this.rotateCube(this.model.data.selected, rotateValue, view);
+        //     this.rotatePlane(rotateValue, view);
+        // }
+        // this.action.rotation.screenInit.x = this.action.rotation.screenMove.x;
+        // this.action.rotation.screenInit.y = this.action.rotation.screenMove.y;
+        this.rotateCube(this.model.data.selected, rotateValue, view);
+        this.rotatePlane(rotateValue, view);
+    }
+
     // [CY]
     private initiateActionPerspective(view: string, viewType: any): void {
         const intersectsBox = viewType.rayCaster.renderer.intersectObjects([this.model.data.selected[view]], false);
         if (intersectsBox.length !== 0) {
-            this.action.translation.helper = viewType.rayCaster.mouseVector.clone();
-            this.action.translation.inverseMatrix = intersectsBox[0].object.parent.matrixWorld.invert();
-            this.action.translation.offset = new THREE.Vector3(0, 0, 0);
-            this.action.detected = true;
-            this.action.translation.status = true;
-            this.views.top.controls.enabled = false;
-            this.views.side.controls.enabled = false;
-            this.views.front.controls.enabled = false;
+            if (this.control.mode === 'translate') {
+                this.action.translation.helper = viewType.rayCaster.mouseVector.clone();
+                this.action.translation.inverseMatrix = intersectsBox[0].object.parent.matrixWorld.invert();
+                this.action.translation.offset = new THREE.Vector3(0, 0, 0);
+                this.action.detected = true;
+                this.action.translation.status = true;
+                this.views.top.controls.enabled = false;
+                this.views.side.controls.enabled = false;
+                this.views.front.controls.enabled = false;
+            }
+            else if (this.control.mode === 'rotate') {
+                this.action.rotation.helper = viewType.rayCaster.mouseVector.clone();
+                this.action.rotation.status = true;
+                this.action.detected = true;
+                this.views.top.controls.enabled = false;
+                this.views.side.controls.enabled = false;
+                this.views.front.controls.enabled = false;
+            }
+            else if (this.control.mode === 'resize') {
+                this.action.resize.helper = viewType.rayCaster.mouseVector.clone();
+                this.action.resize.status = true;
+                this.action.detected = true;
+                this.views.top.controls.enabled = false;
+                this.views.side.controls.enabled = false;
+                this.views.front.controls.enabled = false;
+                const { x, y, z } = this.model.data.selected[view].scale;
+                this.action.resize.initScales = { x, y, z };
+                this.action.resize.memScales = { x, y, z };
+                this.action.resize.frontBool = false;
+                this.action.resize.resizeVector = new THREE.Vector3(0, 0, 0);
+            }
         }
     }
 
@@ -2051,6 +2159,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             this.globalHelpers[view].resize,
             false,
         );
+        console.log("🤡 ~ file: canvas3dView.ts ~ line 2059 ~ Canvas3dViewImpl ~ initiateAction ~ intersectsHelperResize", intersectsHelperResize)
         const [state] = this.model.data.objects.filter(
             (_state: any): boolean => _state.clientID === Number(this.model.data.selected[view].name),
         );
