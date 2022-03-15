@@ -309,12 +309,17 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         canvasPerspectiveView.addEventListener('click', (e: MouseEvent): void => {
             e.preventDefault();
             if (e.detail !== 1) return;
-            if (![Mode.GROUP, Mode.IDLE].includes(this.mode) || !this.views.perspective.rayCaster) return;
             const intersects = this.views.perspective.rayCaster.renderer.intersectObjects(
                 this.views.perspective.scene.children[0].children,  // 被选中的目标
                 false,
             );
-
+            // 点击目标出现transform control后，不做任何操作，接着点击空白处，出发completeActions，并且隐藏控制器
+            if (intersects.length === 0) {
+                this.completeActions()
+                this.control.detach();
+                this.views.perspective.scene.remove(this.control);
+            }
+            if (![Mode.GROUP, Mode.IDLE].includes(this.mode) || !this.views.perspective.rayCaster) return;
             if (intersects.length !== 0 && this.mode === Mode.GROUP && this.model.data.groupData.grouped) {
                 const item = this.model.data.groupData.grouped.filter(
                     (_state: any): boolean => _state.clientID === Number(intersects[0].object.name),
