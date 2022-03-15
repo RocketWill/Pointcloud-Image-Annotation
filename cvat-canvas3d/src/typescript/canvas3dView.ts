@@ -1452,33 +1452,6 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                         }
                         // 旋转cube
                         else if (this.action.rotation.status) {
-                            this.control.addEventListener('objectChange', (e: any) => {
-                                const oRotation = originObject.rotation;
-                                const object = e.target.object;
-                                const { rotation } = object;
-                                let rview = undefined;
-                                let isLeft = undefined;
-                                let rotateValue =undefined;
-                                if (oRotation.x === rotation.x && oRotation.y === rotation.y && oRotation.z === rotation.z) {
-                                    return;
-                                }
-                                let xChange = rotation.x - oRotation.x;
-                                let yChange = rotation.y - oRotation.y;
-                                let zChange = rotation.z - oRotation.z;
-                                const changes = [xChange, yChange, zChange];
-                                const rviews = [this.views.front, this.views.side, this.views.top]
-                                changes.map((offset: number, idx: number) => {
-                                    if (offset !== 0) {
-                                        rview = rviews[idx];
-                                        isLeft = true ? offset > 0 : false;
-                                        rotateValue = offset
-                                    }
-                                })
-                                // if (rview !== undefined && rotateValue !== undefined) {
-                                //     this.renderRotateActionPerspective(rview as ViewType, rotateValue);
-                                // }
-                                // this.renderRotateActionPerspective(this.views.side, true);
-                            });
                             // 鼠标起来触发
                             this.control.addEventListener('mouseUp', (e: any) => {
                                 this.completeActions();
@@ -1486,6 +1459,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                         }
                         // cube更改尺寸
                         else if (this.action.resize.status) {
+                            // TODO 三视图同步更改
                             // this.control.addEventListener('objectChange', (e: any) => {
                             //     const object = e.target.object;
                             //     this.renderTranslateActionPerspective(object);
@@ -1520,7 +1494,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                         case 'KeyR':
                             this.control.setMode('rotate')
                             break
-                        case 'KeyW':
+                        case 'KeyS':
                             this.control.setMode('scale')
                             break
                     }
@@ -2138,7 +2112,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 this.views.side.controls.enabled = false;
                 this.views.front.controls.enabled = false;
             }
-            else if (this.control.mode === 'resize') {
+            else if (this.control.mode === 'scale') {
                 this.action.resize.helper = viewType.rayCaster.mouseVector.clone();
                 this.action.resize.status = true;
                 this.action.detected = true;

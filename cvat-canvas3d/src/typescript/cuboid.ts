@@ -26,6 +26,17 @@ export class CuboidModel {
             opacity: 0.4,
         });
         this.perspective = new THREE.Mesh(geometry, material);
+        // arrow helper
+        let arrow = new THREE.ArrowHelper(
+            new THREE.Vector3(1, 0, 0).normalize(),
+            new THREE.Vector3(0.5, 0, 0),  // 插在x面前（半径0.5）
+            0.3,  // 箭头长度
+            0xffffff,  // 箭头颜色
+            0.2,  // 头长度
+            0.2   // 头宽度
+        );
+        this.perspective.add(arrow);
+
         // 创建外框线的3D框（合起来就是绿色带白色边框的cube）
         const geo = new THREE.EdgesGeometry(this.perspective.geometry);
         const wireframe = new THREE.LineSegments(
