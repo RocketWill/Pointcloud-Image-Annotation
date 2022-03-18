@@ -313,7 +313,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 this.views.perspective.scene.children[0].children,  // 被选中的目标
                 false,
             );
-            // 点击目标出现transform control后，不做任何操作，接着点击空白处，出发completeActions，并且隐藏控制器
+            // 点击目标出现transform control后，不做任何操作，接着点击空白处，触发completeActions，并且隐藏控制器
             if (intersects.length === 0) {
                 this.completeActions()
                 this.control.detach();
@@ -787,6 +787,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             this.addSceneChildren(cuboid);
         }
         if (this.model.data.activeElement.clientID === clientID) {
+            // 相机focus目标
             cuboid.attachCameraReference();
             this.rotatePlane(null, null);
             this.action.detachCam = true;
@@ -1139,6 +1140,16 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
 
     // 渲染点云数据
     private addScene(points: any): void {
+        // [CY] Camera Helper
+        const helperTop = new THREE.CameraHelper( this.views.side.camera );
+        this.views.perspective.scene.add(helperTop)
+
+        // const helperSide = new THREE.CameraHelper( this.views.side.camera );
+        // this.views.perspective.scene.add(helperSide)
+
+        // const helperFront = new THREE.CameraHelper( this.views.front.camera );
+        // this.views.perspective.scene.add(helperFront)
+
         this.addColor(points)
         // eslint-disable-next-line no-param-reassign
         const coloredPoints = this.addColor(points);
@@ -1328,7 +1339,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             view.camera.updateProjectionMatrix();
         }
     }
-
+    // 在perspective选中目标
     private renderRayCaster = (viewType: RenderView): void => {
         viewType.rayCaster.renderer.setFromCamera(viewType.rayCaster.mouseVector, viewType.camera);
         if (this.mode === Mode.DRAW) {
@@ -1350,9 +1361,6 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             if (intersects.length !== 0) {
                 const clientID = intersects[0].object.name;
                 // [CY]
-                // this.control.attach(intersects[0].object);
-                // this.views.perspective.scene.add(this.control);
-
                 if (clientID === undefined || clientID === '' || this.model.data.focusData.clientID === clientID) {
                     return;
                 }
@@ -1377,6 +1385,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         }
     };
 
+    // 绘制颜色（选中的目标有颜色）
     private resetColor(): void {
         this.model.data.objects.forEach((object: any): void => {
             const { clientID } = object;
@@ -1527,17 +1536,21 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         }
     }
 
+    // Updating 调整三视图相机位置（调整目标尺寸、旋转触发）
     private adjustPerspectiveCameras(): void {
+        const dataPosition = this.model.data.selected.perspective.position;
         const coordinatesTop = this.model.data.selected.getReferenceCoordinates(ViewType.TOP);
         const sphericalTop = new THREE.Spherical();
         sphericalTop.setFromVector3(coordinatesTop);
-        this.views.top.camera.position.setFromSpherical(sphericalTop);
+        // this.views.top.camera.position.setFromSpherical(sphericalTop);
+        // this.views.top.camera.position.set(dataPosition.x, dataPosition.y, dataPosition.z)
         this.views.top.camera.updateProjectionMatrix();
 
         const coordinatesSide = this.model.data.selected.getReferenceCoordinates(ViewType.SIDE);
         const sphericalSide = new THREE.Spherical();
         sphericalSide.setFromVector3(coordinatesSide);
-        this.views.side.camera.position.setFromSpherical(sphericalSide);
+        // this.views.side.camera.position.setFromSpherical(sphericalSide);
+        this.views.side.camera.position.set(dataPosition.x, dataPosition.y, dataPosition.z)
         this.views.side.camera.updateProjectionMatrix();
 
         const coordinatesFront = this.model.data.selected.getReferenceCoordinates(ViewType.FRONT);
@@ -1748,7 +1761,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         return (b.x - a.x) * (c.y - a.y) - (b.y - a.y) * (c.x - a.x) > 0;
     }
 
-    private  rotateCube(instance: CuboidModel, direction: number, view: ViewType): void {
+    private rotateCube(instance: CuboidModel, direction: number, view: ViewType): void {
         switch (view) {
             case ViewType.TOP:
                 instance.perspective.rotateZ(direction);
@@ -1808,10 +1821,15 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         }
     }
 
+    // [CY] 真正的相机focus目标
     private detachCamera(view: ViewType): void {
+        // 取得选中目标坐标
         const coordTop = this.model.data.selected.getReferenceCoordinates(ViewType.TOP);
+        const dataPosition = this.model.data.selected.perspective.position;
+        console.log("🤡 ~ file: canvas3dView.ts ~ line 1828 ~ Canvas3dViewImpl ~ detachCamera ~ this.model.data.selected", this.model.data.selected)
+        // 极坐标
         const sphericaltop = new THREE.Spherical();
-        sphericaltop.setFromVector3(coordTop);
+        sphericaltop.setFromVector3(coordTop);  // 笛卡尔转极坐标
 
         const coordSide = this.model.data.selected.getReferenceCoordinates(ViewType.SIDE);
         const sphericalside = new THREE.Spherical();
@@ -1820,6 +1838,35 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         const coordFront = this.model.data.selected.getReferenceCoordinates(ViewType.FRONT);
         const sphericalfront = new THREE.Spherical();
         sphericalfront.setFromVector3(coordFront);
+
+        //
+        const { clientWidth: clientWidthTop, clientHeight: clientHeightTop } = this.views.top.renderer.domElement;
+        const { clientWidth: clientWidthFront, clientHeight: clientHeightFront } = this.views.front.renderer.domElement;
+        const { clientWidth: clientWidthSide, clientHeight: clientHeightSide } = this.views.side.renderer.domElement;
+        const roomRatio = 1.0;
+        let expCameraWidthTop, expCameraHeightTop, expCameraClipTop;
+        expCameraHeightTop = this.model.data.selected.top.scale.x * 1.5 * roomRatio;
+        expCameraWidthTop = this.model.data.selected.top.scale.y * 1.5 * roomRatio;
+        expCameraClipTop = this.model.data.selected.top.scale.z + 0.8;
+        if (expCameraWidthTop / expCameraHeightTop > clientWidthTop / clientHeightTop) {
+            //increase height
+            expCameraHeightTop = expCameraWidthTop * clientHeightTop / clientWidthTop;
+        } else {
+            expCameraWidthTop = expCameraHeightTop * clientWidthTop / clientHeightTop;
+        }
+
+        let expCameraWidthFront, expCameraHeightFront, expCameraClipFront;
+        let expCameraWidthSide, expCameraHeightSide, expCameraClipSide;
+        expCameraHeightSide = this.model.data.selected.side.scale.x * 1.5 * 1;
+        expCameraWidthSide = this.model.data.selected.side.scale.y * 1.5 * 1;
+        expCameraClipSide = this.model.data.selected.side.scale.z + 0.8;
+        if (expCameraWidthSide / expCameraHeightSide > clientWidthSide / clientHeightSide) {
+            //increase height
+            expCameraHeightSide = expCameraWidthSide * clientHeightSide / clientWidthSide;
+        } else {
+            expCameraWidthSide = expCameraHeightSide * clientWidthSide / clientHeightSide;
+        }
+
 
         const { side: objectSideView, front: objectFrontView, top: objectTopView } = this.model.data.selected;
         const { camera: sideCamera } = this.views.side;
@@ -1882,15 +1929,39 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 break;
             }
             default: {
-                sideCamera.position.setFromSpherical(sphericalside);
-                sideCamera.lookAt(objectSideView.position.x, objectSideView.position.y, objectSideView.position.z);
-                sideCamera.rotation.z = this.views.side.scene.getObjectByName(Planes.SIDE).rotation.z;
+                // sideCamera.position.setFromSpherical(sphericalside);
+                sideCamera.position.set(dataPosition.x, dataPosition.y, dataPosition.z)
+                // sideCamera.lookAt(objectSideView.position.x, objectSideView.position.y, objectSideView.position.z);
+                sideCamera.lookAt(coordSide.x, coordSide.y, coordSide.z);
+                // sideCamera.rotation.set(1,0,0)
+                // sideCamera.rotation.z = this.views.side.scene.getObjectByName(Planes.SIDE).rotation.z;
                 sideCamera.scale.set(1, 1, 1);
-
-                topCamera.position.setFromSpherical(sphericaltop);
+                sideCamera.top = expCameraHeightSide / 2;
+                sideCamera.bottom = expCameraHeightSide / -2;
+                sideCamera.right = expCameraWidthSide / 2;
+                sideCamera.left = expCameraWidthSide / -2;
+                sideCamera.near = expCameraClipSide / -2;
+                sideCamera.far = expCameraClipSide / 2;
+                sideCamera.updateProjectionMatrix()
+                // topCamera.position.setFromSpherical(sphericaltop);
+                // 改为绝对位置坐标
+                topCamera.position.set(dataPosition.x, dataPosition.y, dataPosition.z)
                 topCamera.lookAt(objectTopView.position.x, objectTopView.position.y, objectTopView.position.z);
-                topCamera.setRotationFromEuler(objectTopView.rotation);
+                // topCamera.setRotationFromEuler(objectTopView.rotation);
+                topCamera.rotation.set(objectTopView.rotation.x, objectTopView.rotation.y, objectTopView.rotation.z)
                 topCamera.scale.set(1, 1, 1);
+
+                topCamera.top = expCameraHeightTop / 2;
+                topCamera.bottom = expCameraHeightTop / -2;
+                topCamera.right = expCameraWidthTop / 2;
+                topCamera.left = expCameraWidthTop / -2;
+                topCamera.near = expCameraClipTop / -2;
+                topCamera.far = expCameraClipTop / 2;
+
+                // topCamera.near = 0
+                // topCamera.far = 5
+
+                topCamera.updateProjectionMatrix()
 
                 const camFrontRotate = objectFrontView
                     .getObjectByName('camRefRot')

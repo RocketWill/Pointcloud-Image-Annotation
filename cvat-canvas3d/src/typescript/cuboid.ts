@@ -32,7 +32,7 @@ export class CuboidModel {
             new THREE.Vector3(0.5, 0, 0),  // 插在x面前（半径0.5）
             0.3,  // 箭头长度
             0xffffff,  // 箭头颜色
-            0.2,  // 头长度
+            0.1,  // 头长度
             0.2   // 头宽度
         );
         this.perspective.add(arrow);
@@ -83,7 +83,7 @@ export class CuboidModel {
             (this as Indexable)[view].rotation.set(x, y, z);
         });
     }
-
+    // [CY]相机focus目标
     public attachCameraReference(): void {
         // Attach Cam Reference
         const topCameraReference = new THREE.Object3D();
