@@ -620,6 +620,10 @@ function intersect(boxA, boxB) {
 
 };
 
+function getPointInBetweenByLen(pointA, pointB, length) {
+    const dir = pointB.clone().sub(pointA).normalize().multiplyScalar(length);
+    return pointA.clone().add(dir);
+}
 
 export {
     dotproduct, vector_range, array_as_vector_range, array_as_vector_index_range, vector4to3, vector3_nomalize, psr_to_xyz, matmul,
@@ -629,5 +633,7 @@ export {
     transpose,
     mat,
     normalizeAngle,
-    intersect
+    intersect,
+    getPointInBetweenByLen
 }
+

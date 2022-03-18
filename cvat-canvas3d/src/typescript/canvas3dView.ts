@@ -17,7 +17,7 @@ import {
 import {
     createRotationHelper, CuboidModel, setEdges, setTranslationHelper,
 } from './cuboid';
-import { matmul, euler_angle_to_rotate_matrix, transpose, psr_to_xyz, array_as_vector_range, array_as_vector_index_range, vector_range, euler_angle_to_rotate_matrix_3by3 } from "./utils/util"
+import { matmul, euler_angle_to_rotate_matrix, transpose, psr_to_xyz, array_as_vector_range, array_as_vector_index_range, vector_range, euler_angle_to_rotate_matrix_3by3, getPointInBetweenByLen } from "./utils/util"
 
 export interface Canvas3dView {
     html(): ViewsDOM;
@@ -927,7 +927,6 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             );
             this.model.data.activeElement.clientID = 'null';
             if (this.model.mode === Mode.DRAG_CANVAS) {
-                console.log("🤡 ~ file: canvas3dView.ts ~ line 913 ~ Canvas3dViewImpl ~ notify ~ DRAG_CANVAS", "wooooo")
                 const { controls } = this.views.perspective;
                 controls.mouseButtons.left = CameraControls.ACTION.ROTATE;
                 controls.mouseButtons.right = CameraControls.ACTION.TRUCK;
@@ -1421,6 +1420,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                     // Action Operations
                     if (this.action.detected) {
                         if (this.action.translation.status) {
+                            console.log("🤡 ~ translation")
                             this.renderTranslateAction(view as ViewType, viewType);
                         } else if (this.action.resize.status) {
                             this.renderResizeAction(view as ViewType, viewType);
@@ -1539,6 +1539,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
     // Updating 调整三视图相机位置（调整目标尺寸、旋转触发）
     private adjustPerspectiveCameras(): void {
         const dataPosition = this.model.data.selected.perspective.position;
+        const dataScale = this.model.data.selected.perspective.scale;
         const coordinatesTop = this.model.data.selected.getReferenceCoordinates(ViewType.TOP);
         const sphericalTop = new THREE.Spherical();
         sphericalTop.setFromVector3(coordinatesTop);
@@ -1547,10 +1548,12 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         this.views.top.camera.updateProjectionMatrix();
 
         const coordinatesSide = this.model.data.selected.getReferenceCoordinates(ViewType.SIDE);
-        const sphericalSide = new THREE.Spherical();
-        sphericalSide.setFromVector3(coordinatesSide);
+        // const sphericalSide = new THREE.Spherical();
+        // sphericalSide.setFromVector3(coordinatesSide);
         // this.views.side.camera.position.setFromSpherical(sphericalSide);
-        this.views.side.camera.position.set(dataPosition.x, dataPosition.y, dataPosition.z)
+        const distanceToCenter = coordinatesSide.distanceTo(dataPosition);
+        const sideCamPosition = getPointInBetweenByLen(coordinatesSide, dataPosition, distanceToCenter - dataScale.y / 2)
+        this.views.side.camera.position.set(sideCamPosition.x, sideCamPosition.y, sideCamPosition.z)
         this.views.side.camera.updateProjectionMatrix();
 
         const coordinatesFront = this.model.data.selected.getReferenceCoordinates(ViewType.FRONT);
@@ -1826,12 +1829,12 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         // 取得选中目标坐标
         const coordTop = this.model.data.selected.getReferenceCoordinates(ViewType.TOP);
         const dataPosition = this.model.data.selected.perspective.position;
-        console.log("🤡 ~ file: canvas3dView.ts ~ line 1828 ~ Canvas3dViewImpl ~ detachCamera ~ this.model.data.selected", this.model.data.selected)
         // 极坐标
         const sphericaltop = new THREE.Spherical();
         sphericaltop.setFromVector3(coordTop);  // 笛卡尔转极坐标
 
         const coordSide = this.model.data.selected.getReferenceCoordinates(ViewType.SIDE);
+        console.log("🤡 ~ file: canvas3dView.ts ~ line 1837 ~ Canvas3dViewImpl ~ detachCamera ~ coordSide", coordSide)
         const sphericalside = new THREE.Spherical();
         sphericalside.setFromVector3(coordSide);
 
@@ -1930,10 +1933,10 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             }
             default: {
                 // sideCamera.position.setFromSpherical(sphericalside);
-                sideCamera.position.set(dataPosition.x, dataPosition.y, dataPosition.z)
-                // sideCamera.lookAt(objectSideView.position.x, objectSideView.position.y, objectSideView.position.z);
-                sideCamera.lookAt(coordSide.x, coordSide.y, coordSide.z);
-                // sideCamera.rotation.set(1,0,0)
+                const distanceToCenter = coordSide.distanceTo(objectSideView.position);
+                const sideCamPosition = getPointInBetweenByLen(coordSide, objectSideView.position, distanceToCenter - objectSideView.scale.y / 2)
+                sideCamera.position.set(sideCamPosition.x, sideCamPosition.y, sideCamPosition.z)
+                sideCamera.lookAt(objectSideView.position.x, objectSideView.position.y, objectSideView.position.z);
                 // sideCamera.rotation.z = this.views.side.scene.getObjectByName(Planes.SIDE).rotation.z;
                 sideCamera.scale.set(1, 1, 1);
                 sideCamera.top = expCameraHeightSide / 2;
@@ -1942,7 +1945,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 sideCamera.left = expCameraWidthSide / -2;
                 sideCamera.near = expCameraClipSide / -2;
                 sideCamera.far = expCameraClipSide / 2;
-                sideCamera.updateProjectionMatrix()
+
                 // topCamera.position.setFromSpherical(sphericaltop);
                 // 改为绝对位置坐标
                 topCamera.position.set(dataPosition.x, dataPosition.y, dataPosition.z)
@@ -1955,8 +1958,8 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 topCamera.bottom = expCameraHeightTop / -2;
                 topCamera.right = expCameraWidthTop / 2;
                 topCamera.left = expCameraWidthTop / -2;
-                topCamera.near = expCameraClipTop / -2;
-                topCamera.far = expCameraClipTop / 2;
+                topCamera.near = expCameraClipTop / -1;
+                topCamera.far = expCameraClipTop / 1;
 
                 // topCamera.near = 0
                 // topCamera.far = 5
@@ -2209,7 +2212,6 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             this.globalHelpers[view].resize,
             false,
         );
-        console.log("🤡 ~ file: canvas3dView.ts ~ line 2059 ~ Canvas3dViewImpl ~ initiateAction ~ intersectsHelperResize", intersectsHelperResize)
         const [state] = this.model.data.objects.filter(
             (_state: any): boolean => _state.clientID === Number(this.model.data.selected[view].name),
         );
