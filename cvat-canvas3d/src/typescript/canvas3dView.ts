@@ -1140,7 +1140,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
     // 渲染点云数据
     private addScene(points: any): void {
         // [CY] Camera Helper
-        const helperTop = new THREE.CameraHelper( this.views.side.camera );
+        const helperTop = new THREE.CameraHelper( this.views.front.camera );
         this.views.perspective.scene.add(helperTop)
 
         // const helperSide = new THREE.CameraHelper( this.views.side.camera );
@@ -1540,9 +1540,13 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
     private adjustPerspectiveCameras(): void {
         const dataPosition = this.model.data.selected.perspective.position;
         const dataScale = this.model.data.selected.perspective.scale;
+
         const coordinatesTop = this.model.data.selected.getReferenceCoordinates(ViewType.TOP);
-        const sphericalTop = new THREE.Spherical();
-        sphericalTop.setFromVector3(coordinatesTop);
+        const topDistanceToCenter = coordinatesTop.distanceTo(dataPosition);
+        const topCamPosition = getPointInBetweenByLen(coordinatesTop, dataPosition, topDistanceToCenter - dataScale.z / 2)
+        this.views.top.camera.position.set(topCamPosition.x, topCamPosition.y, topCamPosition.z)
+        // const sphericalTop = new THREE.Spherical();
+        // sphericalTop.setFromVector3(coordinatesTop);
         // this.views.top.camera.position.setFromSpherical(sphericalTop);
         // this.views.top.camera.position.set(dataPosition.x, dataPosition.y, dataPosition.z)
         this.views.top.camera.updateProjectionMatrix();
@@ -1551,15 +1555,18 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         // const sphericalSide = new THREE.Spherical();
         // sphericalSide.setFromVector3(coordinatesSide);
         // this.views.side.camera.position.setFromSpherical(sphericalSide);
-        const distanceToCenter = coordinatesSide.distanceTo(dataPosition);
-        const sideCamPosition = getPointInBetweenByLen(coordinatesSide, dataPosition, distanceToCenter - dataScale.y / 2)
+        const sideDistanceToCenter = coordinatesSide.distanceTo(dataPosition);
+        const sideCamPosition = getPointInBetweenByLen(coordinatesSide, dataPosition, sideDistanceToCenter - dataScale.y / 2)
         this.views.side.camera.position.set(sideCamPosition.x, sideCamPosition.y, sideCamPosition.z)
         this.views.side.camera.updateProjectionMatrix();
 
         const coordinatesFront = this.model.data.selected.getReferenceCoordinates(ViewType.FRONT);
-        const sphericalFront = new THREE.Spherical();
-        sphericalFront.setFromVector3(coordinatesFront);
-        this.views.front.camera.position.setFromSpherical(sphericalFront);
+        // const sphericalFront = new THREE.Spherical();
+        // sphericalFront.setFromVector3(coordinatesFront);
+        // this.views.front.camera.position.setFromSpherical(sphericalFront);
+        const frontDistanceToCenter = coordinatesFront.distanceTo(dataPosition);
+        const frontCamPosition = getPointInBetweenByLen(coordinatesFront, dataPosition, frontDistanceToCenter - dataScale.x / 2)
+        this.views.front.camera.position.set(frontCamPosition.x, frontCamPosition.y, frontCamPosition.z)
         this.views.front.camera.updateProjectionMatrix();
     }
 
@@ -1834,7 +1841,6 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         sphericaltop.setFromVector3(coordTop);  // 笛卡尔转极坐标
 
         const coordSide = this.model.data.selected.getReferenceCoordinates(ViewType.SIDE);
-        console.log("🤡 ~ file: canvas3dView.ts ~ line 1837 ~ Canvas3dViewImpl ~ detachCamera ~ coordSide", coordSide)
         const sphericalside = new THREE.Spherical();
         sphericalside.setFromVector3(coordSide);
 
@@ -1933,10 +1939,11 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             }
             default: {
                 // sideCamera.position.setFromSpherical(sphericalside);
-                const distanceToCenter = coordSide.distanceTo(objectSideView.position);
-                const sideCamPosition = getPointInBetweenByLen(coordSide, objectSideView.position, distanceToCenter - objectSideView.scale.y / 2)
+                const sideDistanceToCenter = coordSide.distanceTo(objectSideView.position);
+                const sideCamPosition = getPointInBetweenByLen(coordSide, objectSideView.position, sideDistanceToCenter - objectSideView.scale.y / 2)
                 sideCamera.position.set(sideCamPosition.x, sideCamPosition.y, sideCamPosition.z)
                 sideCamera.lookAt(objectSideView.position.x, objectSideView.position.y, objectSideView.position.z);
+                // 可能会造成上下颠倒
                 // sideCamera.rotation.z = this.views.side.scene.getObjectByName(Planes.SIDE).rotation.z;
                 sideCamera.scale.set(1, 1, 1);
                 sideCamera.top = expCameraHeightSide / 2;
@@ -1946,33 +1953,40 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 sideCamera.near = expCameraClipSide / -2;
                 sideCamera.far = expCameraClipSide / 2;
 
-                // topCamera.position.setFromSpherical(sphericaltop);
                 // 改为绝对位置坐标
-                topCamera.position.set(dataPosition.x, dataPosition.y, dataPosition.z)
+                const topDistanceToCenter = coordTop.distanceTo(objectTopView.position);
+                const topCamPosition = getPointInBetweenByLen(coordTop, objectTopView.position, topDistanceToCenter - objectTopView.scale.z / 2)
+                topCamera.position.set(topCamPosition.x, topCamPosition.y, topCamPosition.z)
                 topCamera.lookAt(objectTopView.position.x, objectTopView.position.y, objectTopView.position.z);
-                // topCamera.setRotationFromEuler(objectTopView.rotation);
-                topCamera.rotation.set(objectTopView.rotation.x, objectTopView.rotation.y, objectTopView.rotation.z)
+                topCamera.setRotationFromEuler(objectTopView.rotation);
+                // topCamera.rotation.set(objectTopView.rotation.x, objectTopView.rotation.y, objectTopView.rotation.z)
                 topCamera.scale.set(1, 1, 1);
 
                 topCamera.top = expCameraHeightTop / 2;
                 topCamera.bottom = expCameraHeightTop / -2;
                 topCamera.right = expCameraWidthTop / 2;
                 topCamera.left = expCameraWidthTop / -2;
-                topCamera.near = expCameraClipTop / -1;
-                topCamera.far = expCameraClipTop / 1;
-
-                // topCamera.near = 0
-                // topCamera.far = 5
-
-                topCamera.updateProjectionMatrix()
+                topCamera.near = expCameraClipTop / -2;
+                topCamera.far = expCameraClipTop / 2;
+                // topCamera.updateProjectionMatrix()
 
                 const camFrontRotate = objectFrontView
                     .getObjectByName('camRefRot')
                     .getWorldQuaternion(new THREE.Quaternion());
-                frontCamera.position.setFromSpherical(sphericalfront);
+                const frontDistanceToCenter = coordFront.distanceTo(objectFrontView.position);
+                const frontCamPosition = getPointInBetweenByLen(coordFront, objectFrontView.position, frontDistanceToCenter - objectFrontView.scale.x / 2)
+                frontCamera.position.set(frontCamPosition.x, frontCamPosition.y, frontCamPosition.z)
+                // frontCamera.lookAt(objectFrontView.position.x, objectFrontView.position.y, objectFrontView.position.z);
+                // frontCamera.position.setFromSpherical(sphericalfront);
                 frontCamera.lookAt(objectFrontView.position.x, objectFrontView.position.y, objectFrontView.position.z);
                 frontCamera.setRotationFromQuaternion(camFrontRotate);
                 frontCamera.scale.set(1, 1, 1);
+                frontCamera.top = expCameraHeightTop / 2;
+                frontCamera.bottom = expCameraHeightTop / -2;
+                frontCamera.right = expCameraWidthTop / 2;
+                frontCamera.left = expCameraWidthTop / -2;
+                frontCamera.near = expCameraClipTop / -1;
+                frontCamera.far = expCameraClipTop / 1;
             }
         }
     }
