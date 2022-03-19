@@ -57,6 +57,7 @@ export class CuboidModel {
         this.top = new THREE.Mesh(geometry, material);
         this.side = new THREE.Mesh(geometry, material);
         this.front = new THREE.Mesh(geometry, material);
+        this.side.add(arrow);
 
         const camRotateHelper = new THREE.Object3D();
         camRotateHelper.translateX(-2);
