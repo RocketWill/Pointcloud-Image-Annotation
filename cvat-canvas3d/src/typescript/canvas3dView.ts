@@ -23,6 +23,7 @@ export interface Canvas3dView {
     html(): ViewsDOM;
     render(): void;
     keyControls(keys: KeyboardEvent): void;
+    themeControl(name: string): void;
 }
 
 // 相机位置操作
@@ -110,7 +111,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         this.selected = this.cube;
         this.model = model; // data 和 listener
         this.pointsIndexGridSize = 1;
-        this.colormapName = 'cooltowarm';
+        this.colormapName = 'default';
 
         this.globalHelpers = {
             perspective: {
@@ -2325,6 +2326,14 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             }
         } else if (key.code === 'ControlLeft') {
             this.action.selectable = !key.ctrlKey;
+        }
+    }
+
+    public themeControl(name: string): void {
+        // const { controls } = this.views.perspective;
+        if (['default', 'rainbow', 'cooltowarm', 'blackbody', 'grayscale'].includes(name)) {
+            this.colormapName = name;
+            this.setupObjects();
         }
     }
 

@@ -447,6 +447,55 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         </span>
     );
 
+    const ThemeGroup = (): ReactElement => (
+        <span className='cvat-canvas3d-perspective-themes'>
+            <CVATTooltip title='default' placement='topLeft'>
+                <button
+                    onClick={() => canvasInstance.themeControl('default')}
+                    type='button'
+                    style={{ width: 18, height: 18, backgroundColor: '#ffffff',
+                             borderRadius: 18, border: '1px solid #ffffff' }}
+                />
+            </CVATTooltip>
+            <CVATTooltip title='rainbow' placement='topLeft'>
+                <button
+                    onClick={() => canvasInstance.themeControl('rainbow')}
+                    type='button'
+                    style={{ width: 18, height: 18, marginLeft: 2,
+                             background: 'linear-gradient(to right, rgb(30, 150, 0), rgb(255, 242, 0), rgb(255, 0, 0))',
+                             borderRadius: 18, border: '1px solid #ffffff' }}
+                />
+            </CVATTooltip>
+            <CVATTooltip title='cooltowarm' placement='topLeft'>
+                <button
+                    onClick={() => canvasInstance.themeControl('cooltowarm')}
+                    type='button'
+                    style={{ width: 18, height: 18, marginLeft: 2,
+                             background: 'linear-gradient(to right, rgb(0, 159, 255), rgb(236, 47, 75))',
+                             borderRadius: 18, border: '1px solid #ffffff' }}
+                />
+            </CVATTooltip>
+            <CVATTooltip title='blackbody' placement='topLeft'>
+                <button
+                    onClick={() => canvasInstance.themeControl('blackbody')}
+                    type='button'
+                    style={{ width: 18, height: 18, marginLeft: 2,
+                        background: 'linear-gradient(to right, rgb(176 61 30), rgb(255 248 81))',
+                        borderRadius: 18, border: '1px solid #ffffff' }}
+                />
+            </CVATTooltip>
+            <CVATTooltip title='grayscale' placement='topLeft'>
+                <button
+                    onClick={() => canvasInstance.themeControl('grayscale')}
+                    type='button'
+                    style={{ width: 18, height: 18, marginLeft: 2,
+                        background: 'linear-gradient(to right, rgb(68 68 68), rgb(177 177 177))',
+                        borderRadius: 18, border: '1px solid #ffffff' }}
+                />
+            </CVATTooltip>
+        </span>
+    )
+
     const ControlGroup = (): ReactElement => (
         <span className='cvat-canvas3d-perspective-directions'>
             <CVATTooltip title='Alt+U' placement='topLeft'>
@@ -526,6 +575,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
                 <div className='cvat-canvas3d-perspective' id='cvat-canvas3d-perspective'>
                     <div className='cvat-canvas-container cvat-canvas-container-overflow' ref={perspectiveView} />
                     <ArrowGroup />
+                    <ThemeGroup />
                     <ControlGroup />
                 </div>
             </ResizableBox>
