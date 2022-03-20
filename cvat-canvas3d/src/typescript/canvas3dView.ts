@@ -1140,8 +1140,8 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
     // 渲染点云数据
     private addScene(points: any): void {
         // [CY] Camera Helper
-        const helperTop = new THREE.CameraHelper( this.views.front.camera );
-        this.views.perspective.scene.add(helperTop)
+        // const helperTop = new THREE.CameraHelper( this.views.front.camera );
+        // this.views.perspective.scene.add(helperTop)
 
         // const helperSide = new THREE.CameraHelper( this.views.side.camera );
         // this.views.perspective.scene.add(helperSide)
@@ -1955,7 +1955,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
 
                 // 改为绝对位置坐标
                 const topDistanceToCenter = coordTop.distanceTo(objectTopView.position);
-                const topCamPosition = getPointInBetweenByLen(coordTop, objectTopView.position, topDistanceToCenter - objectTopView.scale.z / 2)
+                const topCamPosition = getPointInBetweenByLen(coordTop, objectTopView.position, topDistanceToCenter - objectTopView.scale.z / 2 - 0.5)
                 topCamera.position.set(topCamPosition.x, topCamPosition.y, topCamPosition.z)
                 topCamera.lookAt(objectTopView.position.x, objectTopView.position.y, objectTopView.position.z);
                 topCamera.setRotationFromEuler(objectTopView.rotation);
@@ -1974,7 +1974,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                     .getObjectByName('camRefRot')
                     .getWorldQuaternion(new THREE.Quaternion());
                 const frontDistanceToCenter = coordFront.distanceTo(objectFrontView.position);
-                const frontCamPosition = getPointInBetweenByLen(coordFront, objectFrontView.position, frontDistanceToCenter - objectFrontView.scale.x / 2)
+                const frontCamPosition = getPointInBetweenByLen(coordFront, objectFrontView.position, frontDistanceToCenter - objectFrontView.scale.x / 2 - 0.5)
                 frontCamera.position.set(frontCamPosition.x, frontCamPosition.y, frontCamPosition.z)
                 // frontCamera.lookAt(objectFrontView.position.x, objectFrontView.position.y, objectFrontView.position.z);
                 // frontCamera.position.setFromSpherical(sphericalfront);
@@ -1985,7 +1985,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 frontCamera.bottom = expCameraHeightTop / -2;
                 frontCamera.right = expCameraWidthTop / 2;
                 frontCamera.left = expCameraWidthTop / -2;
-                frontCamera.near = expCameraClipTop / -1;
+                frontCamera.near = expCameraClipTop / -2;
                 frontCamera.far = expCameraClipTop / 1;
             }
         }

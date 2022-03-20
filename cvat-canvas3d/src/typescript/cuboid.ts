@@ -35,7 +35,7 @@ export class CuboidModel {
             0.1,  // 头长度
             0.2   // 头宽度
         );
-        this.perspective.add(arrow);
+        this.perspective.add(arrow.clone());
 
         // 创建外框线的3D框（合起来就是绿色带白色边框的cube）
         const geo = new THREE.EdgesGeometry(this.perspective.geometry);
@@ -57,7 +57,7 @@ export class CuboidModel {
         this.top = new THREE.Mesh(geometry, material);
         this.side = new THREE.Mesh(geometry, material);
         this.front = new THREE.Mesh(geometry, material);
-        this.side.add(arrow);
+        this.side.add(arrow.clone());
 
         const camRotateHelper = new THREE.Object3D();
         camRotateHelper.translateX(-2);
