@@ -63,6 +63,10 @@ class Canvas3dImpl implements Canvas3d {
         this.view.themeControl(name);
     }
 
+    public transformControl(mode: string): void {
+        this.view.transformControl(mode);
+    }
+
     public render(): void {
         this.view.render();
     }

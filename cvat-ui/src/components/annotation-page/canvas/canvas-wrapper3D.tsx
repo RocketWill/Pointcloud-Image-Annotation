@@ -8,7 +8,10 @@ import React, {
 import Layout from 'antd/lib/layout/layout';
 import {
     ArrowDownOutlined, ArrowLeftOutlined, ArrowRightOutlined, ArrowUpOutlined,
+    VerticalAlignTopOutlined, RotateRightOutlined, ExpandAltOutlined,
+    AimOutlined
 } from '@ant-design/icons';
+import { Button, Radio, Space } from 'antd';
 import { ResizableBox } from 'react-resizable';
 import {
     ColorBy, ContextMenuType, ObjectType, Workspace,
@@ -461,7 +464,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
                 <button
                     onClick={() => canvasInstance.themeControl('rainbow')}
                     type='button'
-                    style={{ width: 18, height: 18, marginLeft: 2,
+                    style={{ width: 18, height: 18, marginLeft: 3,
                              background: 'linear-gradient(to right, rgb(30, 150, 0), rgb(255, 242, 0), rgb(255, 0, 0))',
                              borderRadius: 18, border: '1px solid #ffffff' }}
                 />
@@ -470,7 +473,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
                 <button
                     onClick={() => canvasInstance.themeControl('cooltowarm')}
                     type='button'
-                    style={{ width: 18, height: 18, marginLeft: 2,
+                    style={{ width: 18, height: 18, marginLeft: 3,
                              background: 'linear-gradient(to right, rgb(0, 159, 255), rgb(236, 47, 75))',
                              borderRadius: 18, border: '1px solid #ffffff' }}
                 />
@@ -479,7 +482,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
                 <button
                     onClick={() => canvasInstance.themeControl('blackbody')}
                     type='button'
-                    style={{ width: 18, height: 18, marginLeft: 2,
+                    style={{ width: 18, height: 18, marginLeft: 3,
                         background: 'linear-gradient(to right, rgb(176 61 30), rgb(255 248 81))',
                         borderRadius: 18, border: '1px solid #ffffff' }}
                 />
@@ -488,11 +491,61 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
                 <button
                     onClick={() => canvasInstance.themeControl('grayscale')}
                     type='button'
-                    style={{ width: 18, height: 18, marginLeft: 2,
+                    style={{ width: 18, height: 18, marginLeft: 3,
                         background: 'linear-gradient(to right, rgb(68 68 68), rgb(177 177 177))',
                         borderRadius: 18, border: '1px solid #ffffff' }}
                 />
             </CVATTooltip>
+            <CVATTooltip title='mindflow' placement='topLeft'>
+                <button
+                    onClick={() => canvasInstance.themeControl('mindflow')}
+                    type='button'
+                    style={{ width: 18, height: 18, marginLeft: 3,
+                        background: 'linear-gradient(to right, rgb(249 18 224), rgb(7 28 255), rgb(64 254 19))',
+                        borderRadius: 18, border: '1px solid #ffffff' }}
+                />
+            </CVATTooltip>
+        </span>
+    )
+
+    const TransformControl = (): ReactElement => (
+        <span style={{ position: 'absolute', top: '30%', left: 0, padding: 5 }}>
+            <Radio.Group value='large'>
+                <Space direction="vertical">
+                    <CVATTooltip title='close' placement='topLeft'>
+                        <Button
+                            size='small'
+                            onClick={() => canvasInstance.transformControl('close')}
+                        >
+                            <AimOutlined />
+                        </Button>
+                    </CVATTooltip>
+                    <CVATTooltip title='translate' placement='topLeft'>
+                        <Button
+                            size='small'
+                            onClick={() => canvasInstance.transformControl('translate')}
+                        >
+                            <VerticalAlignTopOutlined />
+                        </Button>
+                    </CVATTooltip>
+                    <CVATTooltip title='rotate' placement='topLeft'>
+                        <Button
+                            size='small'
+                            onClick={() => canvasInstance.transformControl('rotate')}
+                        >
+                            <RotateRightOutlined />
+                        </Button>
+                    </CVATTooltip>
+                    <CVATTooltip title='scale' placement='topLeft'>
+                        <Button
+                            size='small'
+                            onClick={() => canvasInstance.transformControl('scale')}
+                        >
+                            <ExpandAltOutlined />
+                        </Button>
+                    </CVATTooltip>
+                </Space>
+            </Radio.Group>
         </span>
     )
 
@@ -576,6 +629,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
                     <div className='cvat-canvas-container cvat-canvas-container-overflow' ref={perspectiveView} />
                     <ArrowGroup />
                     <ThemeGroup />
+                    <TransformControl />
                     <ControlGroup />
                 </div>
             </ResizableBox>

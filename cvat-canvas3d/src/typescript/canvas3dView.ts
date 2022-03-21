@@ -24,6 +24,7 @@ export interface Canvas3dView {
     render(): void;
     keyControls(keys: KeyboardEvent): void;
     themeControl(name: string): void;
+    transformControl(mode: string): void;
 }
 
 // 相机位置操作
@@ -438,11 +439,11 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         this.views.perspective.camera.up.set(0, 0, 1);
         this.views.perspective.camera.lookAt(10, 0, 0);
         this.views.perspective.camera.name = 'cameraPerspective';
+        // 在 perspective view 新增 transform control 组件
         this.control = new TransformControls(
             this.views.perspective.camera,
             this.views.perspective.renderer.domElement
         );
-
 
         this.views.top.camera = new THREE.OrthographicCamera(
             (-aspectRatio * viewSize) / 2 - 2,
@@ -1441,20 +1442,20 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 viewType.rayCaster.renderer.setFromCamera(viewType.rayCaster.mouseVector, viewType.camera);
                 const originObject = this.views.perspective.scene.getObjectByName(clientID);
                 // 只有在edit模式下才显示transform control，否则从scene移除
-                if (this.model.mode === Mode.IDLE) {
-                    this.control.enabled = false;
-                    this.control.detach();
-                    this.views.perspective.scene.remove(this.control);
-                }
+                // if (this.model.mode === Mode.IDLE) {
+                //     this.control.enabled = false;
+                //     this.control.detach();
+                //     this.views.perspective.scene.remove(this.control);
+                // }
                 if (this.action.scan === view) {
                     if (!(this.action.translation.status || this.action.resize.status || this.action.rotation.status)) {
                         this.initiateActionPerspective(view, viewType);
                     }
                     if (this.action.detected && originObject) {
                         // 显示transform control
-                        this.control.attach(originObject);
-                        this.views.perspective.scene.add(this.control);
-                        this.control.enabled = true;
+                        // this.control.attach(originObject);
+                        // this.views.perspective.scene.add(this.control);
+                        // this.control.enabled = true;
                         if (this.action.translation.status) {
                             this.control.addEventListener('objectChange', (e: any) => {
                                 const object = e.target.object;
@@ -1488,9 +1489,9 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                         this.updateRotationHelperPos();
                     } else {
                         this.resetActions();
-                        this.control.enabled = false;
-                        this.control.detach();
-                        this.views.perspective.scene.remove(this.control);
+                        // this.control.enabled = false;
+                        // this.control.detach();
+                        // this.views.perspective.scene.remove(this.control);
                     }
                 }
                 // 不能加，会导致三视图无法调整
@@ -1501,19 +1502,19 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 //     this.views.perspective.scene.remove(this.control);
                 // }
 
-                window.addEventListener('keydown', (event: any) => {
-                    switch (event.code) {
-                        case 'KeyG':
-                            this.control.setMode('translate')
-                            break
-                        case 'KeyR':
-                            this.control.setMode('rotate')
-                            break
-                        case 'KeyS':
-                            this.control.setMode('scale')
-                            break
-                    }
-                });
+                // window.addEventListener('keydown', (event: any) => {
+                //     switch (event.code) {
+                //         case 'KeyG':
+                //             this.control.setMode('translate')
+                //             break
+                //         case 'KeyR':
+                //             this.control.setMode('rotate')
+                //             break
+                //         case 'KeyS':
+                //             this.control.setMode('scale')
+                //             break
+                //     }
+                // });
             }
         });
         if (this.action.detachCam && this.action.detachCamRef === this.model.data.activeElement.clientID) {
@@ -2330,10 +2331,42 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
     }
 
     public themeControl(name: string): void {
-        // const { controls } = this.views.perspective;
-        if (['default', 'rainbow', 'cooltowarm', 'blackbody', 'grayscale'].includes(name)) {
+        if (['default', 'rainbow', 'cooltowarm', 'blackbody', 'grayscale', 'mindflow'].includes(name)) {
             this.colormapName = name;
             this.setupObjects();
+        }
+    }
+
+    public transformControl(mode: string): void {
+        const { control: transformControl } = this;
+        // first remove transforrm control
+        transformControl.detach();
+        this.views.perspective.scene.remove(transformControl);
+        const { clientID } = this.model.data.activeElement;
+        if (clientID === 'null') return;
+        const originObject = this.views.perspective.scene.getObjectByName(clientID);
+        if (!originObject) return;
+        if (!transformControl) return;
+        transformControl.attach(originObject);
+        this.views.perspective.scene.add(transformControl);
+        transformControl.enabled = true;
+        switch (mode) {
+            case 'translate':
+                transformControl.setMode('translate');
+                break;
+            case 'rotate':
+                transformControl.setMode('rotate');
+                break;
+            case 'scale':
+                transformControl.setMode('scale');
+                break;
+            case 'close':
+                transformControl.enabled = false;
+                transformControl.detach();
+                this.views.perspective.scene.remove(transformControl);
+                break;
+            default:
+                break;
         }
     }
 
