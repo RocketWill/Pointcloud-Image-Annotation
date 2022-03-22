@@ -315,6 +315,11 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 this.views.perspective.scene.children[0].children,  // 被选中的目标
                 false,
             );
+
+            if (this.views.perspective.scene.children.length !== 0) {
+                this.renderRayCasterClick(this.views.perspective);
+            }
+
             // 点击目标出现transform control后，不做任何操作，接着点击空白处，触发completeActions，并且隐藏控制器
             if (intersects.length === 0) {
                 this.completeActions()
@@ -374,6 +379,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 }
                 return;
             }
+            // draw new cube
             this.controller.drawData.enabled = false;
             this.mode = Mode.IDLE;
             const { x, y, z } = this.cube.perspective.position;
@@ -1340,6 +1346,54 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             view.camera.updateProjectionMatrix();
         }
     }
+    private renderRayCasterClick = (viewType: RenderView): void => {
+        viewType.rayCaster.renderer.setFromCamera(viewType.rayCaster.mouseVector, viewType.camera);
+        if (true) {
+            const { children } = this.views.perspective.scene.children[0];
+            const { renderer } = this.views.perspective.rayCaster;
+            const intersects = renderer.intersectObjects(children, false);
+            // 获取射中的目标
+            if (intersects.length !== 0) {
+                const clientID = intersects[0].object.name;
+                if (clientID === undefined || clientID === '' || this.model.data.focusData.clientID === clientID) {
+                    return;
+                }
+                this.resetActions()
+                if (!this.action.selectable) return;
+                this.resetColor();
+                this.model.data.focusData.clientID = clientID;
+                this.dispatchEvent(
+                    new CustomEvent('canvas.selected', {
+                        bubbles: false,
+                        cancelable: true,
+                        detail: {
+                            clientID: Number(intersects[0].object.name),
+                        },
+                    }),
+                );
+            } else if (this.model.data.focusData.clientID !== null) {
+                this.resetColor();
+                this.model.data.focusData.clientID = null;
+            }
+        }
+    }
+
+    private renderRayCasterHover = (viewType: RenderView): void => {
+        viewType.rayCaster.renderer.setFromCamera(viewType.rayCaster.mouseVector, viewType.camera);
+        if (this.mode === Mode.DRAW) {
+            const intersects = this.views.perspective.rayCaster.renderer.intersectObjects(
+                this.views.perspective.scene.children,
+                false,
+            );
+            if (intersects.length > 0) {
+                this.views.perspective.scene.children[0].add(this.cube.perspective);
+                const newPoints = intersects[0].point;
+                this.cube.perspective.position.copy(newPoints);
+                this.views.perspective.renderer.domElement.style.cursor = 'default';
+            }
+        }
+    }
+
     // 在perspective选中目标
     private renderRayCaster = (viewType: RenderView): void => {
         viewType.rayCaster.renderer.setFromCamera(viewType.rayCaster.mouseVector, viewType.camera);
@@ -1408,8 +1462,10 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 viewType.camera.updateProjectionMatrix();
             }
             viewType.renderer.render(viewType.scene, viewType.camera);
+            // [CY] hover选中目标
             if (view === ViewType.PERSPECTIVE && viewType.scene.children.length !== 0) {
-                this.renderRayCaster(viewType);
+                // this.renderRayCaster(viewType);
+                this.renderRayCasterHover(viewType);
             }
             const { clientID } = this.model.data.activeElement;
             if (clientID !== 'null' && view !== ViewType.PERSPECTIVE) {
@@ -1422,7 +1478,6 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                     // Action Operations
                     if (this.action.detected) {
                         if (this.action.translation.status) {
-                            console.log("🤡 ~ translation")
                             this.renderTranslateAction(view as ViewType, viewType);
                         } else if (this.action.resize.status) {
                             this.renderResizeAction(view as ViewType, viewType);
@@ -2117,7 +2172,6 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
     }
 
     private renderRotateAction(view: ViewType, viewType: any): void {
-        console.log("🤡 ~ file: canvas3dView.ts ~ line 2029 ~ Canvas3dViewImpl ~ renderRotateAction ~ view", view)
         const rotationSpeed = Math.PI / CONST.ROTATION_SPEED;
         const { renderer } = viewType;
         const canvas = renderer.domElement;
@@ -2188,38 +2242,39 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
     // [CY]
     private initiateActionPerspective(view: string, viewType: any): void {
         const intersectsBox = viewType.rayCaster.renderer.intersectObjects([this.model.data.selected[view]], false);
-        if (intersectsBox.length !== 0) {
-            if (this.control.mode === 'translate') {
-                this.action.translation.helper = viewType.rayCaster.mouseVector.clone();
-                this.action.translation.inverseMatrix = intersectsBox[0].object.parent.matrixWorld.invert();
-                this.action.translation.offset = new THREE.Vector3(0, 0, 0);
-                this.action.detected = true;
-                this.action.translation.status = true;
-                this.views.top.controls.enabled = false;
-                this.views.side.controls.enabled = false;
-                this.views.front.controls.enabled = false;
-            }
-            else if (this.control.mode === 'rotate') {
-                this.action.rotation.helper = viewType.rayCaster.mouseVector.clone();
-                this.action.rotation.status = true;
-                this.action.detected = true;
-                this.views.top.controls.enabled = false;
-                this.views.side.controls.enabled = false;
-                this.views.front.controls.enabled = false;
-            }
-            else if (this.control.mode === 'scale') {
-                this.action.resize.helper = viewType.rayCaster.mouseVector.clone();
-                this.action.resize.status = true;
-                this.action.detected = true;
-                this.views.top.controls.enabled = false;
-                this.views.side.controls.enabled = false;
-                this.views.front.controls.enabled = false;
-                const { x, y, z } = this.model.data.selected[view].scale;
-                this.action.resize.initScales = { x, y, z };
-                this.action.resize.memScales = { x, y, z };
-                this.action.resize.frontBool = false;
-                this.action.resize.resizeVector = new THREE.Vector3(0, 0, 0);
-            }
+        const { clientID } = this.model.data.activeElement;
+        if (clientID === 'null') return;
+        const object = this.views.perspective.scene.getObjectByName(clientID);
+        if (this.control.mode === 'translate') {
+            this.action.translation.helper = viewType.rayCaster.mouseVector.clone();
+            this.action.translation.inverseMatrix = object.parent.matrixWorld.invert();
+            this.action.translation.offset = new THREE.Vector3(0, 0, 0);
+            this.action.detected = true;
+            this.action.translation.status = true;
+            this.views.top.controls.enabled = false;
+            this.views.side.controls.enabled = false;
+            this.views.front.controls.enabled = false;
+        }
+        else if (this.control.mode === 'rotate') {
+            this.action.rotation.helper = viewType.rayCaster.mouseVector.clone();
+            this.action.rotation.status = true;
+            this.action.detected = true;
+            this.views.top.controls.enabled = false;
+            this.views.side.controls.enabled = false;
+            this.views.front.controls.enabled = false;
+        }
+        else if (this.control.mode === 'scale') {
+            this.action.resize.helper = viewType.rayCaster.mouseVector.clone();
+            this.action.resize.status = true;
+            this.action.detected = true;
+            this.views.top.controls.enabled = false;
+            this.views.side.controls.enabled = false;
+            this.views.front.controls.enabled = false;
+            const { x, y, z } = this.model.data.selected[view].scale;
+            this.action.resize.initScales = { x, y, z };
+            this.action.resize.memScales = { x, y, z };
+            this.action.resize.frontBool = false;
+            this.action.resize.resizeVector = new THREE.Vector3(0, 0, 0);
         }
     }
 
