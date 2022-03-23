@@ -611,7 +611,6 @@
             serverProxy.frames
                 .getImageContext(jobID, frame)
                 .then((result) => {
-                    console.log("🤡 ~ file: frames.js ~ line 614 ~ .then ~ result", result)
                     if (isNode) {
                         // eslint-disable-next-line no-undef
                         // resolve(global.Buffer.from(result, 'binary').toString('base64'));
@@ -624,7 +623,6 @@
                         // };
                         // reader.readAsDataURL(result);
                         // 现在是base64字符串 list
-                        console.log("🤡 ~ file: frames.js ~ line 627 ~ .then ~ result", result)
                         resolve(result);
                     }
                 })
@@ -638,7 +636,7 @@
         if (frameDataCache[taskID].frameBuffer.isContextImageAvailable(frame)) {
             return frameDataCache[taskID].frameBuffer.getContextImage(frame);
         }
-        const response = getImageContext(jobID, frame);
+        const response = getImageContext(jobID, frame);  // 是对的
         frameDataCache[taskID].frameBuffer.addContextImage(frame, response);
         return frameDataCache[taskID].frameBuffer.getContextImage(frame);
     }

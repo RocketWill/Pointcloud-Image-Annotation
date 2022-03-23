@@ -5,6 +5,7 @@
 import errno
 import io
 import os
+import ntpath
 import os.path as osp
 import pytz
 import shutil
@@ -524,7 +525,7 @@ class DataChunkGetter:
                 if not success:
                     raise Exception('Failed to encode image to ".jpeg" format')
                 jpg_as_text = base64.b64encode(result)
-                images.append(jpg_as_text.decode())
+                images.append({'name': ntpath.basename(path), 'data': jpg_as_text.decode()})
                 # return HttpResponse(io.BytesIO(result.tobytes()), content_type='image/jpeg')
 
             return JsonResponse({'result': images}, content_type='application/json')
