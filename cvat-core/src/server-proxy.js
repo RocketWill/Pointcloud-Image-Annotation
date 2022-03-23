@@ -1129,13 +1129,14 @@
                             number: frame,
                         },
                         proxy: config.proxy,
-                        responseType: 'blob',
+                        // 取消blob，返回的是json
+                        // responseType: 'blob',
                     });
                 } catch (errorData) {
                     throw generateError(errorData);
                 }
-
-                return response.data;
+                // [CY]暂定result
+                return response.data.result;
             }
 
             async function getData(tid, jid, chunk) {

@@ -12,6 +12,7 @@ import traceback
 from datetime import datetime
 from distutils.util import strtobool
 from tempfile import mkstemp, NamedTemporaryFile
+import base64
 
 import cv2
 from django.db.models.query import Prefetch
@@ -20,7 +21,7 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import IntegrityError
-from django.http import HttpResponse, HttpResponseNotFound, HttpResponseBadRequest
+from django.http import HttpResponse, JsonResponse, HttpResponseNotFound, HttpResponseBadRequest
 from django.utils import timezone
 
 from drf_spectacular.types import OpenApiTypes
@@ -514,13 +515,19 @@ class DataChunkGetter:
                     f'[{start}, {stop}] range')
 
             image = Image.objects.get(data_id=db_data.id, frame=self.number)
-            for i in image.related_files.all():
+            images = []
+            for idx, i in enumerate(image.related_files.all()):
                 path = os.path.realpath(str(i.path))
                 image = cv2.imread(path)
+                # cv2.imwrite("/workspace/cvat-develop/{}.jpg".format(idx), image)
                 success, result = cv2.imencode('.JPEG', image)
                 if not success:
                     raise Exception('Failed to encode image to ".jpeg" format')
-                return HttpResponse(io.BytesIO(result.tobytes()), content_type='image/jpeg')
+                jpg_as_text = base64.b64encode(result)
+                images.append(jpg_as_text.decode())
+                # return HttpResponse(io.BytesIO(result.tobytes()), content_type='image/jpeg')
+
+            return JsonResponse({'result': images}, content_type='application/json')
             return Response(data='No context image related to the frame',
                 status=status.HTTP_404_NOT_FOUND)
         else:
@@ -1136,7 +1143,6 @@ class JobViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
 
         data_getter = DataChunkGetter(data_type, data_num, data_quality,
             db_job.segment.task.dimension)
-
         return data_getter(request, db_job.segment.start_frame,
             db_job.segment.stop_frame, db_job.segment.task.data)
 

@@ -611,15 +611,21 @@
             serverProxy.frames
                 .getImageContext(jobID, frame)
                 .then((result) => {
+                    console.log("🤡 ~ file: frames.js ~ line 614 ~ .then ~ result", result)
                     if (isNode) {
                         // eslint-disable-next-line no-undef
-                        resolve(global.Buffer.from(result, 'binary').toString('base64'));
+                        // resolve(global.Buffer.from(result, 'binary').toString('base64'));
+                        resolve(result);
                     } else if (isBrowser) {
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                            resolve(reader.result);
-                        };
-                        reader.readAsDataURL(result);
+                        // 走这边
+                        // const reader = new FileReader();
+                        // reader.onload = () => {
+                        //     resolve(reader.result);
+                        // };
+                        // reader.readAsDataURL(result);
+                        // 现在是base64字符串 list
+                        console.log("🤡 ~ file: frames.js ~ line 627 ~ .then ~ result", result)
+                        resolve(result);
                     }
                 })
                 .catch((error) => {
