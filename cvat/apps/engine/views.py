@@ -525,7 +525,7 @@ class DataChunkGetter:
                 if not success:
                     raise Exception('Failed to encode image to ".jpeg" format')
                 jpg_as_text = base64.b64encode(result)
-                images.append({'name': ntpath.basename(path), 'data': jpg_as_text.decode()})
+                images.append({'name': ntpath.basename(path), 'size': [image.shape[0], image.shape[1]], 'data': jpg_as_text.decode()})
                 # return HttpResponse(io.BytesIO(result.tobytes()), content_type='image/jpeg')
 
             return JsonResponse({'result': images}, content_type='application/json')
