@@ -38,8 +38,9 @@ function ContextImage(): JSX.Element | null {
     );
     const [requested, setRequested] = useState(false);
     const [loading, setLoading] = useState(true);
+    const [svgContent, setSvgContent] = useState({} as any);
     const canvasRef = useRef([]);
-    const imageRef = useRef([]);
+    const svgRef = useRef([]);
 
     useEffect(() => {
         if (requested) {
@@ -64,6 +65,19 @@ function ContextImage(): JSX.Element | null {
     }, [contextImageData]);
 
     useEffect(() => {
+        setTimeout(() => {
+            setSvgContent(
+                {
+                    0: [<rect width={100} height={100} style={{fill: 'rgb(90,12,255)'}} />],
+                    1: [<rect width={100} height={100} style={{fill: 'rgb(123,50,25)'}} />],
+                    2: [<rect width={100} height={100} style={{fill: 'rgb(255,0,255)'}} />],
+                    3: [<rect width={100} height={100} style={{fill: 'rgb(0,255,255)'}} />]
+                }
+            )
+        }, 8000)
+    }, [])
+
+    useEffect(() => {
         if (hasRelatedContext && !contextImageHidden && !requested) {
             dispatch(getContextImageAsync());
             setRequested(true);
@@ -77,16 +91,28 @@ function ContextImage(): JSX.Element | null {
     return (
         <div>
             {loading ? <Spin size='small' style={{ padding: 10 }} /> : null}
-            <div id='root-container' style={{ width: '100%' }}>
-            </div>
             {contextImageData && contextImageData.map((imageData: any, index: number) =>
                     <>
-                        <canvas
-                            ref={el => canvasRef.current[index] = el}
-                            id={imageData['name']} width={250}
-                            key={`canvas-${imageData['name']}`}
-                        />
-                        <div style={{ background: 'rgba(0, 0, 0, 0.05)', marginTop: -5, marginBottom: 10 }}>
+                        <div style={{ position: 'relative' }}>
+                            <canvas
+                                ref={el => canvasRef.current[index] = el}
+                                id={imageData['name']}
+                                width={250}
+                                key={`canvas-${imageData['name']}`}
+                            />
+                            <svg
+                                ref={el => svgRef.current[index] = el}
+                                width={250}
+                                key={`svg-${imageData['name']}`}
+                                style={{ position: 'absolute', left: 0, top: 0, zIndex: 2}}
+                            >
+                                {svgContent ? svgContent[index] : null}
+                            </svg>
+                        </div>
+                        <div
+                            style={{ background: 'rgba(0, 0, 0, 0.05)', marginTop: -5, marginBottom: 10 }}
+                            key={`desp-${imageData['name']}`}
+                        >
                             <Text style={{ fontSize: '0.8em', padding: 5 }}>
                                 {imageData['name']}
                             </Text>
