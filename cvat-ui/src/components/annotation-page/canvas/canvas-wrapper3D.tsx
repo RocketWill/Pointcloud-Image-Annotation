@@ -624,10 +624,18 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
 
     return (
         <Row style={{ width: '100%', height: '100%' }}>
-            <Col span={4} style={{ height: '100%', overflow: 'scroll' }}>
-                <ContextImage />
+            <Col span={12} style={{ height: '100%', overflow: 'scroll' }}>
+                {/* <ResizableBox
+                    className='cvat-resizable'
+                    height={viewSize.fullHeight}
+                    width={250}
+                    axis='x'
+                    handle={<span className='cvat-resizable-handle-vertical-side' />}
+                > */}
+                    <ContextImage />
+                {/* </ResizableBox> */}
             </Col>
-            <Col span={20} >
+            <Col span={12} >
                 <Layout.Content className='cvat-canvas3d-fullsize' id='canvas3d-container'>
                     <ResizableBox
                         className='cvat-resizable'

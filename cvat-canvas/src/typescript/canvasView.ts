@@ -1146,6 +1146,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
         window.document.addEventListener('keydown', this.onShiftKeyDown);
         window.document.addEventListener('keyup', this.onShiftKeyUp);
 
+        // 滚动缩放
         this.content.addEventListener('wheel', (event): void => {
             if (event.ctrlKey) return;
             const { offset } = this.controller.geometry;
