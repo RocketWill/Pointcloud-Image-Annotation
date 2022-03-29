@@ -55,6 +55,7 @@ import {
 
 export interface CanvasView {
     html(): HTMLDivElement;
+    readonly gridSVGElement: SVGSVGElement;
 }
 
 export class CanvasViewImpl implements CanvasView, Listener {
@@ -2489,5 +2490,9 @@ export class CanvasViewImpl implements CanvasView, Listener {
         };
 
         return shape;
+    }
+
+    public get gridSVGElement(): SVGSVGElement {
+        return this.grid;
     }
 }

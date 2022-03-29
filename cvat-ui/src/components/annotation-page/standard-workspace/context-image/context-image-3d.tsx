@@ -15,7 +15,10 @@ import { CombinedState } from 'reducers/interfaces';
 import { hideShowContextImage, getContextImageAsync } from 'actions/annotation-actions';
 import { Canvas, CanvasMode } from 'cvat-canvas-wrapper';
 import CVATTooltip from 'components/common/cvat-tooltip';
+import contextImageCanvas from './context-image-canvas';
+import ContextImageCanvas from './context-image-canvas';
 
+const NUM_CANVAS_INSTANCES = 8;
 const Buffer = require('buffer').Buffer;
 global.Buffer = Buffer; // very important
 const jpeg = require('jpeg-js');
@@ -52,138 +55,12 @@ function ContextImage(): JSX.Element | null {
     const [requested, setRequested] = useState(false);
     const [loading, setLoading] = useState(true);
     const [svgContent, setSvgContent] = useState({} as any);
-    const canvasRef = useRef([]);
-    const svgRef = useRef([]);
 
     useEffect(() => {
         if (requested) {
             setRequested(false);
         }
     }, [frame, contextImageData]);
-
-    useEffect(() => {
-        setLoading(true)
-        if (contextImageData && canvasRef.current.length === contextImageData.length) {
-            for (let i = 0; i < canvasRef.current.length; i++) {
-                const ctx = canvasRef.current[i].getContext('2d');
-                const img = new Image(contextImageData[i]['size'][1], contextImageData[i]['size'][0]);
-                const base64String = 'data:image/jpeg;base64,' + contextImageData[i]['data'];
-                img.src = base64String;
-                img.onload = () => {
-                    ctx.drawImage(img, 0, 0, canvasRef.current[i].width, canvasRef.current[i].height);
-                }
-            }
-            setLoading(false);
-        }
-        if (contextImageData) {
-            canvasInstance.configure({
-                smoothImage: true,
-                autoborders: false,
-                undefinedAttrValue: '__undefined__',
-                displayAllText: false,
-                forceDisableEditing: false,
-                intelligentPolygonCrop: false,
-                showProjections: false,
-                creationOpacity: 0.5,
-                textFontSize: 12,
-                textPosition: 'auto',
-                textContent: undefined,
-            });
-            const gridElement = window.document.getElementById('cvat_canvas_grid');
-            if (gridElement) {
-                gridElement.style.display = 'none';
-            }
-            const frameData = { ...state.annotation.player.frame };
-            const jpegData = Buffer.from(contextImageData[0]['data'], 'base64');
-            const rawImageData = jpeg.decode(jpegData);
-            const clampedArray = new Uint8ClampedArray(rawImageData.data.length);
-            // manually fill Uint8ClampedArray, cause Uint8ClampedArray.from function is not available in react-native
-            for (let i = 0; i < rawImageData.data.length; i++) {
-                clampedArray[i] = rawImageData.data[i];
-            }
-
-            const img = new Image(contextImageData[0]['size'][1], contextImageData[0]['size'][0]);
-            const base64String = 'data:image/jpeg;base64,' + contextImageData[0]['data'];
-            img.src = base64String;
-            img.onload = () => {
-                frameData['data'] = async () => (
-                    {
-                        renderWidth: contextImageData[0]['size'][1],
-                        renderHeight: contextImageData[0]['size'][0],
-                        imageData: await createImageBitmap(img)
-                        // imageData: await new ImageData(clampedArray, contextImageData[0]['size'][1], contextImageData[0]['size'][0])
-                    }
-                )
-                frameData['width'] = contextImageData[0]['size'][1];
-                frameData['height'] = contextImageData[0]['size'][0];
-                // const loadingAnimation = window.document.getElementById('cvat_canvas_loading_animation');
-                // loadingAnimation.classList.add('cvat_canvas_hidden');
-                if (frameData !== null && canvasInstance) {
-                    canvasInstance.setup(
-                        frameData,
-                        [],
-                        0,
-                    );
-                    canvasInstance.fit();
-                }
-            }
-
-            // window.createImageBitmap(img, 0, 0, contextImageData[0]['size'][1], contextImageData[0]['size'][0])
-            //     .then(res => {
-            //     console.log("🤡 ~ file: context-image-3d.tsx ~ line 87 ~ useEffect ~ res", res)
-            //         // const testImage = {
-            //         //     renderWidth: contextImageData[0]['size'][1],
-            //         //     renderHeight: contextImageData[0]['size'][0],
-            //         //     imageData: res
-            //         // }
-            //         // frameData['data'] = () => new Promise((resolve, reject) => resolve(testImage))
-            //         // const loadingAnimation = window.document.getElementById('cvat_canvas_loading_animation');
-            //         // loadingAnimation.classList.add('cvat_canvas_hidden');
-            //         // if (frameData !== null && canvasInstance) {
-            //         //     canvasInstance.setup(
-            //         //         frameData,
-            //         //         [],
-            //         //         200,
-            //         //     );
-            //         // }
-            //     })
-            // const testImage = {
-            //     renderWidth: contextImageData[0]['size'][1],
-            //     renderHeight: contextImageData[0]['size'][0],
-            //     imageData: window.createImageBitmap(img)
-            //     // imageData: img
-            // }
-            // console.log("🤡 ~ file: context-image-3d.tsx ~ line 89 ~ useEffect ~ window.createImageBitmap(img)", window.createImageBitmap(img))
-            // frameData['data'] = () => new Promise((resolve, reject) => resolve(testImage))
-            // const loadingAnimation = window.document.getElementById('cvat_canvas_loading_animation');
-            // loadingAnimation.classList.add('cvat_canvas_hidden');
-            // if (frameData !== null && canvasInstance) {
-            //     canvasInstance.setup(
-            //         frameData,
-            //         [],
-            //         200,
-            //     );
-            // }
-        }
-
-
-    }, [contextImageData]);
-
-    useEffect(() => {
-        const [wrapper] = window.document.getElementsByClassName('canvas-test');
-        wrapper.appendChild(canvasInstance.html());
-
-        // setTimeout(() => {
-        //     setSvgContent(
-        //         {
-        //             0: [<rect width={100} height={100} style={{ fill: 'rgb(90,12,255)' }} />],
-        //             1: [<rect width={100} height={100} style={{ fill: 'rgb(123,50,25)' }} />],
-        //             2: [<rect width={100} height={100} style={{ fill: 'rgb(255,0,255)' }} />],
-        //             3: [<rect width={100} height={100} style={{ fill: 'rgb(0,255,255)' }} />]
-        //         }
-        //     )
-        // }, 8000)
-    }, [])
 
     useEffect(() => {
         if (hasRelatedContext && !contextImageHidden && !requested) {
@@ -199,15 +76,11 @@ function ContextImage(): JSX.Element | null {
     return (
         <div>
             {loading ? <Spin size='small' style={{ padding: 10 }} /> : null}
-            <div
-                className='canvas-test'
-                style={{
-                    overflow: 'hidden',
-                    width: '100%',
-                    height: 200,
-                }}
-            />
             {contextImageData && contextImageData.map((imageData: any, index: number) =>
+                <ContextImageCanvas imageData={imageData} />
+            )
+            }
+            {/* {contextImageData && contextImageData.map((imageData: any, index: number) =>
                 <>
                     <div style={{ position: 'relative' }}>
                         <canvas
@@ -235,7 +108,7 @@ function ContextImage(): JSX.Element | null {
                     </div>
                 </>
             )
-            }
+            } */}
             {!loading &&
                 <Divider>
                     <Text

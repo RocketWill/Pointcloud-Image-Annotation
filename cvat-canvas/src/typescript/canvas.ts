@@ -56,6 +56,7 @@ interface Canvas {
     destroy(): void;
 
     readonly geometry: Geometry;
+    readonly gridSVGElement: SVGSVGElement;
 }
 
 class CanvasImpl implements Canvas {
@@ -167,6 +168,10 @@ class CanvasImpl implements Canvas {
 
     public destroy(): void {
         this.model.destroy();
+    }
+
+    public get gridSVGElement(): SVGSVGElement {
+        return this.view.gridSVGElement;
     }
 }
 
