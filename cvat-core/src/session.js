@@ -7,7 +7,7 @@
     const loggerStorage = require('./logger-storage');
     const serverProxy = require('./server-proxy');
     const {
-        getFrame, getRanges, getPreview, clear: clearFrames, getContextImage,
+        getFrame, getRanges, getPreview, clear: clearFrames, getContextImage, getCameraParam,
     } = require('./frames');
     const { ArgumentError, DataError } = require('./exceptions');
     const { JobStage, JobState } = require('./enums');
@@ -182,6 +182,14 @@
                         const result = await PluginRegistry.apiWrapper.call(
                             this,
                             prototype.frames.contextImage,
+                            frameId,
+                        );
+                        return result;
+                    },
+                    async cameraParam(frameId) {
+                        const result = await PluginRegistry.apiWrapper.call(
+                            this,
+                            prototype.frames.cameraParam,
                             frameId,
                         );
                         return result;
@@ -988,6 +996,7 @@
                 ranges: Object.getPrototypeOf(this).frames.ranges.bind(this),
                 preview: Object.getPrototypeOf(this).frames.preview.bind(this),
                 contextImage: Object.getPrototypeOf(this).frames.contextImage.bind(this),
+                cameraParam: Object.getPrototypeOf(this).frames.cameraParam.bind(this),
             };
 
             this.logger = {
@@ -1701,6 +1710,7 @@
                 ranges: Object.getPrototypeOf(this).frames.ranges.bind(this),
                 preview: Object.getPrototypeOf(this).frames.preview.bind(this),
                 contextImage: Object.getPrototypeOf(this).frames.contextImage.bind(this),
+                cameraParam: Object.getPrototypeOf(this).frames.cameraParam.bind(this),
             };
 
             this.logger = {
@@ -2083,6 +2093,11 @@
 
     Job.prototype.frames.contextImage.implementation = async function (frameId) {
         const result = await getContextImage(this.taskId, this.id, frameId);
+        return result;
+    };
+
+    Job.prototype.frames.cameraParam.implementation = async function (frameId) {
+        const result = await getCameraParam(this.taskId, this.id, frameId);
         return result;
     };
 

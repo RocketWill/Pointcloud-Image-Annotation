@@ -578,9 +578,13 @@ export interface AnnotationState {
         frameAngles: number[];
         contextImage: {
             fetching: boolean;
-            data: string | null;
+            data: string | string[] | null;
             hidden: boolean;
         };
+        cameraParam: {
+            fetching: boolean;
+            data: any;
+        }
     };
     drawing: {
         activeInteractor?: Model | OpenCVTool;

@@ -197,6 +197,9 @@ export enum AnnotationActionTypes {
     GET_CONTEXT_IMAGE_SUCCESS = 'GET_CONTEXT_IMAGE_SUCCESS',
     GET_CONTEXT_IMAGE_FAILED = 'GET_CONTEXT_IMAGE_FAILED',
     SWITCH_NAVIGATION_BLOCKED = 'SWITCH_NAVIGATION_BLOCKED',
+    GET_CAMERA_PARAM = 'GET_CAMERA_PARAM',
+    GET_CAMERA_PARAM_SUCCESS = 'GET_CAMERA_PARAM_SUCCESS',
+    GET_CAMERA_PARAM_FAILED = 'GET_CAMERA_PARAM_FAILED',
 }
 
 export function saveLogsAsync(): ThunkAction {
@@ -1657,6 +1660,32 @@ export function getContextImageAsync(): ThunkAction {
         } catch (error) {
             dispatch({
                 type: AnnotationActionTypes.GET_CONTEXT_IMAGE_FAILED,
+                payload: { error },
+            });
+        }
+    };
+}
+
+export function getCameraParamAsync(): ThunkAction {
+    return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
+        const state: CombinedState = getStore().getState();
+        const { instance: job } = state.annotation.job;
+        const { number: frameNumber } = state.annotation.player.frame;
+
+        try {
+            dispatch({
+                type: AnnotationActionTypes.GET_CAMERA_PARAM,
+                payload: {},
+            });
+
+            const cameraParamData = await job.frames.cameraParam(frameNumber);
+            dispatch({
+                type: AnnotationActionTypes.GET_CAMERA_PARAM_SUCCESS,
+                payload: { cameraParamData },
+            });
+        } catch (error) {
+            dispatch({
+                type: AnnotationActionTypes.GET_CAMERA_PARAM_FAILED,
                 payload: { error },
             });
         }

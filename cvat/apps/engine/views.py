@@ -457,7 +457,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
 class DataChunkGetter:
     def __init__(self, data_type, data_num, data_quality, task_dim):
-        possible_data_type_values = ('chunk', 'frame', 'preview', 'context_image')
+        possible_data_type_values = ('chunk', 'frame', 'preview', 'context_image', 'camera_param')
         possible_quality_values = ('compressed', 'original')
 
         if not data_type or data_type not in possible_data_type_values:
@@ -531,6 +531,10 @@ class DataChunkGetter:
             return JsonResponse({'result': images}, content_type='application/json')
             return Response(data='No context image related to the frame',
                 status=status.HTTP_404_NOT_FOUND)
+
+        elif self.type == 'camera_param':
+            return JsonResponse({'result': 'get camera param success'}, content_type='application/json')
+
         else:
             return Response(data='unknown data type {}.'.format(self.type),
                 status=status.HTTP_400_BAD_REQUEST)
@@ -723,7 +727,7 @@ class TaskViewSet(UploadMixin, viewsets.ModelViewSet):
     @extend_schema(methods=['GET'], summary='Method returns data for a specific task',
         parameters=[
             OpenApiParameter('type', location=OpenApiParameter.QUERY, required=True,
-                type=OpenApiTypes.STR, enum=['chunk', 'frame', 'preview', 'context_image'],
+                type=OpenApiTypes.STR, enum=['chunk', 'frame', 'preview', 'context_image', 'camera_param'],
                 description='Specifies the type of the requested data'),
             OpenApiParameter('quality', location=OpenApiParameter.QUERY, required=True,
                 type=OpenApiTypes.STR, enum=['compressed', 'original'],
@@ -756,7 +760,6 @@ class TaskViewSet(UploadMixin, viewsets.ModelViewSet):
 
             data_getter = DataChunkGetter(data_type, data_num, data_quality,
                 self._object.dimension)
-
             return data_getter(request, self._object.data.start_frame,
                 self._object.data.stop_frame, self._object.data)
 
@@ -1125,7 +1128,7 @@ class JobViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
         parameters=[
             OpenApiParameter('type', description='Specifies the type of the requested data',
                 location=OpenApiParameter.QUERY, required=True, type=OpenApiTypes.STR,
-                enum=['chunk', 'frame', 'preview', 'context_image']),
+                enum=['chunk', 'frame', 'preview', 'context_image', 'camera_param']),
             OpenApiParameter('quality', location=OpenApiParameter.QUERY, required=True,
                 type=OpenApiTypes.STR, enum=['compressed', 'original'],
                 description="Specifies the quality level of the requested data, doesn't matter for 'preview' type"),
@@ -1144,6 +1147,7 @@ class JobViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
 
         data_getter = DataChunkGetter(data_type, data_num, data_quality,
             db_job.segment.task.dimension)
+        print(data_type)
         return data_getter(request, db_job.segment.start_frame,
             db_job.segment.stop_frame, db_job.segment.task.data)
 

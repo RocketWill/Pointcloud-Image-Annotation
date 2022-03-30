@@ -1198,6 +1198,45 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 },
             };
         }
+        case AnnotationActionTypes.GET_CAMERA_PARAM: {
+            return {
+                ...state,
+                player: {
+                    ...state.player,
+                    cameraParam: {
+                        ...state.player.cameraParam,
+                        fetching: true,
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.GET_CAMERA_PARAM_SUCCESS: {
+            const { cameraParamData } = action.payload;
+
+            return {
+                ...state,
+                player: {
+                    ...state.player,
+                    cameraParam: {
+                        ...state.player.cameraParam,
+                        fetching: false,
+                        data: cameraParamData,
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.GET_CAMERA_PARAM_FAILED: {
+            return {
+                ...state,
+                player: {
+                    ...state.player,
+                    cameraParam: {
+                        ...state.player.cameraParam,
+                        fetching: false,
+                    },
+                },
+            };
+        }
         case AnnotationActionTypes.SWITCH_NAVIGATION_BLOCKED: {
             return {
                 ...state,
