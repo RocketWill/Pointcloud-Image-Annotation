@@ -2,34 +2,60 @@
  * @Date: 2022-03-29 11:49:05
  * @Company: Luokung Technology Corp.
  * @LastEditors: Will Cheng Yong
- * @LastEditTime: 2022-03-29 14:03:06
+ * @LastEditTime: 2022-03-30 20:39:07
  */
 // Copyright (C) 2021 Intel Corporation
 //
 // SPDX-License-Identifier: MIT
 
-import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
-import Typography from 'antd/lib/typography';
+import React, { useEffect, useState } from 'react';
+import { useSelector } from 'react-redux';
 import { CombinedState } from 'reducers/interfaces';
-import { hideShowContextImage, getContextImageAsync } from 'actions/annotation-actions';
-import { Canvas, CanvasMode } from 'cvat-canvas-wrapper';
-import CVATTooltip from 'components/common/cvat-tooltip';
+import { Canvas } from 'cvat-canvas-wrapper';
+import Typography from 'antd/lib/typography';
 
-function ContextImageCanvas({ imageData }): JSX.Element | null {
+const { Paragraph } = Typography;
+
+export interface ImageData {
+    size: number[];
+    name: string;
+    data: string;
+}
+
+// function onCanvasShapeDrawn(event: any) {
+//     console.log("🤡 ~ file: context-image-canvas.tsx ~ line 26 ~ onCanvasShapeDrawn ~ event", event)
+// }
+
+// function onCanvasEditDone(event: any) {
+//     console.log("🤡 ~ file: context-image-canvas.tsx ~ line 30 ~ onCanvasEditDone ~ event", event)
+// }
+
+function ContextImageCanvas({ imageData }: { imageData: ImageData }): JSX.Element | null {
+    const { frame } = useSelector((state: CombinedState) => state.annotation.player);
     const state = useSelector((state: CombinedState) => state);
-    const frameData = { ...state.annotation.player.frame };
+    console.log("🤡 ~ file: context-image-canvas.tsx ~ line 36 ~ ContextImageCanvas ~ state", state)
+    const { drawing: { activeLabelID }, annotations,
+            canvas: { contextMenu: { visible: contextMenuVisibility }, instance } }
+            = useSelector((state: CombinedState) => state.annotation);
+    const canvasInstance = new Canvas();
+    const frameData: any = { ...frame };
+
+    const onCanvasShapeDrawn = (event) => {
+        console.log("🤡 ~ file: context-image-canvas.tsx ~ line 42 ~ onCanvasShapeDrawn ~ event", event)
+    }
+
+    const onCanvasEditDone = (event) => {
+        console.log("🤡 ~ file: context-image-canvas.tsx ~ line 42 ~ onCanvasShapeDrawn ~ event", event)
+    }
 
     useEffect(() => {
-        const canvasInstance = new Canvas();
         const [wrapper] = window.document.getElementsByClassName(`canvas-context-container-${imageData['name']}`);
         wrapper.appendChild(canvasInstance.html());
-        // canvasInstance.grid.setAttribute('display', 'none')
-        // console.log("🤡 ~ file: context-image-canvas.tsx ~ line 26 ~ useEffect ~ wrapper", wrapper)
-        let grid = canvasInstance.gridSVGElement;
+        // 隐藏网格
+        const grid = canvasInstance.gridSVGElement;
         grid.setAttribute('display', 'none');
 
-        const img = new Image(imageData['size'][1], imageData['size'][0]);
+        const img = new Image(imageData['size'][1], imageData['size'][0]);  // Image(width, height)
         const base64String = 'data:image/jpeg;base64,' + imageData['data'];
         img.src = base64String;
         img.onload = () => {
@@ -42,24 +68,42 @@ function ContextImageCanvas({ imageData }): JSX.Element | null {
             )
             frameData['width'] = imageData['size'][1];
             frameData['height'] = imageData['size'][0];
-            if (frameData !== null && canvasInstance) {
+            if (frameData !== null) {
                 canvasInstance.setup(
                     frameData,
                     [],
                     0,
                 );
             }
+            canvasInstance.fitCanvas();
         }
     }, [])
 
+    useEffect(() => {
+        instance?.html().perspective.addEventListener('canvas.selected', onCanvasShapeDrawn);
+        instance?.html().perspective.addEventListener('canvas.edited', onCanvasEditDone);
+
+        return () => {
+            instance?.html().perspective.removeEventListener('canvas.selected', onCanvasShapeDrawn);
+            instance?.html().perspective.removeEventListener('canvas.edited', onCanvasEditDone);
+        };
+    }, []);
+
     return (
-        <div className={`canvas-context-container-${imageData['name']}`}
-            style={{
-                overflow: 'hidden',
-                width: '100%',
-                height: 200,
-            }}
-        />
+        <div style={{ margin: 10, marginRight: 20, padding: 10, background: 'rgba(0, 0, 0, 0.05)', borderRadius: 5 }}>
+            <div className={`canvas-context-container-${imageData['name']}`}
+                style={{
+                    overflow: 'hidden',
+                    width: '100%',
+                    height: 200,
+                }}
+            />
+            {imageData &&
+                <Paragraph style={{ margin: '-14px 5px -7px 10px' }}>
+                    <pre>{imageData.name}</pre>
+                </Paragraph>
+            }
+        </div>
     );
 }
 
