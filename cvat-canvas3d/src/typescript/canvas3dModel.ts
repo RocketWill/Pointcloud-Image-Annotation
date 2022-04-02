@@ -92,6 +92,7 @@ export enum Mode {
     DRAG_CANVAS = 'drag_canvas',
     GROUP = 'group',
     BUSY = 'busy',
+    TRANSFORM = 'transform'
 }
 
 export interface Canvas3dDataModel {

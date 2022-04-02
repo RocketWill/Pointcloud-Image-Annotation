@@ -5,6 +5,7 @@
 import errno
 import io
 import os
+import ntpath
 import os.path as osp
 import pytz
 import shutil
@@ -12,6 +13,7 @@ import traceback
 from datetime import datetime
 from distutils.util import strtobool
 from tempfile import mkstemp, NamedTemporaryFile
+import base64
 
 import cv2
 from django.db.models.query import Prefetch
@@ -20,7 +22,7 @@ from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.models import User
 from django.db import IntegrityError
-from django.http import HttpResponse, HttpResponseNotFound, HttpResponseBadRequest
+from django.http import HttpResponse, JsonResponse, HttpResponseNotFound, HttpResponseBadRequest
 from django.utils import timezone
 
 from drf_spectacular.types import OpenApiTypes
@@ -455,7 +457,7 @@ class ProjectViewSet(viewsets.ModelViewSet):
 
 class DataChunkGetter:
     def __init__(self, data_type, data_num, data_quality, task_dim):
-        possible_data_type_values = ('chunk', 'frame', 'preview', 'context_image')
+        possible_data_type_values = ('chunk', 'frame', 'preview', 'context_image', 'camera_param')
         possible_quality_values = ('compressed', 'original')
 
         if not data_type or data_type not in possible_data_type_values:
@@ -514,15 +516,25 @@ class DataChunkGetter:
                     f'[{start}, {stop}] range')
 
             image = Image.objects.get(data_id=db_data.id, frame=self.number)
-            for i in image.related_files.all():
+            images = []
+            for idx, i in enumerate(image.related_files.all()):
                 path = os.path.realpath(str(i.path))
                 image = cv2.imread(path)
+                # cv2.imwrite("/workspace/cvat-develop/{}.jpg".format(idx), image)
                 success, result = cv2.imencode('.JPEG', image)
                 if not success:
                     raise Exception('Failed to encode image to ".jpeg" format')
-                return HttpResponse(io.BytesIO(result.tobytes()), content_type='image/jpeg')
+                jpg_as_text = base64.b64encode(result)
+                images.append({'name': ntpath.basename(path), 'size': [image.shape[0], image.shape[1]], 'data': jpg_as_text.decode()})
+                # return HttpResponse(io.BytesIO(result.tobytes()), content_type='image/jpeg')
+
+            return JsonResponse({'result': images}, content_type='application/json')
             return Response(data='No context image related to the frame',
                 status=status.HTTP_404_NOT_FOUND)
+
+        elif self.type == 'camera_param':
+            return JsonResponse({'result': 'get camera param success'}, content_type='application/json')
+
         else:
             return Response(data='unknown data type {}.'.format(self.type),
                 status=status.HTTP_400_BAD_REQUEST)
@@ -715,7 +727,7 @@ class TaskViewSet(UploadMixin, viewsets.ModelViewSet):
     @extend_schema(methods=['GET'], summary='Method returns data for a specific task',
         parameters=[
             OpenApiParameter('type', location=OpenApiParameter.QUERY, required=True,
-                type=OpenApiTypes.STR, enum=['chunk', 'frame', 'preview', 'context_image'],
+                type=OpenApiTypes.STR, enum=['chunk', 'frame', 'preview', 'context_image', 'camera_param'],
                 description='Specifies the type of the requested data'),
             OpenApiParameter('quality', location=OpenApiParameter.QUERY, required=True,
                 type=OpenApiTypes.STR, enum=['compressed', 'original'],
@@ -748,7 +760,6 @@ class TaskViewSet(UploadMixin, viewsets.ModelViewSet):
 
             data_getter = DataChunkGetter(data_type, data_num, data_quality,
                 self._object.dimension)
-
             return data_getter(request, self._object.data.start_frame,
                 self._object.data.stop_frame, self._object.data)
 
@@ -1117,7 +1128,7 @@ class JobViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
         parameters=[
             OpenApiParameter('type', description='Specifies the type of the requested data',
                 location=OpenApiParameter.QUERY, required=True, type=OpenApiTypes.STR,
-                enum=['chunk', 'frame', 'preview', 'context_image']),
+                enum=['chunk', 'frame', 'preview', 'context_image', 'camera_param']),
             OpenApiParameter('quality', location=OpenApiParameter.QUERY, required=True,
                 type=OpenApiTypes.STR, enum=['compressed', 'original'],
                 description="Specifies the quality level of the requested data, doesn't matter for 'preview' type"),
@@ -1136,7 +1147,7 @@ class JobViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
 
         data_getter = DataChunkGetter(data_type, data_num, data_quality,
             db_job.segment.task.dimension)
-
+        print(data_type)
         return data_getter(request, db_job.segment.start_frame,
             db_job.segment.stop_frame, db_job.segment.task.data)
 

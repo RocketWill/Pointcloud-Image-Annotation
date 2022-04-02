@@ -28,6 +28,7 @@ interface Canvas3d {
     mode(): Mode;
     render(): void;
     keyControls(keys: KeyboardEvent): void;
+    themeControl(name: string): void;
     draw(drawData: DrawData): void;
     cancel(): void;
     dragCanvas(enable: boolean): void;
@@ -56,6 +57,14 @@ class Canvas3dImpl implements Canvas3d {
 
     public keyControls(keys: KeyboardEvent): void {
         this.view.keyControls(keys);
+    }
+
+    public themeControl(name: string): void {
+        this.view.themeControl(name);
+    }
+
+    public transformControl(mode: string): void {
+        this.view.transformControl(mode);
     }
 
     public render(): void {

@@ -4,6 +4,7 @@
 /share/
 /static/
 /db.sqlite3
+/dump.rdb
 /.env
 /keys
 /logs
@@ -12,6 +13,7 @@
 !/ssh/README.md
 /Mask_RCNN/
 /letsencrypt-webroot/
+/NOTE.md
 
 # Ignore temporary files
 docker-compose.override.yml

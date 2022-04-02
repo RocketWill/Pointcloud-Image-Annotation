@@ -388,6 +388,7 @@
             this._activeFillBufferRequest = false;
             this._taskID = taskID;
             this._jobID = jobID;
+            this._cameraParam = {};
         }
 
         isContextImageAvailable(frame) {
@@ -400,6 +401,14 @@
 
         addContextImage(frame, data) {
             this._contextImage[frame] = data;
+        }
+
+        getCameraParam(frame) {
+            return this._cameraParam[frame] || null;
+        }
+
+        addCameraParam(frame, data) {
+            this._cameraParam[frame] = data;
         }
 
         getFreeBufferSize() {
@@ -613,13 +622,37 @@
                 .then((result) => {
                     if (isNode) {
                         // eslint-disable-next-line no-undef
-                        resolve(global.Buffer.from(result, 'binary').toString('base64'));
+                        // resolve(global.Buffer.from(result, 'binary').toString('base64'));
+                        resolve(result);
                     } else if (isBrowser) {
-                        const reader = new FileReader();
-                        reader.onload = () => {
-                            resolve(reader.result);
-                        };
-                        reader.readAsDataURL(result);
+                        // 走这边
+                        // const reader = new FileReader();
+                        // reader.onload = () => {
+                        //     resolve(reader.result);
+                        // };
+                        // reader.readAsDataURL(result);
+                        // 现在是base64字符串 list
+                        resolve(result);
+                    }
+                })
+                .catch((error) => {
+                    reject(error);
+                });
+        });
+    }
+
+    async function getCameraParam(jobID, frame) {
+        return new Promise((resolve, reject) => {
+            serverProxy.frames
+                .getCameraParam(jobID, frame)
+                .then((result) => {
+                    if (isNode) {
+                        // eslint-disable-next-line no-undef
+                        // resolve(global.Buffer.from(result, 'binary').toString('base64'));
+                        resolve(result);
+                    } else if (isBrowser) {
+                        // here
+                        resolve(result);
                     }
                 })
                 .catch((error) => {
@@ -632,9 +665,20 @@
         if (frameDataCache[taskID].frameBuffer.isContextImageAvailable(frame)) {
             return frameDataCache[taskID].frameBuffer.getContextImage(frame);
         }
-        const response = getImageContext(jobID, frame);
+        const response = getImageContext(jobID, frame);  // 是对的
         frameDataCache[taskID].frameBuffer.addContextImage(frame, response);
         return frameDataCache[taskID].frameBuffer.getContextImage(frame);
+    }
+
+    // [CY] add camera params
+    async function getCameraParam(taskID, jobID, frame) {
+        // if (frameDataCache[taskID].frameBuffer.isContextImageAvailable(frame)) {
+        //     // TODO
+        //     return frameDataCache[taskID].frameBuffer.getCameraParam(frame);
+        // }
+        const response = getCameraParam(jobID, frame);
+        frameDataCache[taskID].frameBuffer.addCameraParam(frame, response);
+        return frameDataCache[taskID].frameBuffer.getCameraParam(frame);
     }
 
     async function getPreview(taskID = null, jobID = null) {
@@ -652,6 +696,31 @@
                             resolve(reader.result);
                         };
                         reader.readAsDataURL(result);
+                    }
+                })
+                .catch((error) => {
+                    reject(error);
+                });
+        });
+    }
+
+    async function getCameraParam(taskID = null, jobID = null) {
+        return new Promise((resolve, reject) => {
+            // Just go to server and get preview (no any cache)
+            serverProxy.frames
+                .getCameraParam(taskID, jobID)
+                .then((result) => {
+                    if (isNode) {
+                        // eslint-disable-next-line no-undef
+                        resolve(global.Buffer.from(result, 'binary').toString('base64'));
+                    } else if (isBrowser) {
+                        // const reader = new FileReader();
+                        // reader.onload = () => {
+                        //     resolve(reader.result);
+                        // };
+                        // reader.readAsDataURL(result);
+                        resolve(result)
+                        console.log("🤡 ~ file: frames.js ~ line 673 ~ .then ~ result", result)
                     }
                 })
                 .catch((error) => {
@@ -747,5 +816,6 @@
         getPreview,
         clear,
         getContextImage,
+        getCameraParam,
     };
 })();

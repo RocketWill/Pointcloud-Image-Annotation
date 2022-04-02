@@ -55,6 +55,7 @@ import {
 
 export interface CanvasView {
     html(): HTMLDivElement;
+    readonly gridSVGElement: SVGSVGElement;
 }
 
 export class CanvasViewImpl implements CanvasView, Listener {
@@ -1146,6 +1147,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
         window.document.addEventListener('keydown', this.onShiftKeyDown);
         window.document.addEventListener('keyup', this.onShiftKeyUp);
 
+        // 滚动缩放
         this.content.addEventListener('wheel', (event): void => {
             if (event.ctrlKey) return;
             const { offset } = this.controller.geometry;
@@ -1285,6 +1287,7 @@ export class CanvasViewImpl implements CanvasView, Listener {
                 this.moveCanvas();
                 this.resizeCanvas();
                 this.transformCanvas();
+                this.controller.fit();
             }
         } else if (reason === UpdateReasons.FITTED_CANVAS) {
             // Canvas geometry is going to be changed. Old object positions aren't valid any more
@@ -2488,5 +2491,9 @@ export class CanvasViewImpl implements CanvasView, Listener {
         };
 
         return shape;
+    }
+
+    public get gridSVGElement(): SVGSVGElement {
+        return this.grid;
     }
 }

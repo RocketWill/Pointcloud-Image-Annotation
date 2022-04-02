@@ -1129,13 +1129,35 @@
                             number: frame,
                         },
                         proxy: config.proxy,
-                        responseType: 'blob',
+                        // 取消blob，返回的是json
+                        // responseType: 'blob',
                     });
                 } catch (errorData) {
                     throw generateError(errorData);
                 }
+                // [CY]暂定result
+                return response.data.result;
+            }
 
-                return response.data;
+            async function getCameraParam(jid, frame) {
+                const { backendAPI } = config;
+
+                let response = null;
+                try {
+                    response = await Axios.get(`${backendAPI}/jobs/${jid}/data`, {
+                        params: {
+                            quality: 'original',
+                            type: 'camera_param',
+                            number: frame,
+                        },
+                        proxy: config.proxy,
+                        // 取消blob，返回的是json
+                        // responseType: 'blob',
+                    });
+                } catch (errorData) {
+                    throw generateError(errorData);
+                }
+                return response.data.result;
             }
 
             async function getData(tid, jid, chunk) {
@@ -1869,6 +1891,7 @@
                             getMeta,
                             getPreview,
                             getImageContext,
+                            getCameraParam,
                         }),
                         writable: false,
                     },

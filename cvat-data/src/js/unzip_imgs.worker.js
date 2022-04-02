@@ -11,16 +11,16 @@ onmessage = (e) => {
             start, end, block, dimension, dimension2D,
         } = e.data;
 
-        zip.loadAsync(block).then((_zip) => {
-            let index = start;
-            _zip.forEach((relativePath) => {
-                const fileIndex = index++;
-                if (fileIndex <= end) {
-                    _zip.file(relativePath)
-                        .async('blob')
-                        .then((fileData) => {
-                            // eslint-disable-next-line no-restricted-globals
-                            if (dimension === dimension2D && self.createImageBitmap) {
+        if (dimension === dimension2D && self.createImageBitmap) {
+            zip.loadAsync(block).then((_zip) => {
+                let index = start;
+                _zip.forEach((relativePath) => {
+                    const fileIndex = index++;
+                    if (fileIndex <= end) {
+                        _zip.file(relativePath)
+                            .async('blob')
+                            .then((fileData) => {
+                                // eslint-disable-next-line no-restricted-globals
                                 createImageBitmap(fileData).then((img) => {
                                     postMessage({
                                         fileName: relativePath,
@@ -28,17 +28,62 @@ onmessage = (e) => {
                                         data: img,
                                     });
                                 });
-                            } else {
+                            });
+                    }
+                });
+            });
+        }
+        else {
+            // 这是下载pcd
+            zip.loadAsync(block).then((_zip) => {
+                let index = start;
+                _zip.forEach((relativePath) => {
+                    const fileIndex = index++;
+                    if (fileIndex <= end) {
+                        _zip.file(relativePath)
+                            .async('blob')
+                            .then((fileData) => {
+                                // eslint-disable-next-line no-restricted-globals
                                 postMessage({
                                     fileName: relativePath,
                                     index: fileIndex,
                                     data: fileData,
                                     isRaw: true,
                                 });
-                            }
-                        });
-                }
+                            });
+                    }
+                });
             });
-        });
+        }
+
+        // zip.loadAsync(block).then((_zip) => {
+        //     let index = start;
+        //     _zip.forEach((relativePath) => {
+        //         const fileIndex = index++;
+        //         if (fileIndex <= end) {
+        //             _zip.file(relativePath)
+        //                 .async('blob')
+        //                 .then((fileData) => {
+        //                     // eslint-disable-next-line no-restricted-globals
+        //                     if (dimension === dimension2D && self.createImageBitmap) {
+        //                         createImageBitmap(fileData).then((img) => {
+        //                             postMessage({
+        //                                 fileName: relativePath,
+        //                                 index: fileIndex,
+        //                                 data: img,
+        //                             });
+        //                         });
+        //                     } else {
+        //                         postMessage({
+        //                             fileName: relativePath,
+        //                             index: fileIndex,
+        //                             data: fileData,
+        //                             isRaw: true,
+        //                         });
+        //                     }
+        //                 });
+        //         }
+        //     });
+        // });
     }
 };

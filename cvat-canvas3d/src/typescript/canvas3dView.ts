@@ -17,12 +17,14 @@ import {
 import {
     createRotationHelper, CuboidModel, setEdges, setTranslationHelper,
 } from './cuboid';
-import { matmul, euler_angle_to_rotate_matrix, transpose, psr_to_xyz, array_as_vector_range, array_as_vector_index_range, vector_range, euler_angle_to_rotate_matrix_3by3 } from "./utils/util"
+import { matmul, euler_angle_to_rotate_matrix, transpose, psr_to_xyz, array_as_vector_range, array_as_vector_index_range, vector_range, euler_angle_to_rotate_matrix_3by3, getPointInBetweenByLen } from "./utils/util"
 
 export interface Canvas3dView {
     html(): ViewsDOM;
     render(): void;
     keyControls(keys: KeyboardEvent): void;
+    themeControl(name: string): void;
+    transformControl(mode: string): void;
 }
 
 // 相机位置操作
@@ -110,7 +112,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         this.selected = this.cube;
         this.model = model; // data 和 listener
         this.pointsIndexGridSize = 1;
-        this.colormapName = 'cooltowarm';
+        this.colormapName = 'default';
 
         this.globalHelpers = {
             perspective: {
@@ -275,10 +277,10 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             }
         });
         canvasPerspectiveView.addEventListener('mousedown', this.startAction.bind(this, 'perspective'));
-        canvasPerspectiveView.addEventListener('mousemove', this.moveAction.bind(this, 'perspective'));
-        canvasPerspectiveView.addEventListener('mouseup', this.completeActions.bind(this));
-        canvasPerspectiveView.addEventListener('mouseleave', this.completeActions.bind(this));
-        canvasPerspectiveView.addEventListener('click', this.completeActions.bind(this));
+        // canvasPerspectiveView.addEventListener('mousemove', this.moveAction.bind(this, 'perspective'));
+        // canvasPerspectiveView.addEventListener('mouseup', this.completeActions.bind(this));
+        // canvasPerspectiveView.addEventListener('mouseleave', this.completeActions.bind(this));
+        // canvasPerspectiveView.addEventListener('click', this.completeActions.bind(this));
 
         canvasTopView.addEventListener('mousedown', this.startAction.bind(this, 'top'));
         canvasSideView.addEventListener('mousedown', this.startAction.bind(this, 'side'));
@@ -309,12 +311,22 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         canvasPerspectiveView.addEventListener('click', (e: MouseEvent): void => {
             e.preventDefault();
             if (e.detail !== 1) return;
-            if (![Mode.GROUP, Mode.IDLE].includes(this.mode) || !this.views.perspective.rayCaster) return;
             const intersects = this.views.perspective.rayCaster.renderer.intersectObjects(
                 this.views.perspective.scene.children[0].children,  // 被选中的目标
                 false,
             );
 
+            if (this.views.perspective.scene.children.length !== 0) {
+                this.renderRayCasterClick(this.views.perspective);
+            }
+
+            // 点击目标出现transform control后，不做任何操作，接着点击空白处，触发completeActions，并且隐藏控制器
+            if (intersects.length === 0) {
+                this.completeActions()
+                this.control.detach();
+                this.views.perspective.scene.remove(this.control);
+            }
+            if (![Mode.GROUP, Mode.IDLE].includes(this.mode) || !this.views.perspective.rayCaster) return;
             if (intersects.length !== 0 && this.mode === Mode.GROUP && this.model.data.groupData.grouped) {
                 const item = this.model.data.groupData.grouped.filter(
                     (_state: any): boolean => _state.clientID === Number(intersects[0].object.name),
@@ -367,6 +379,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 }
                 return;
             }
+            // draw new cube
             this.controller.drawData.enabled = false;
             this.mode = Mode.IDLE;
             const { x, y, z } = this.cube.perspective.position;
@@ -432,11 +445,11 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         this.views.perspective.camera.up.set(0, 0, 1);
         this.views.perspective.camera.lookAt(10, 0, 0);
         this.views.perspective.camera.name = 'cameraPerspective';
+        // 在 perspective view 新增 transform control 组件
         this.control = new TransformControls(
             this.views.perspective.camera,
             this.views.perspective.renderer.domElement
         );
-
 
         this.views.top.camera = new THREE.OrthographicCamera(
             (-aspectRatio * viewSize) / 2 - 2,
@@ -782,6 +795,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             this.addSceneChildren(cuboid);
         }
         if (this.model.data.activeElement.clientID === clientID) {
+            // 相机focus目标
             cuboid.attachCameraReference();
             this.rotatePlane(null, null);
             this.action.detachCam = true;
@@ -921,7 +935,6 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             );
             this.model.data.activeElement.clientID = 'null';
             if (this.model.mode === Mode.DRAG_CANVAS) {
-                console.log("🤡 ~ file: canvas3dView.ts ~ line 913 ~ Canvas3dViewImpl ~ notify ~ DRAG_CANVAS", "wooooo")
                 const { controls } = this.views.perspective;
                 controls.mouseButtons.left = CameraControls.ACTION.ROTATE;
                 controls.mouseButtons.right = CameraControls.ACTION.TRUCK;
@@ -1134,6 +1147,16 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
 
     // 渲染点云数据
     private addScene(points: any): void {
+        // [CY] Camera Helper
+        // const helperTop = new THREE.CameraHelper( this.views.front.camera );
+        // this.views.perspective.scene.add(helperTop)
+
+        // const helperSide = new THREE.CameraHelper( this.views.side.camera );
+        // this.views.perspective.scene.add(helperSide)
+
+        // const helperFront = new THREE.CameraHelper( this.views.front.camera );
+        // this.views.perspective.scene.add(helperFront)
+
         this.addColor(points)
         // eslint-disable-next-line no-param-reassign
         const coloredPoints = this.addColor(points);
@@ -1323,7 +1346,55 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             view.camera.updateProjectionMatrix();
         }
     }
+    private renderRayCasterClick = (viewType: RenderView): void => {
+        viewType.rayCaster.renderer.setFromCamera(viewType.rayCaster.mouseVector, viewType.camera);
+        if (true) {
+            const { children } = this.views.perspective.scene.children[0];
+            const { renderer } = this.views.perspective.rayCaster;
+            const intersects = renderer.intersectObjects(children, false);
+            // 获取射中的目标
+            if (intersects.length !== 0) {
+                const clientID = intersects[0].object.name;
+                if (clientID === undefined || clientID === '' || this.model.data.focusData.clientID === clientID) {
+                    return;
+                }
+                this.resetActions()
+                if (!this.action.selectable) return;
+                this.resetColor();
+                this.model.data.focusData.clientID = clientID;
+                this.dispatchEvent(
+                    new CustomEvent('canvas.selected', {
+                        bubbles: false,
+                        cancelable: true,
+                        detail: {
+                            clientID: Number(intersects[0].object.name),
+                        },
+                    }),
+                );
+            } else if (this.model.data.focusData.clientID !== null) {
+                this.resetColor();
+                this.model.data.focusData.clientID = null;
+            }
+        }
+    }
 
+    private renderRayCasterHover = (viewType: RenderView): void => {
+        viewType.rayCaster.renderer.setFromCamera(viewType.rayCaster.mouseVector, viewType.camera);
+        if (this.mode === Mode.DRAW) {
+            const intersects = this.views.perspective.rayCaster.renderer.intersectObjects(
+                this.views.perspective.scene.children,
+                false,
+            );
+            if (intersects.length > 0) {
+                this.views.perspective.scene.children[0].add(this.cube.perspective);
+                const newPoints = intersects[0].point;
+                this.cube.perspective.position.copy(newPoints);
+                this.views.perspective.renderer.domElement.style.cursor = 'default';
+            }
+        }
+    }
+
+    // 在perspective选中目标
     private renderRayCaster = (viewType: RenderView): void => {
         viewType.rayCaster.renderer.setFromCamera(viewType.rayCaster.mouseVector, viewType.camera);
         if (this.mode === Mode.DRAW) {
@@ -1344,9 +1415,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             // 获取射中的目标
             if (intersects.length !== 0) {
                 const clientID = intersects[0].object.name;
-                this.control.attach(intersects[0].object);
-                this.views.perspective.scene.add(this.control);
-
+                // [CY]
                 if (clientID === undefined || clientID === '' || this.model.data.focusData.clientID === clientID) {
                     return;
                 }
@@ -1371,6 +1440,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         }
     };
 
+    // 绘制颜色（选中的目标有颜色）
     private resetColor(): void {
         this.model.data.objects.forEach((object: any): void => {
             const { clientID } = object;
@@ -1392,8 +1462,10 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 viewType.camera.updateProjectionMatrix();
             }
             viewType.renderer.render(viewType.scene, viewType.camera);
+            // [CY] hover选中目标
             if (view === ViewType.PERSPECTIVE && viewType.scene.children.length !== 0) {
-                this.renderRayCaster(viewType);
+                // this.renderRayCaster(viewType);
+                this.renderRayCasterHover(viewType);
             }
             const { clientID } = this.model.data.activeElement;
             if (clientID !== 'null' && view !== ViewType.PERSPECTIVE) {
@@ -1424,24 +1496,66 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 // 改变 perspective 中的目标
                 viewType.rayCaster.renderer.setFromCamera(viewType.rayCaster.mouseVector, viewType.camera);
                 const originObject = this.views.perspective.scene.getObjectByName(clientID);
-                let originPosition = originObject?.position;
+                // 只有在edit模式下才显示transform control，否则从scene移除
+                // if (this.model.mode === Mode.IDLE) {
+                //     this.control.enabled = false;
+                //     this.control.detach();
+                //     this.views.perspective.scene.remove(this.control);
+                // }
                 if (this.action.scan === view) {
                     if (!(this.action.translation.status || this.action.resize.status || this.action.rotation.status)) {
                         this.initiateActionPerspective(view, viewType);
                     }
-                    if (this.action.detected) {
+                    if (this.action.detected && originObject) {
+                        // 显示transform control
+                        // this.control.attach(originObject);
+                        // this.views.perspective.scene.add(this.control);
+                        // this.control.enabled = true;
                         if (this.action.translation.status) {
                             this.control.addEventListener('objectChange', (e: any) => {
                                 const object = e.target.object;
                                 this.renderTranslateActionPerspective(object);
+                            });
+                            // 鼠标起来触发
+                            this.control.addEventListener('mouseUp', (e: any) => {
+                                this.completeActions();
+                            });
+                        }
+                        // 旋转cube
+                        else if (this.action.rotation.status) {
+                            // 鼠标起来触发
+                            this.control.addEventListener('mouseUp', (e: any) => {
+                                this.completeActions();
+                            });
+                        }
+                        // cube更改尺寸
+                        else if (this.action.resize.status) {
+                            // TODO 三视图同步更改
+                            // this.control.addEventListener('objectChange', (e: any) => {
+                            //     const object = e.target.object;
+                            //     this.renderTranslateActionPerspective(object);
+                            // });
+                            // 鼠标起来触发
+                            this.control.addEventListener('mouseUp', (e: any) => {
+                                this.completeActions();
                             });
                         }
                         this.updateResizeHelperPos();
                         this.updateRotationHelperPos();
                     } else {
                         this.resetActions();
+                        // this.control.enabled = false;
+                        // this.control.detach();
+                        // this.views.perspective.scene.remove(this.control);
                     }
                 }
+                // 不能加，会导致三视图无法调整
+                // else {
+                //     this.resetActions();
+                //     this.control.enabled = false;
+                //     this.control.detach();
+                //     this.views.perspective.scene.remove(this.control);
+                // }
 
                 // window.addEventListener('keydown', (event: any) => {
                 //     switch (event.code) {
@@ -1479,23 +1593,37 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         }
     }
 
+    // Updating 调整三视图相机位置（调整目标尺寸、旋转触发）
     private adjustPerspectiveCameras(): void {
+        const dataPosition = this.model.data.selected.perspective.position;
+        const dataScale = this.model.data.selected.perspective.scale;
+
         const coordinatesTop = this.model.data.selected.getReferenceCoordinates(ViewType.TOP);
-        const sphericalTop = new THREE.Spherical();
-        sphericalTop.setFromVector3(coordinatesTop);
-        this.views.top.camera.position.setFromSpherical(sphericalTop);
+        const topDistanceToCenter = coordinatesTop.distanceTo(dataPosition);
+        const topCamPosition = getPointInBetweenByLen(coordinatesTop, dataPosition, topDistanceToCenter - dataScale.z / 2)
+        this.views.top.camera.position.set(topCamPosition.x, topCamPosition.y, topCamPosition.z)
+        // const sphericalTop = new THREE.Spherical();
+        // sphericalTop.setFromVector3(coordinatesTop);
+        // this.views.top.camera.position.setFromSpherical(sphericalTop);
+        // this.views.top.camera.position.set(dataPosition.x, dataPosition.y, dataPosition.z)
         this.views.top.camera.updateProjectionMatrix();
 
         const coordinatesSide = this.model.data.selected.getReferenceCoordinates(ViewType.SIDE);
-        const sphericalSide = new THREE.Spherical();
-        sphericalSide.setFromVector3(coordinatesSide);
-        this.views.side.camera.position.setFromSpherical(sphericalSide);
+        // const sphericalSide = new THREE.Spherical();
+        // sphericalSide.setFromVector3(coordinatesSide);
+        // this.views.side.camera.position.setFromSpherical(sphericalSide);
+        const sideDistanceToCenter = coordinatesSide.distanceTo(dataPosition);
+        const sideCamPosition = getPointInBetweenByLen(coordinatesSide, dataPosition, sideDistanceToCenter - dataScale.y / 2)
+        this.views.side.camera.position.set(sideCamPosition.x, sideCamPosition.y, sideCamPosition.z)
         this.views.side.camera.updateProjectionMatrix();
 
         const coordinatesFront = this.model.data.selected.getReferenceCoordinates(ViewType.FRONT);
-        const sphericalFront = new THREE.Spherical();
-        sphericalFront.setFromVector3(coordinatesFront);
-        this.views.front.camera.position.setFromSpherical(sphericalFront);
+        // const sphericalFront = new THREE.Spherical();
+        // sphericalFront.setFromVector3(coordinatesFront);
+        // this.views.front.camera.position.setFromSpherical(sphericalFront);
+        const frontDistanceToCenter = coordinatesFront.distanceTo(dataPosition);
+        const frontCamPosition = getPointInBetweenByLen(coordinatesFront, dataPosition, frontDistanceToCenter - dataScale.x / 2)
+        this.views.front.camera.position.set(frontCamPosition.x, frontCamPosition.y, frontCamPosition.z)
         this.views.front.camera.updateProjectionMatrix();
     }
 
@@ -1760,10 +1888,14 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         }
     }
 
+    // [CY] 真正的相机focus目标
     private detachCamera(view: ViewType): void {
+        // 取得选中目标坐标
         const coordTop = this.model.data.selected.getReferenceCoordinates(ViewType.TOP);
+        const dataPosition = this.model.data.selected.perspective.position;
+        // 极坐标
         const sphericaltop = new THREE.Spherical();
-        sphericaltop.setFromVector3(coordTop);
+        sphericaltop.setFromVector3(coordTop);  // 笛卡尔转极坐标
 
         const coordSide = this.model.data.selected.getReferenceCoordinates(ViewType.SIDE);
         const sphericalside = new THREE.Spherical();
@@ -1772,6 +1904,35 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         const coordFront = this.model.data.selected.getReferenceCoordinates(ViewType.FRONT);
         const sphericalfront = new THREE.Spherical();
         sphericalfront.setFromVector3(coordFront);
+
+        //
+        const { clientWidth: clientWidthTop, clientHeight: clientHeightTop } = this.views.top.renderer.domElement;
+        const { clientWidth: clientWidthFront, clientHeight: clientHeightFront } = this.views.front.renderer.domElement;
+        const { clientWidth: clientWidthSide, clientHeight: clientHeightSide } = this.views.side.renderer.domElement;
+        const roomRatio = 1.0;
+        let expCameraWidthTop, expCameraHeightTop, expCameraClipTop;
+        expCameraHeightTop = this.model.data.selected.top.scale.x * 1.5 * roomRatio;
+        expCameraWidthTop = this.model.data.selected.top.scale.y * 1.5 * roomRatio;
+        expCameraClipTop = this.model.data.selected.top.scale.z + 0.8;
+        if (expCameraWidthTop / expCameraHeightTop > clientWidthTop / clientHeightTop) {
+            //increase height
+            expCameraHeightTop = expCameraWidthTop * clientHeightTop / clientWidthTop;
+        } else {
+            expCameraWidthTop = expCameraHeightTop * clientWidthTop / clientHeightTop;
+        }
+
+        let expCameraWidthFront, expCameraHeightFront, expCameraClipFront;
+        let expCameraWidthSide, expCameraHeightSide, expCameraClipSide;
+        expCameraHeightSide = this.model.data.selected.side.scale.x * 1.5 * 1;
+        expCameraWidthSide = this.model.data.selected.side.scale.y * 1.5 * 1;
+        expCameraClipSide = this.model.data.selected.side.scale.z + 0.8;
+        if (expCameraWidthSide / expCameraHeightSide > clientWidthSide / clientHeightSide) {
+            //increase height
+            expCameraHeightSide = expCameraWidthSide * clientHeightSide / clientWidthSide;
+        } else {
+            expCameraWidthSide = expCameraHeightSide * clientWidthSide / clientHeightSide;
+        }
+
 
         const { side: objectSideView, front: objectFrontView, top: objectTopView } = this.model.data.selected;
         const { camera: sideCamera } = this.views.side;
@@ -1834,23 +1995,55 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 break;
             }
             default: {
-                sideCamera.position.setFromSpherical(sphericalside);
+                // sideCamera.position.setFromSpherical(sphericalside);
+                const sideDistanceToCenter = coordSide.distanceTo(objectSideView.position);
+                const sideCamPosition = getPointInBetweenByLen(coordSide, objectSideView.position, sideDistanceToCenter - objectSideView.scale.y / 2)
+                sideCamera.position.set(sideCamPosition.x, sideCamPosition.y, sideCamPosition.z)
                 sideCamera.lookAt(objectSideView.position.x, objectSideView.position.y, objectSideView.position.z);
-                sideCamera.rotation.z = this.views.side.scene.getObjectByName(Planes.SIDE).rotation.z;
+                // 可能会造成上下颠倒
+                // sideCamera.rotation.z = this.views.side.scene.getObjectByName(Planes.SIDE).rotation.z;
                 sideCamera.scale.set(1, 1, 1);
+                sideCamera.top = expCameraHeightSide / 2;
+                sideCamera.bottom = expCameraHeightSide / -2;
+                sideCamera.right = expCameraWidthSide / 2;
+                sideCamera.left = expCameraWidthSide / -2;
+                sideCamera.near = expCameraClipSide / -2;
+                sideCamera.far = expCameraClipSide / 2;
 
-                topCamera.position.setFromSpherical(sphericaltop);
+                // 改为绝对位置坐标
+                const topDistanceToCenter = coordTop.distanceTo(objectTopView.position);
+                const topCamPosition = getPointInBetweenByLen(coordTop, objectTopView.position, topDistanceToCenter - objectTopView.scale.z / 2 - 0.5)
+                topCamera.position.set(topCamPosition.x, topCamPosition.y, topCamPosition.z)
                 topCamera.lookAt(objectTopView.position.x, objectTopView.position.y, objectTopView.position.z);
                 topCamera.setRotationFromEuler(objectTopView.rotation);
+                // topCamera.rotation.set(objectTopView.rotation.x, objectTopView.rotation.y, objectTopView.rotation.z)
                 topCamera.scale.set(1, 1, 1);
+
+                topCamera.top = expCameraHeightTop / 2;
+                topCamera.bottom = expCameraHeightTop / -2;
+                topCamera.right = expCameraWidthTop / 2;
+                topCamera.left = expCameraWidthTop / -2;
+                topCamera.near = expCameraClipTop / -2;
+                topCamera.far = expCameraClipTop / 2;
+                // topCamera.updateProjectionMatrix()
 
                 const camFrontRotate = objectFrontView
                     .getObjectByName('camRefRot')
                     .getWorldQuaternion(new THREE.Quaternion());
-                frontCamera.position.setFromSpherical(sphericalfront);
+                const frontDistanceToCenter = coordFront.distanceTo(objectFrontView.position);
+                const frontCamPosition = getPointInBetweenByLen(coordFront, objectFrontView.position, frontDistanceToCenter - objectFrontView.scale.x / 2 - 0.5)
+                frontCamera.position.set(frontCamPosition.x, frontCamPosition.y, frontCamPosition.z)
+                // frontCamera.lookAt(objectFrontView.position.x, objectFrontView.position.y, objectFrontView.position.z);
+                // frontCamera.position.setFromSpherical(sphericalfront);
                 frontCamera.lookAt(objectFrontView.position.x, objectFrontView.position.y, objectFrontView.position.z);
                 frontCamera.setRotationFromQuaternion(camFrontRotate);
                 frontCamera.scale.set(1, 1, 1);
+                frontCamera.top = expCameraHeightTop / 2;
+                frontCamera.bottom = expCameraHeightTop / -2;
+                frontCamera.right = expCameraWidthTop / 2;
+                frontCamera.left = expCameraWidthTop / -2;
+                frontCamera.near = expCameraClipTop / -2;
+                frontCamera.far = expCameraClipTop / 1;
             }
         }
     }
@@ -1987,6 +2180,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             x: canvas.offsetLeft + canvas.offsetWidth / 2,
             y: canvas.offsetTop + canvas.offsetHeight / 2,
         };
+
         if (
             this.action.rotation.screenInit.x === this.action.rotation.screenMove.x &&
             this.action.rotation.screenInit.y === this.action.rotation.screenMove.y
@@ -2014,18 +2208,73 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         this.action.rotation.screenInit.y = this.action.rotation.screenMove.y;
     }
 
+    // [CY] Rotation 旋转cube
+    private renderRotateActionPerspective(view: ViewType, rotateValue: number): void {
+        // const rotationSpeed = Math.PI / CONST.ROTATION_SPEED;
+        // this.action.rotation.recentMouseVector = this.views[view].rayCaster.mouseVector.clone();
+        // if (
+        //     this.action.rotation.screenInit.x === this.action.rotation.screenMove.x &&
+        //     this.action.rotation.screenInit.y === this.action.rotation.screenMove.y
+        // ) {
+        //     return;
+        // }
+
+        // if (
+        //     this.action.rotation.recentMouseVector.x === this.views[view].rayCaster.mouseVector.x &&
+        //     this.action.rotation.recentMouseVector.y === this.views[view].rayCaster.mouseVector.y
+        // ) {
+        //     return;
+        // }
+        // 只记录旋转方向
+        // if (isLeft) {
+        //     this.rotateCube(this.model.data.selected, -rotateValue, view);
+        //     this.rotatePlane(-rotateValue, view);
+        // } else {
+        //     this.rotateCube(this.model.data.selected, rotateValue, view);
+        //     this.rotatePlane(rotateValue, view);
+        // }
+        // this.action.rotation.screenInit.x = this.action.rotation.screenMove.x;
+        // this.action.rotation.screenInit.y = this.action.rotation.screenMove.y;
+        this.rotateCube(this.model.data.selected, rotateValue, view);
+        this.rotatePlane(rotateValue, view);
+    }
+
     // [CY]
     private initiateActionPerspective(view: string, viewType: any): void {
         const intersectsBox = viewType.rayCaster.renderer.intersectObjects([this.model.data.selected[view]], false);
-        if (intersectsBox.length !== 0) {
+        const { clientID } = this.model.data.activeElement;
+        if (clientID === 'null') return;
+        const object = this.views.perspective.scene.getObjectByName(clientID);
+        if (this.control.mode === 'translate') {
             this.action.translation.helper = viewType.rayCaster.mouseVector.clone();
-            this.action.translation.inverseMatrix = intersectsBox[0].object.parent.matrixWorld.invert();
+            this.action.translation.inverseMatrix = object.parent.matrixWorld.invert();
             this.action.translation.offset = new THREE.Vector3(0, 0, 0);
             this.action.detected = true;
             this.action.translation.status = true;
             this.views.top.controls.enabled = false;
             this.views.side.controls.enabled = false;
             this.views.front.controls.enabled = false;
+        }
+        else if (this.control.mode === 'rotate') {
+            this.action.rotation.helper = viewType.rayCaster.mouseVector.clone();
+            this.action.rotation.status = true;
+            this.action.detected = true;
+            this.views.top.controls.enabled = false;
+            this.views.side.controls.enabled = false;
+            this.views.front.controls.enabled = false;
+        }
+        else if (this.control.mode === 'scale') {
+            this.action.resize.helper = viewType.rayCaster.mouseVector.clone();
+            this.action.resize.status = true;
+            this.action.detected = true;
+            this.views.top.controls.enabled = false;
+            this.views.side.controls.enabled = false;
+            this.views.front.controls.enabled = false;
+            const { x, y, z } = this.model.data.selected[view].scale;
+            this.action.resize.initScales = { x, y, z };
+            this.action.resize.memScales = { x, y, z };
+            this.action.resize.frontBool = false;
+            this.action.resize.resizeVector = new THREE.Vector3(0, 0, 0);
         }
     }
 
@@ -2046,7 +2295,11 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             this.views.top.controls.enabled = false;
             this.views.side.controls.enabled = false;
             this.views.front.controls.enabled = false;
-            9
+            const { x, y, z } = this.model.data.selected[view].scale;
+            this.action.resize.initScales = { x, y, z };
+            this.action.resize.memScales = { x, y, z };
+            this.action.resize.frontBool = false;
+            this.action.resize.resizeVector = new THREE.Vector3(0, 0, 0);
             return;
         }
         const intersectsHelperRotation = viewType.rayCaster.renderer.intersectObjects(
@@ -2129,6 +2382,46 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             }
         } else if (key.code === 'ControlLeft') {
             this.action.selectable = !key.ctrlKey;
+        }
+    }
+
+    public themeControl(name: string): void {
+        if (['default', 'rainbow', 'cooltowarm', 'blackbody', 'grayscale', 'mindflow'].includes(name)) {
+            this.colormapName = name;
+            this.setupObjects();
+        }
+    }
+
+    public transformControl(mode: string): void {
+        const { control: transformControl } = this;
+        // first remove transforrm control
+        transformControl.detach();
+        this.views.perspective.scene.remove(transformControl);
+        const { clientID } = this.model.data.activeElement;
+        if (clientID === 'null') return;
+        const originObject = this.views.perspective.scene.getObjectByName(clientID);
+        if (!originObject) return;
+        if (!transformControl) return;
+        transformControl.attach(originObject);
+        this.views.perspective.scene.add(transformControl);
+        transformControl.enabled = true;
+        switch (mode) {
+            case 'translate':
+                transformControl.setMode('translate');
+                break;
+            case 'rotate':
+                transformControl.setMode('rotate');
+                break;
+            case 'scale':
+                transformControl.setMode('scale');
+                break;
+            case 'close':
+                transformControl.enabled = false;
+                transformControl.detach();
+                this.views.perspective.scene.remove(transformControl);
+                break;
+            default:
+                break;
         }
     }
 

@@ -5,10 +5,13 @@
 import React, {
     ReactElement, SyntheticEvent, useEffect, useReducer, useRef,
 } from 'react';
-import Layout from 'antd/lib/layout/layout';
+// import Layout from 'antd/lib/layout/layout';
 import {
     ArrowDownOutlined, ArrowLeftOutlined, ArrowRightOutlined, ArrowUpOutlined,
+    VerticalAlignTopOutlined, RotateRightOutlined, ExpandAltOutlined,
+    AimOutlined
 } from '@ant-design/icons';
+import { Layout, Row, Col, Button, Radio, Space } from 'antd';
 import { ResizableBox } from 'react-resizable';
 import {
     ColorBy, ContextMenuType, ObjectType, Workspace,
@@ -17,12 +20,13 @@ import {
     CameraAction, Canvas3d, ViewType, ViewsDOM,
 } from 'cvat-canvas3d-wrapper';
 import { Canvas } from 'cvat-canvas-wrapper';
-import ContextImage from 'components/annotation-page/standard-workspace/context-image/context-image';
+import ContextImage from 'components/annotation-page/standard-workspace/context-image/context-image-3d';
 import CVATTooltip from 'components/common/cvat-tooltip';
 import { LogType } from 'cvat-logger';
 import getCore from 'cvat-core-wrapper';
 
 const cvat = getCore();
+const { Header, Content, Sider } = Layout;
 
 interface Props {
     opacity: number;
@@ -447,6 +451,117 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         </span>
     );
 
+    const ThemeGroup = (): ReactElement => (
+        <span className='cvat-canvas3d-perspective-themes'>
+            <CVATTooltip title='default' placement='topLeft'>
+                <button
+                    onClick={() => canvasInstance.themeControl('default')}
+                    type='button'
+                    style={{
+                        width: 18, height: 18, backgroundColor: '#ffffff',
+                        borderRadius: 18, border: '1px solid #ffffff'
+                    }}
+                />
+            </CVATTooltip>
+            <CVATTooltip title='rainbow' placement='topLeft'>
+                <button
+                    onClick={() => canvasInstance.themeControl('rainbow')}
+                    type='button'
+                    style={{
+                        width: 18, height: 18, marginLeft: 3,
+                        background: 'linear-gradient(to right, rgb(30, 150, 0), rgb(255, 242, 0), rgb(255, 0, 0))',
+                        borderRadius: 18, border: '1px solid #ffffff'
+                    }}
+                />
+            </CVATTooltip>
+            <CVATTooltip title='cooltowarm' placement='topLeft'>
+                <button
+                    onClick={() => canvasInstance.themeControl('cooltowarm')}
+                    type='button'
+                    style={{
+                        width: 18, height: 18, marginLeft: 3,
+                        background: 'linear-gradient(to right, rgb(0, 159, 255), rgb(236, 47, 75))',
+                        borderRadius: 18, border: '1px solid #ffffff'
+                    }}
+                />
+            </CVATTooltip>
+            <CVATTooltip title='blackbody' placement='topLeft'>
+                <button
+                    onClick={() => canvasInstance.themeControl('blackbody')}
+                    type='button'
+                    style={{
+                        width: 18, height: 18, marginLeft: 3,
+                        background: 'linear-gradient(to right, rgb(176 61 30), rgb(255 248 81))',
+                        borderRadius: 18, border: '1px solid #ffffff'
+                    }}
+                />
+            </CVATTooltip>
+            <CVATTooltip title='grayscale' placement='topLeft'>
+                <button
+                    onClick={() => canvasInstance.themeControl('grayscale')}
+                    type='button'
+                    style={{
+                        width: 18, height: 18, marginLeft: 3,
+                        background: 'linear-gradient(to right, rgb(68 68 68), rgb(177 177 177))',
+                        borderRadius: 18, border: '1px solid #ffffff'
+                    }}
+                />
+            </CVATTooltip>
+            <CVATTooltip title='mindflow' placement='topLeft'>
+                <button
+                    onClick={() => canvasInstance.themeControl('mindflow')}
+                    type='button'
+                    style={{
+                        width: 18, height: 18, marginLeft: 3,
+                        background: 'linear-gradient(to right, rgb(249 18 224), rgb(7 28 255), rgb(64 254 19))',
+                        borderRadius: 18, border: '1px solid #ffffff'
+                    }}
+                />
+            </CVATTooltip>
+        </span>
+    )
+
+    const TransformControl = (): ReactElement => (
+        <span style={{ position: 'absolute', top: '30%', left: 0, padding: 5 }}>
+            <Radio.Group value='large'>
+                <Space direction="vertical">
+                    <CVATTooltip title='close' placement='topLeft'>
+                        <Button
+                            size='small'
+                            onClick={() => canvasInstance.transformControl('close')}
+                        >
+                            <AimOutlined />
+                        </Button>
+                    </CVATTooltip>
+                    <CVATTooltip title='translate' placement='topLeft'>
+                        <Button
+                            size='small'
+                            onClick={() => canvasInstance.transformControl('translate')}
+                        >
+                            <VerticalAlignTopOutlined />
+                        </Button>
+                    </CVATTooltip>
+                    <CVATTooltip title='rotate' placement='topLeft'>
+                        <Button
+                            size='small'
+                            onClick={() => canvasInstance.transformControl('rotate')}
+                        >
+                            <RotateRightOutlined />
+                        </Button>
+                    </CVATTooltip>
+                    <CVATTooltip title='scale' placement='topLeft'>
+                        <Button
+                            size='small'
+                            onClick={() => canvasInstance.transformControl('scale')}
+                        >
+                            <ExpandAltOutlined />
+                        </Button>
+                    </CVATTooltip>
+                </Space>
+            </Radio.Group>
+        </span>
+    )
+
     const ControlGroup = (): ReactElement => (
         <span className='cvat-canvas3d-perspective-directions'>
             <CVATTooltip title='Alt+U' placement='topLeft'>
@@ -508,66 +623,83 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     );
 
     return (
-        <Layout.Content className='cvat-canvas3d-fullsize' id='canvas3d-container'>
-            <ContextImage />
-            <ResizableBox
-                className='cvat-resizable'
-                width={Infinity}
-                height={viewSize.vertical}
-                axis='y'
-                handle={<span className='cvat-resizable-handle-horizontal' />}
-                onResize={(e: SyntheticEvent) => setViewSize({ type: ViewType.PERSPECTIVE, e })}
-            >
-                {frameFetching ? (
-                    <svg id='cvat_canvas_loading_animation'>
-                        <circle id='cvat_canvas_loading_circle' r='30' cx='50%' cy='50%' />
-                    </svg>
-                ) : null}
-                <div className='cvat-canvas3d-perspective' id='cvat-canvas3d-perspective'>
-                    <div className='cvat-canvas-container cvat-canvas-container-overflow' ref={perspectiveView} />
-                    <ArrowGroup />
-                    <ControlGroup />
-                </div>
-            </ResizableBox>
-            <div
-                className='cvat-canvas3d-orthographic-views'
-                style={{ height: viewSize.fullHeight - viewSize.vertical }}
-            >
-                <ResizableBox
+        <Row style={{ width: '100%', height: '100%' }}>
+            <Col span={6} style={{ height: '100%', overflow: 'scroll' }}>
+                {/* <ResizableBox
                     className='cvat-resizable'
-                    width={viewSize.top}
-                    height={viewSize.fullHeight - viewSize.vertical}
-                    axis='x'
-                    handle={<span className='cvat-resizable-handle-vertical-top' />}
-                    onResize={(e: SyntheticEvent) => setViewSize({ type: ViewType.TOP, e })}
-                >
-                    <div className='cvat-canvas3d-orthographic-view cvat-canvas3d-topview'>
-                        <div className='cvat-canvas3d-header'>TOP</div>
-                        <div className='cvat-canvas3d-fullsize' ref={topView} />
-                    </div>
-                </ResizableBox>
-                <ResizableBox
-                    className='cvat-resizable'
-                    width={viewSize.side}
-                    height={viewSize.fullHeight - viewSize.vertical}
+                    height={viewSize.fullHeight}
+                    width={250}
                     axis='x'
                     handle={<span className='cvat-resizable-handle-vertical-side' />}
-                    onResize={(e: SyntheticEvent) => setViewSize({ type: ViewType.SIDE, e })}
-                >
-                    <div className='cvat-canvas3d-orthographic-view cvat-canvas3d-sideview'>
-                        <div className='cvat-canvas3d-header'>SIDE</div>
-                        <div className='cvat-canvas3d-fullsize' ref={sideView} />
+                > */}
+                    <ContextImage />
+                {/* </ResizableBox> */}
+            </Col>
+            <Col span={18} >
+                <Layout.Content className='cvat-canvas3d-fullsize' id='canvas3d-container'>
+                    <ResizableBox
+                        className='cvat-resizable'
+                        width={Infinity}
+                        height={viewSize.vertical}
+                        // height={500}
+                        axis='y'
+                        handle={<span className='cvat-resizable-handle-horizontal' />}
+                        onResize={(e: SyntheticEvent) => setViewSize({ type: ViewType.PERSPECTIVE, e })}
+                    >
+                        {frameFetching ? (
+                            <svg id='cvat_canvas_loading_animation'>
+                                <circle id='cvat_canvas_loading_circle' r='30' cx='50%' cy='50%' />
+                            </svg>
+                        ) : null}
+                        <div className='cvat-canvas3d-perspective' id='cvat-canvas3d-perspective'>
+                            <div className='cvat-canvas-container cvat-canvas-container-overflow' ref={perspectiveView} />
+                            <ArrowGroup />
+                            <ThemeGroup />
+                            <TransformControl />
+                            <ControlGroup />
+                        </div>
+                    </ResizableBox>
+                    <div
+                        className='cvat-canvas3d-orthographic-views'
+                        style={{ height: viewSize.fullHeight - viewSize.vertical }}
+                    >
+                        <ResizableBox
+                            className='cvat-resizable'
+                            width={viewSize.top}
+                            height={viewSize.fullHeight - viewSize.vertical}
+                            axis='x'
+                            handle={<span className='cvat-resizable-handle-vertical-top' />}
+                            onResize={(e: SyntheticEvent) => setViewSize({ type: ViewType.TOP, e })}
+                        >
+                            <div className='cvat-canvas3d-orthographic-view cvat-canvas3d-topview'>
+                                <div className='cvat-canvas3d-header'>TOP</div>
+                                <div className='cvat-canvas3d-fullsize' ref={topView} />
+                            </div>
+                        </ResizableBox>
+                        <ResizableBox
+                            className='cvat-resizable'
+                            width={viewSize.side}
+                            height={viewSize.fullHeight - viewSize.vertical}
+                            axis='x'
+                            handle={<span className='cvat-resizable-handle-vertical-side' />}
+                            onResize={(e: SyntheticEvent) => setViewSize({ type: ViewType.SIDE, e })}
+                        >
+                            <div className='cvat-canvas3d-orthographic-view cvat-canvas3d-sideview'>
+                                <div className='cvat-canvas3d-header'>SIDE</div>
+                                <div className='cvat-canvas3d-fullsize' ref={sideView} />
+                            </div>
+                        </ResizableBox>
+                        <div
+                            className='cvat-canvas3d-orthographic-view cvat-canvas3d-frontview'
+                            style={{ width: viewSize.front, height: viewSize.fullHeight - viewSize.vertical }}
+                        >
+                            <div className='cvat-canvas3d-header'>FRONT</div>
+                            <div className='cvat-canvas3d-fullsize' ref={frontView} />
+                        </div>
                     </div>
-                </ResizableBox>
-                <div
-                    className='cvat-canvas3d-orthographic-view cvat-canvas3d-frontview'
-                    style={{ width: viewSize.front, height: viewSize.fullHeight - viewSize.vertical }}
-                >
-                    <div className='cvat-canvas3d-header'>FRONT</div>
-                    <div className='cvat-canvas3d-fullsize' ref={frontView} />
-                </div>
-            </div>
-        </Layout.Content>
+                </Layout.Content>
+            </Col>
+        </Row>
     );
 };
 
