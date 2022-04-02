@@ -2,7 +2,7 @@
  * @Date: 2022-03-24 11:16:25
  * @Company: Luokung Technology Corp.
  * @LastEditors: Will Cheng Yong
- * @LastEditTime: 2022-03-30 17:52:36
+ * @LastEditTime: 2022-04-02 17:24:43
  */
 // Copyright (C) 2021 Intel Corporation
 //
@@ -69,10 +69,11 @@ function ContextImage(): JSX.Element | null {
                 />
                 : null
             }
-            {contextImageData && contextImageData.map((imageData: ImageData) =>
+            {contextImageData && Object.keys(contextImageData).map((imageName: string) =>
                 <ContextImageCanvas
-                    imageData={imageData}
-                    key={`ctx-img-canvas-${imageData.name}`}
+                    imageData={contextImageData[imageName]}
+                    imageName={imageName}
+                    key={`ctx-img-canvas-${contextImageData[imageName].name}`}
                 />
             )
             }

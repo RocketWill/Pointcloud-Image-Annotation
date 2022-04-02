@@ -3,6 +3,7 @@
 # SPDX-License-Identifier: MIT
 
 import ast
+import json
 import cv2 as cv
 from collections import namedtuple
 import hashlib
@@ -17,6 +18,10 @@ from PIL import Image
 from django.core.exceptions import ValidationError
 
 Import = namedtuple("Import", ["module", "name", "alias"])
+
+def parse_json(filepath):
+    with open(filepath, 'r') as f:
+        return json.load(f)
 
 def parse_imports(source_code: str):
     root = ast.parse(source_code)

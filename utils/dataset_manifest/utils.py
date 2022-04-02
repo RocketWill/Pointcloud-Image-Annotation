@@ -42,14 +42,23 @@ def is_image(media_file):
     return data_type is not None and data_type.startswith('image') and \
         not data_type.startswith('image/svg')
 
+def is_json(media_file):
+    data_type = _define_data_type(media_file)
+    return data_type is not None and data_type.startswith('application/json')
+
 
 def _list_and_join(root):
     files = os.listdir(root)
     for f in files:
         yield os.path.join(root, f)
 
-def _prepare_context_list(files, base_dir):
-    return sorted(map(lambda x: os.path.relpath(x, base_dir), filter(is_image, files)))
+def _prepare_context_list(files, base_dir, data_type='image'):
+    if data_type == 'image':
+        return sorted(map(lambda x: os.path.relpath(x, base_dir), filter(is_image, files)))
+    elif data_type == 'json':
+        return sorted(map(lambda x: os.path.relpath(x, base_dir), filter(is_json, files)))
+    else:
+        raise NotImplementedError
 
 # Expected 2D format is:
 # data/
@@ -191,6 +200,29 @@ def detect_related_images(image_paths, root_path):
     elif data_are_3d:
         return _detect_related_images_3D(image_paths, root_path)
     return {}
+
+def detect_camera_params(image_paths, root_path):
+    '''
+    image_paths: pcd dirs
+    '''
+    camera_params = {}
+    camera_params_exist = False
+    for image_path in sorted(image_paths):
+        rel_image_path = os.path.relpath(image_path, root_path)
+        dirname = os.path.dirname(image_path)
+        camera_params_dirname = os.path.normpath(os.path.join(dirname, '..', 'camera_params'))
+        camera_params_exist = os.path.isdir(camera_params_dirname)
+        camera_params[rel_image_path] = []
+        if camera_params_exist:
+            camera_params_dirname = os.path.join(
+                camera_params_dirname, '_'.join(os.path.basename(image_path).rsplit('.', 1))
+            )
+            if os.path.isdir(camera_params_dirname):
+                camera_params[rel_image_path].extend(
+                    _prepare_context_list(_list_and_join(camera_params_dirname), root_path, data_type='json')
+                )
+    return camera_params
+
 
 class SortingMethod(str, Enum):
     LEXICOGRAPHICAL = 'lexicographical'

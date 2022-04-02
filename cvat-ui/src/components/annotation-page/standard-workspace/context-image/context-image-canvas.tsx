@@ -2,7 +2,7 @@
  * @Date: 2022-03-29 11:49:05
  * @Company: Luokung Technology Corp.
  * @LastEditors: Will Cheng Yong
- * @LastEditTime: 2022-03-30 20:39:07
+ * @LastEditTime: 2022-04-02 17:24:39
  */
 // Copyright (C) 2021 Intel Corporation
 //
@@ -30,7 +30,7 @@ export interface ImageData {
 //     console.log("🤡 ~ file: context-image-canvas.tsx ~ line 30 ~ onCanvasEditDone ~ event", event)
 // }
 
-function ContextImageCanvas({ imageData }: { imageData: ImageData }): JSX.Element | null {
+function ContextImageCanvas({ imageData, imageName }: { imageData: ImageData, imageName: string }): JSX.Element | null {
     const { frame } = useSelector((state: CombinedState) => state.annotation.player);
     const state = useSelector((state: CombinedState) => state);
     console.log("🤡 ~ file: context-image-canvas.tsx ~ line 36 ~ ContextImageCanvas ~ state", state)
