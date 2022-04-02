@@ -578,7 +578,8 @@ export interface AnnotationState {
         frameAngles: number[];
         contextImage: {
             fetching: boolean;
-            data: string | string[] | null;
+            // data: string | string[] | {} | null;
+            data: any;
             hidden: boolean;
         };
         cameraParam: {
