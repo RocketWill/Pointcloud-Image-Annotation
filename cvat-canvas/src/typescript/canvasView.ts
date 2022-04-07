@@ -55,6 +55,8 @@ import {
 
 export interface CanvasView {
     html(): HTMLDivElement;
+    add2DPolygon(points: number[], state: any): void;
+    setupObjectsUnite(states: any[]): void;
     readonly gridSVGElement: SVGSVGElement;
 }
 
@@ -1517,6 +1519,82 @@ export class CanvasViewImpl implements CanvasView, Listener {
     public html(): HTMLDivElement {
         return this.canvas;
     }
+
+    public add2DPolygon(points: number[], state: any): void {
+        const translatedPoints: number[] = this.translateToCanvas(points);
+        const polygon = this.adoptedContent
+            .polygon(translatedPoints)
+            .attr({
+                clientID: state.clientID,
+                'color-rendering': 'optimizeQuality',
+                id: `cvat_canvas_shape_${state.clientID}`,
+                fill: state?.label.color,
+                'shape-rendering': 'geometricprecision',
+                stroke: state?.label.color,
+                'stroke-width': consts.BASE_STROKE_WIDTH / this.geometry.scale,
+                'data-z-order': state.zOrder,
+                'fill-opacity': 0.03
+            })
+            .addClass('cvat_canvas_shape');
+        if (state.occluded) {
+            polygon.addClass('cvat_canvas_shape_occluded');
+        }
+
+        if (state.hidden || state.outside || this.isInnerHidden(state.clientID)) {
+            polygon.addClass('cvat_canvas_hidden');
+        }
+        this.svgShapes[state.clientID] = polygon;
+    }
+
+    public setupObjectsUnite(states: any[]): void {
+        if (Object.keys(this.svgShapes).length > 0) {
+            this.deleteObjects(states);
+        }
+        const opacity: any = {};
+        const created = [];
+        const updated = [];
+        for (const state of states) {
+            opacity[state.clientID] = state.opacity;
+            if (!(state.clientID in this.drawnStates)) {
+                created.push(state);
+            } else {
+                const drawnState = this.drawnStates[state.clientID];
+                // object has been changed or changed frame for a track
+                if (drawnState.updated !== state.updated || drawnState.frame !== state.frame) {
+                    updated.push(state);
+                }
+            }
+        }
+        const newIDs = states.map((state: any): number => state.clientID);
+        const deleted = Object.keys(this.drawnStates)
+            .map((clientID: string): number => +clientID)
+            .filter((id: number): boolean => !newIDs.includes(id))
+            .map((id: number): any => this.drawnStates[id]);
+
+        if (deleted.length || updated.length || created.length) {
+            if (this.activeElement.clientID !== null) {
+                this.deactivate();
+            }
+
+            this.deleteObjects(deleted);
+            this.addObjects(created);
+            this.updateObjects(updated);
+            this.sortObjects();
+
+            if (this.controller.activeElement.clientID !== null) {
+                const { clientID } = this.controller.activeElement;
+                if (states.map((state: any): number => state.clientID).includes(clientID)) {
+                    this.activate(this.controller.activeElement);
+                }
+            }
+            // set fill-opacity
+            for (const key in this.svgShapes) {
+                this.svgShapes[key].attr('fill-opacity', opacity[key]);
+            }
+            // this.autoborderHandler.updateObjects();
+        }
+    }
+
 
     private redrawBitmap(): void {
         const width = +this.background.style.width.slice(0, -2);

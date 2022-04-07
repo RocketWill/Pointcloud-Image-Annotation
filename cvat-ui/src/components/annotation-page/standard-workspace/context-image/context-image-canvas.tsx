@@ -2,17 +2,18 @@
  * @Date: 2022-03-29 11:49:05
  * @Company: Luokung Technology Corp.
  * @LastEditors: Will Cheng Yong
- * @LastEditTime: 2022-04-02 17:24:39
+ * @LastEditTime: 2022-04-07 15:39:54
  */
 // Copyright (C) 2021 Intel Corporation
 //
 // SPDX-License-Identifier: MIT
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { useSelector } from 'react-redux';
 import { CombinedState } from 'reducers/interfaces';
 import { Canvas } from 'cvat-canvas-wrapper';
 import Typography from 'antd/lib/typography';
+import { Calib, psrToXyz, points3dHomoToImage2d } from './shared';
 
 const { Paragraph } = Typography;
 
@@ -22,30 +23,64 @@ export interface ImageData {
     data: string;
 }
 
-// function onCanvasShapeDrawn(event: any) {
-//     console.log("🤡 ~ file: context-image-canvas.tsx ~ line 26 ~ onCanvasShapeDrawn ~ event", event)
-// }
-
-// function onCanvasEditDone(event: any) {
-//     console.log("🤡 ~ file: context-image-canvas.tsx ~ line 30 ~ onCanvasEditDone ~ event", event)
-// }
+function boxTo2DPoints(points: number[], calib: Calib) {
+    const position = [points[0], points[1], points[2]];
+    const rotation = [points[3], points[4], points[5]];
+    const scale    = [points[6], points[7], points[8]];
+    let box3d = psrToXyz(position, scale, rotation);
+    box3d = box3d.slice(0, 8 * 4);
+    const box2dPoints = points3dHomoToImage2d(box3d, calib, false, []);
+    return box2dPoints;
+}
 
 function ContextImageCanvas({ imageData, imageName }: { imageData: ImageData, imageName: string }): JSX.Element | null {
+    const canvasInstance = useMemo(() => new Canvas(), []);
     const { frame } = useSelector((state: CombinedState) => state.annotation.player);
-    const state = useSelector((state: CombinedState) => state);
-    console.log("🤡 ~ file: context-image-canvas.tsx ~ line 36 ~ ContextImageCanvas ~ state", state)
-    const { drawing: { activeLabelID }, annotations,
-            canvas: { contextMenu: { visible: contextMenuVisibility }, instance } }
+    // const state = useSelector((state: CombinedState) => state);
+    const { drawing: { activeLabelID }, annotations: { states },
+            canvas: { instance }, player: { cameraParam: allCameraParam } }
             = useSelector((state: CombinedState) => state.annotation);
-    const canvasInstance = new Canvas();
+    const cameraParam = allCameraParam?.data[imageName];
     const frameData: any = { ...frame };
 
-    const onCanvasShapeDrawn = (event) => {
-        console.log("🤡 ~ file: context-image-canvas.tsx ~ line 42 ~ onCanvasShapeDrawn ~ event", event)
-    }
-
-    const onCanvasEditDone = (event) => {
-        console.log("🤡 ~ file: context-image-canvas.tsx ~ line 42 ~ onCanvasShapeDrawn ~ event", event)
+    const onCanvasShapeUpdate = (event: any): void => {
+        const clientID = event?.detail?.clientID;
+        let filteredStates = states.map((state: any) => {
+            const box = boxTo2DPoints(state.points, cameraParam)
+            if (box) {
+                const boxPoints = [
+                    box[4], box[5],
+                    box[2], box[3],
+                    box[6], box[7],
+                    box[0], box[1],
+                    box[14], box[15],
+                    box[8], box[9],
+                    box[12], box[13],
+                    box[10], box[11]
+                ]
+                return {
+                    points: boxPoints,
+                    color: state.label.color,
+                    opacity: state.clientID === clientID ? 0.3 : 0.03,
+                    clientID: state.clientID,
+                    zOrder: state.zOrder,
+                    hidden: state.hidden,
+                    outside: state.outside,
+                    occluded: state.occluded,
+                    shapeType: 'cuboid',
+                    pinned: state.pinned,
+                    descriptions: state.descriptions,
+                    frame: state.frame,
+                    label: state.label,
+                    lock: state.lock,
+                    source: state.source,
+                    updated: state.updated,
+                    attributes: state.attributes,
+                }
+            }
+        })
+        filteredStates = filteredStates.filter((state: any) => state !== undefined);
+        canvasInstance.setupObjectsUnite(filteredStates);
     }
 
     useEffect(() => {
@@ -76,18 +111,25 @@ function ContextImageCanvas({ imageData, imageName }: { imageData: ImageData, im
                 );
             }
             canvasInstance.fitCanvas();
+            // onCanvasShapeUpdate(null);  // 初始绘制映射框
         }
     }, [])
 
     useEffect(() => {
-        instance?.html().perspective.addEventListener('canvas.selected', onCanvasShapeDrawn);
-        instance?.html().perspective.addEventListener('canvas.edited', onCanvasEditDone);
+        instance?.html().perspective.addEventListener('canvas.selected', onCanvasShapeUpdate);
+        instance?.html().perspective.addEventListener('canvas.edited', onCanvasShapeUpdate);
 
         return () => {
-            instance?.html().perspective.removeEventListener('canvas.selected', onCanvasShapeDrawn);
-            instance?.html().perspective.removeEventListener('canvas.edited', onCanvasEditDone);
+            instance?.html().perspective.removeEventListener('canvas.selected', onCanvasShapeUpdate);
+            instance?.html().perspective.removeEventListener('canvas.edited', onCanvasShapeUpdate);
         };
     }, []);
+
+    useEffect(() => {
+        // 初始绘制映射框
+        if (states && cameraParam)
+            onCanvasShapeUpdate(null);
+    }, [states, cameraParam]);
 
     return (
         <div style={{ margin: 10, marginRight: 20, padding: 10, background: 'rgba(0, 0, 0, 0.05)', borderRadius: 5 }}>
