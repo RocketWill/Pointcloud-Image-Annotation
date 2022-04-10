@@ -70,6 +70,10 @@ const defaultState: AnnotationState = {
             data: null,
             hidden: false,
         },
+        cameraParam : {
+            fetching: false,
+            data: null,
+        },
     },
     drawing: {
         activeShapeType: ShapeType.RECTANGLE,

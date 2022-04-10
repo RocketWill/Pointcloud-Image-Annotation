@@ -2,7 +2,7 @@
  * @Date: 2022-03-24 11:16:25
  * @Company: Luokung Technology Corp.
  * @LastEditors: Will Cheng Yong
- * @LastEditTime: 2022-04-07 15:35:16
+ * @LastEditTime: 2022-04-09 09:50:06
  */
 // Copyright (C) 2021 Intel Corporation
 //
@@ -14,13 +14,21 @@ import { useDispatch, useSelector } from 'react-redux';
 import { QuestionCircleOutlined, ShrinkOutlined } from '@ant-design/icons';
 import Spin from 'antd/lib/spin';
 import Typography from 'antd/lib/typography';
+import Tag from 'antd/lib/tag';
+import Empty from 'antd/lib/empty';
 
 import { CombinedState } from 'reducers/interfaces';
 import { hideShowContextImage, getContextImageAsync, getCameraParamAsync } from 'actions/annotation-actions';
 import CVATTooltip from 'components/common/cvat-tooltip';
 import ContextImageCanvas, { ImageData } from './context-image-canvas';
+import CanvasWrapperContextContainer from 'containers/annotation-page/canvas/canvas-context';
 
 const { Text } = Typography;
+
+interface TargetInContextInfo {
+    activeID: number;
+    imageNames: string[];
+}
 
 export function adjustContextImagePosition(sidebarCollapsed: boolean): void {
     const element = window.document.getElementsByClassName('cvat-context-image-wrapper')[0] as
@@ -35,14 +43,41 @@ export function adjustContextImagePosition(sidebarCollapsed: boolean): void {
     }
 }
 
+function TargetInContextCalculation({ contextNames, targetContextInfo }:
+    { contextNames: string[], targetContextInfo: TargetInContextInfo }): JSX.Element | null {
+     const element = contextNames.map((contextName: string, index: number) =>
+        targetContextInfo.imageNames.includes(contextName) ?
+            <Tag color='#108ee9' key={`target-calculation-${contextName}`}>{index + 1}</Tag> : // blue background
+            <Tag color='default' key={`target-calculation-${contextName}`}>{index + 1}</Tag>   // gray background
+     )
+     return (
+        <div style={{ padding: 10 }}>
+            <Text type='secondary'>
+                {targetContextInfo.activeID > 0 ? `当前选中目标 [id-${targetContextInfo.activeID}] 有 ${targetContextInfo.imageNames.length} 张对应图像` : `无选中目标`}
+            </Text>
+            <div style={{ marginTop: 5 }}>{element}</div>
+        </div>
+    );
+}
+
 function ContextImage(): JSX.Element | null {
     const dispatch = useDispatch();
     const { number: frame, hasRelatedContext } = useSelector((state: CombinedState) => state.annotation.player.frame);
     const { data: contextImageData, hidden: contextImageHidden, fetching: contextImageFetching } = useSelector(
         (state: CombinedState) => state.annotation.player.contextImage,
     );
+    const { annotations: { activatedStateID }, player: { cameraParam: allCameraParam } }
+            = useSelector((state: CombinedState) => state.annotation);
 
     const [requested, setRequested] = useState(false);
+    const [targetInContext, setTargetInContext] = useState({ activeID: -1, imageNames: [] } as TargetInContextInfo);
+
+    const calculateTargetInContext = (clientID: number, imageName: string): void => {
+        setTargetInContext({
+            activeID: clientID,
+            imageNames: clientID === targetInContext.activeID ? [...targetInContext.imageNames, imageName] : [imageName]
+        })
+    }
 
     useEffect(() => {
         if (requested) {
@@ -58,9 +93,9 @@ function ContextImage(): JSX.Element | null {
         }
     }, [contextImageHidden, requested, hasRelatedContext]);
 
-    if (!hasRelatedContext) {
-        return null;
-    }
+    // if (!hasRelatedContext) {
+    //     return null;
+    // }
 
     return (
         <div style={{ height: '100%', overflow: 'scroll' }}>
@@ -72,15 +107,44 @@ function ContextImage(): JSX.Element | null {
                 />
                 : null
             }
-            {contextImageData &&
-                <Text type='secondary' style={{ padding: 8, display: 'flex', justifyContent: 'center' }}>
-                    {`共包含 ${Object.keys(contextImageData).length} 张对应图像`}
-                </Text>
+            {contextImageData === null &&
+                <div style={{ display: 'flex', height: '100%',
+                              justifyContent: 'center', alignItems: 'center' }}>
+                    <Empty />
+                </div>
+
             }
-            {contextImageData && Object.keys(contextImageData).map((imageName: string) =>
+            {contextImageData &&
+                allCameraParam?.data ? (
+                    <div>
+                        <TargetInContextCalculation
+                            contextNames={Object.keys(contextImageData)}
+                            targetContextInfo={
+                                activatedStateID ? targetInContext : { activeID: -1, imageNames: [] }
+                            }
+                        />
+                    </div>
+                )
+                : (
+                    <Text type='secondary' style={{ display: 'flex', justifyContent: 'center' }}>
+                        未找到相机参数
+                    </Text>
+                )
+            }
+            {/* {contextImageData && Object.keys(contextImageData).map((imageName: string) =>
                 <ContextImageCanvas
                     imageData={contextImageData[imageName]}
                     imageName={imageName}
+                    calculateTargetInContext={calculateTargetInContext}
+                    key={`ctx-img-canvas-${contextImageData[imageName].name}`}
+                />
+            )
+            } */}
+            {contextImageData && Object.keys(contextImageData).map((imageName: string, contextIndex: number) =>
+                <CanvasWrapperContextContainer
+                    imageData={contextImageData[imageName]}
+                    imageName={imageName}
+                    contextIndex={contextIndex}
                     key={`ctx-img-canvas-${contextImageData[imageName].name}`}
                 />
             )

@@ -2,7 +2,7 @@
  * @Date: 2022-03-29 11:49:05
  * @Company: Luokung Technology Corp.
  * @LastEditors: Will Cheng Yong
- * @LastEditTime: 2022-04-07 15:39:54
+ * @LastEditTime: 2022-04-08 15:01:39
  */
 // Copyright (C) 2021 Intel Corporation
 //
@@ -33,21 +33,48 @@ function boxTo2DPoints(points: number[], calib: Calib) {
     return box2dPoints;
 }
 
-function ContextImageCanvas({ imageData, imageName }: { imageData: ImageData, imageName: string }): JSX.Element | null {
+const onCanvasShapeClicked = (e: any): void => {
+    const { clientID } = e.detail.state;
+    const sidebarItem = window.document.getElementById(`cvat-objects-sidebar-state-item-${clientID}`);
+    if (sidebarItem) {
+        sidebarItem.scrollIntoView();
+    }
+};
+
+function ContextImageCanvas({ imageData, imageName, calculateTargetInContext }:
+    { imageData: ImageData, imageName: string, calculateTargetInContext: Function }): JSX.Element | null {
     const canvasInstance = useMemo(() => new Canvas(), []);
+    canvasInstance.configure({
+        smoothImage: true,
+        autoborders: true,
+        undefinedAttrValue: '__undefined__',
+        displayAllText: false,
+        forceDisableEditing: false,
+        intelligentPolygonCrop: false,
+        showProjections: false,
+        creationOpacity: 0.03,
+        textFontSize: 12,
+        textPosition: 'center',
+        textContent: '',
+    });
     const { frame } = useSelector((state: CombinedState) => state.annotation.player);
     // const state = useSelector((state: CombinedState) => state);
     const { drawing: { activeLabelID }, annotations: { states },
             canvas: { instance }, player: { cameraParam: allCameraParam } }
             = useSelector((state: CombinedState) => state.annotation);
-    const cameraParam = allCameraParam?.data[imageName];
+    const cameraParam = allCameraParam?.data?.[imageName];
     const frameData: any = { ...frame };
 
     const onCanvasShapeUpdate = (event: any): void => {
+        if (!cameraParam) return;
         const clientID = event?.detail?.clientID;
         let filteredStates = states.map((state: any) => {
             const box = boxTo2DPoints(state.points, cameraParam)
             if (box) {
+                // calculate target quantity in context image
+                if (clientID === state.clientID) {
+                    calculateTargetInContext(state.clientID, imageName);
+                }
                 const boxPoints = [
                     box[4], box[5],
                     box[2], box[3],
@@ -118,10 +145,12 @@ function ContextImageCanvas({ imageData, imageName }: { imageData: ImageData, im
     useEffect(() => {
         instance?.html().perspective.addEventListener('canvas.selected', onCanvasShapeUpdate);
         instance?.html().perspective.addEventListener('canvas.edited', onCanvasShapeUpdate);
+        canvasInstance.html().addEventListener('canvas.clicked', onCanvasShapeClicked);
 
         return () => {
             instance?.html().perspective.removeEventListener('canvas.selected', onCanvasShapeUpdate);
             instance?.html().perspective.removeEventListener('canvas.edited', onCanvasShapeUpdate);
+            canvasInstance.html().removeEventListener('canvas.clicked', onCanvasShapeClicked);
         };
     }, []);
 

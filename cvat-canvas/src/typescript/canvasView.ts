@@ -1547,9 +1547,10 @@ export class CanvasViewImpl implements CanvasView, Listener {
     }
 
     public setupObjectsUnite(states: any[]): void {
-        if (Object.keys(this.svgShapes).length > 0) {
-            this.deleteObjects(states);
-        }
+        // console.log("🤡 ~ file: canvasView.ts ~ line 1550 ~ CanvasViewImpl ~ setupObjectsUnite ~ states", states)
+        // if (Object.keys(this.svgShapes).length > 0) {
+        //     this.deleteObjects(states);
+        // }
         const opacity: any = {};
         const created = [];
         const updated = [];

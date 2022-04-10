@@ -2,7 +2,7 @@
  * @Date: 2022-04-06 11:31:09
  * @Company: Luokung Technology Corp.
  * @LastEditors: Will Cheng Yong
- * @LastEditTime: 2022-04-07 14:47:33
+ * @LastEditTime: 2022-04-07 17:59:59
  */
 
 // matrix (m*n), matrix(n*l), vl: vector length=n
@@ -86,6 +86,33 @@ function allPointsInImageRange(p: number[]): boolean {
         }
     }
     return true;
+}
+
+function fullBoxInImage(p: number[], img_dx: number, img_dy: number): number {
+    let yAxisValid = 0;
+    let xAxisValid = 0;
+    for (let i = 0; i < p.length; i++) {
+        const e = p[i];
+        if (i % 2 === 0) {
+            // x axis
+            if ((e > 0 && e < img_dx)) {
+                xAxisValid |= 1;
+            }
+            else {
+                xAxisValid |= 0;
+            }
+        }
+        else {
+            // y axis
+            if ((e > 0 && e < img_dy)) {
+                yAxisValid |= 1;
+            }
+            else {
+                yAxisValid |= 0;
+            }
+        }
+    }
+    return xAxisValid & yAxisValid;
 }
 
 // box(position, scale, rotation) to box corner corrdinates.
@@ -181,6 +208,10 @@ export function points3dHomoToImage2d(points3d: number[], calib: Calib, acceptPa
     }
 
     let imgfinal = vector3Nomalize(imgpos2);
+
+    if (!fullBoxInImage(imgfinal, calib.width, calib.height)) {
+        return null;
+    }
 
     if (!acceptPartial && !allPointsInImageRange(imgpos3)) {
         return null;
