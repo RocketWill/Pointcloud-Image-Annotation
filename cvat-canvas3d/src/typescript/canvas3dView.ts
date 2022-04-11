@@ -2243,8 +2243,9 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
     private initiateActionPerspective(view: string, viewType: any): void {
         const intersectsBox = viewType.rayCaster.renderer.intersectObjects([this.model.data.selected[view]], false);
         const { clientID } = this.model.data.activeElement;
-        if (clientID === 'null') return;
+        if (clientID === null) return;
         const object = this.views.perspective.scene.getObjectByName(clientID);
+        if (!object) return;
         if (this.control.mode === 'translate') {
             this.action.translation.helper = viewType.rayCaster.mouseVector.clone();
             this.action.translation.inverseMatrix = object.parent.matrixWorld.invert();

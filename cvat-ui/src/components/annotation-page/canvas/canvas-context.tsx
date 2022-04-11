@@ -1,18 +1,13 @@
 /*
  * @Date: 2022-04-08 16:01:25
  * @Company: Luokung Technology Corp.
- * @LastEditors: Will Cheng Yong
- * @LastEditTime: 2022-04-10 00:22:32
+ * @LastEditors: Will Cheng
+ * @LastEditTime: 2022-04-11 18:37:54
  */
 import React, {
-    ReactElement, SyntheticEvent, useEffect, useReducer, useRef, useMemo
+    ReactElement, SyntheticEvent, useEffect, useReducer, useRef, useMemo, useState
 } from 'react';
-import Layout from 'antd/lib/layout';
-import Slider from 'antd/lib/slider';
-import Dropdown from 'antd/lib/dropdown';
 import Typography from 'antd/lib/typography';
-import { PlusCircleOutlined, UpOutlined } from '@ant-design/icons';
-
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
 import {
     ColorBy, GridColor, ObjectType, ContextMenuType, Workspace, ShapeType,
@@ -23,8 +18,6 @@ import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import getCore from 'cvat-core-wrapper';
 import consts from 'consts';
 import CVATTooltip from 'components/common/cvat-tooltip';
-import ImageSetupsContent from './image-setups-content';
-import ContextImage from '../standard-workspace/context-image/context-image';
 import { Calib, psrToXyz, points3dHomoToImage2d } from '../standard-workspace/context-image/shared'
 
 const cvat = getCore();
@@ -123,7 +116,13 @@ function boxTo2DPoints(points: number[], calib: Calib) {
 }
 
 const CanvasWrapperContextComponent = (props: Props): ReactElement => {
+    const [projFrameData, setProjFrameData] = useState(null as any);
     const {
+        opacity,
+        outlined,
+        outlineColor,
+        colorBy,
+        frameFetching,
         annotations,
         activatedStateID,
         automaticBordering,
@@ -407,30 +406,25 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             }
 
             // TODO: In this approach CVAT-UI know details of implementations CVAT-CANVAS (svg.js)
-            const shapeView = window.document.getElementById(`cvat_canvas_shape_${state.clientID}`);
-            if (shapeView) {
-                const handler = (shapeView as any).instance.remember('_selectHandler');
-                if (handler && handler.nested) {
-                    handler.nested.fill({ color: shapeColor });
-                }
+            // const shapeView = window.document.getElementById(`cvat_canvas_shape_${state.clientID}`);  // one state should be in only one canvas instance
+            const shapeViews = document.querySelectorAll(`#cvat_canvas_shape_${state.clientID}`);
+            if (shapeViews.length > 0) {
+                for (const shapeView of shapeViews) {
+                    if (shapeView) {
+                        const handler = (shapeView as any).instance.remember('_selectHandler');
+                        if (handler && handler.nested) {
+                            handler.nested.fill({ color: shapeColor });
+                        }
 
-                (shapeView as any).instance.fill({ color: shapeColor, opacity });
-                (shapeView as any).instance.stroke({ color: outlined ? outlineColor : shapeColor });
+                        (shapeView as any).instance.fill({ color: shapeColor, opacity });
+                        (shapeView as any).instance.stroke({ color: outlined ? outlineColor : shapeColor });
+                    }
+                }
             }
         }
     }
 
-    const updateCanvas = (event: any): void => {
-        // const {
-        //     curZLayer, annotations, frameData,
-        // } = props;
-        // if (frameData !== null && canvasInstance) {
-        //     canvasInstance.setup(
-        //         frameData,
-        //         annotations.filter((e) => e.objectType !== ObjectType.TAG),
-        //         curZLayer,
-        //     );
-        // }
+    const projAnnotations = (event: any): any => {
         if (!cameraParam) return;
         const clientID = event?.detail?.clientID;
         let filteredAnnotations = annotations.map((annotation: any) => {
@@ -450,10 +444,11 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                     box[12], box[13],
                     box[10], box[11]
                 ]
-                return {
+                return new cvat.classes.ObjectState({
                     points: boxPoints,
                     color: annotation.label.color,
-                    opacity: annotation.clientID === clientID ? 0.3 : 0.03,
+                    // opacity: annotation.clientID === clientID ? 0.3 : 0.03,
+                    // opacity: annotation.clientID == 0.03,
                     clientID: annotation.clientID,
                     zOrder: annotation.zOrder,
                     hidden: annotation.hidden,
@@ -468,11 +463,22 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                     source: annotation.source,
                     updated: annotation.updated,
                     attributes: annotation.attributes,
-                }
+                });
             }
         })
         filteredAnnotations = filteredAnnotations.filter((annotation: any) => annotation !== undefined);
-        canvasInstance.setupObjectsUnite(filteredAnnotations);
+        // canvasInstance.setupObjectsUnite(filteredAnnotations);
+        return filteredAnnotations;
+    }
+
+    const updateCanvas = (e: any): void => {
+        if (projFrameData) {
+            canvasInstance.setup(
+                projFrameData,
+                projAnnotations(null),
+                0,
+            );
+        }
     }
 
     const onCanvasShapeDeactivated = (e: any): void => {
@@ -488,7 +494,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     };
 
     const onCanvasCursorMoved = async (event: any): Promise<void> => {
-    console.log("🤡 ~ file: canvas-context.tsx ~ line 491 ~ onCanvasCursorMoved ~ event", event)
         const {
             jobInstance, activatedStateID, workspace, onActivateObject,
         } = props;
@@ -498,7 +503,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         }
 
         const result = await jobInstance.annotations.select(event.detail.states, event.detail.x, event.detail.y);
-
         if (result && result.state) {
             if (result.state.shapeType === 'polyline' || result.state.shapeType === 'points') {
                 if (result.distance > MAX_DISTANCE_TO_OPEN_SHAPE) {
@@ -665,7 +669,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         const img = new Image(imageData['size'][1], imageData['size'][0]);  // Image(width, height)
         const base64String = 'data:image/jpeg;base64,' + imageData['data'];
         img.src = base64String;
-        img.onload = () => {
+        img.onload = async () => {
             frameData['data'] = async () => (
                 {
                     renderWidth: imageData['size'][1],
@@ -675,12 +679,13 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             )
             frameData['width'] = imageData['size'][1];
             frameData['height'] = imageData['size'][0];
+            frameData['_data'] = {
+                renderWidth: imageData['size'][1],
+                renderHeight: imageData['size'][0],
+                imageData: await createImageBitmap(img)
+            }
             if (frameData !== null) {
-                canvasInstance.setup(
-                    frameData,
-                    [],
-                    0,
-                );
+                setProjFrameData(frameData)
             }
         }
     }
@@ -711,9 +716,34 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
     useEffect(() => {
         // 初始绘制映射框
-        if (annotations && cameraParam)
+        console.log("🚀 ~ file: canvas-context.tsx ~ line 711 ~ useEffect ~ annotations", annotations)
+        if (annotations && cameraParam) {
             updateCanvas(null);
-    }, [annotations, cameraParam]);
+            updateShapesView();
+        }
+    }, [annotations, cameraParam, projFrameData]);
+
+    useEffect(() => {
+        canvasInstance.configure({
+            undefinedAttrValue: consts.UNDEFINED_ATTRIBUTE_VALUE,
+            displayAllText: showObjectsTextAlways,
+            autoborders: automaticBordering,
+            showProjections,
+            intelligentPolygonCrop,
+            creationOpacity: selectedOpacity,
+            smoothImage,
+            textFontSize,
+            textPosition,
+            textContent,
+        });
+    }, [
+        showObjectsTextAlways, automaticBordering, showProjections, intelligentPolygonCrop,
+        selectedOpacity, smoothImage, textFontSize, textPosition, textContent
+    ])
+
+    useEffect(() => {
+        updateShapesView();
+    }, [opacity, outlined, outlineColor, selectedOpacity, colorBy])
 
     return (
         <div style={{ margin: 10, marginRight: 20, padding: 10, background: 'rgba(0, 0, 0, 0.05)', borderRadius: 5 }}>
