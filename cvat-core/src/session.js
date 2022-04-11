@@ -58,12 +58,31 @@
                         return result;
                     },
 
+                    async putProjection(arrayOfObjects = []) {
+                        const result = await PluginRegistry.apiWrapper.call(
+                            this,
+                            prototype.annotations.putProjection,
+                            arrayOfObjects,
+                        );
+                        return result;
+                    },
+
                     async get(frame, allTracks = false, filters = []) {
                         const result = await PluginRegistry.apiWrapper.call(
                             this,
                             prototype.annotations.get,
                             frame,
                             allTracks,
+                            filters,
+                        );
+                        return result;
+                    },
+
+                    async getProjection(frame, filters = []) {
+                        const result = await PluginRegistry.apiWrapper.call(
+                            this,
+                            prototype.annotations.getProjection,
+                            frame,
                             filters,
                         );
                         return result;
@@ -966,7 +985,9 @@
             // So, we need return it
             this.annotations = {
                 get: Object.getPrototypeOf(this).annotations.get.bind(this),
+                getProjection: Object.getPrototypeOf(this).annotations.getProjection.bind(this),
                 put: Object.getPrototypeOf(this).annotations.put.bind(this),
+                putProjection: Object.getPrototypeOf(this).annotations.putProjection.bind(this),
                 save: Object.getPrototypeOf(this).annotations.save.bind(this),
                 merge: Object.getPrototypeOf(this).annotations.merge.bind(this),
                 split: Object.getPrototypeOf(this).annotations.split.bind(this),
@@ -1810,7 +1831,9 @@
 
     const {
         getAnnotations,
+        getProjctionAnnotations,
         putAnnotations,
+        putProjectionAnnotations,
         saveAnnotations,
         hasUnsavedChanges,
         searchAnnotations,
@@ -1923,6 +1946,23 @@
         return annotationsData;
     };
 
+    Job.prototype.annotations.getProjection.implementation = async function (frame, filters) {
+        if (!Array.isArray(filters)) {
+            throw new ArgumentError('Filters must be an array');
+        }
+
+        if (!Number.isInteger(frame)) {
+            throw new ArgumentError('The frame argument must be an integer');
+        }
+
+        if (frame < this.startFrame || frame > this.stopFrame) {
+            throw new ArgumentError(`Frame ${frame} does not exist in the job`);
+        }
+
+        const annotationsData = await getProjctionAnnotations(this, frame, filters);
+        return annotationsData;
+    };
+
     Job.prototype.annotations.search.implementation = function (filters, frameFrom, frameTo) {
         if (!Array.isArray(filters)) {
             throw new ArgumentError('Filters must be an array');
@@ -2005,6 +2045,11 @@
 
     Job.prototype.annotations.put.implementation = function (objectStates) {
         const result = putAnnotations(this, objectStates);
+        return result;
+    };
+
+    Job.prototype.annotations.putProjection.implementation = function (objectStates) {
+        const result = putProjectionAnnotations(this, objectStates);
         return result;
     };
 

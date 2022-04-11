@@ -91,6 +91,7 @@ const defaultState: AnnotationState = {
         collapsed: {},
         collapsedAll: true,
         states: [],
+        projectionStates: [],
         filters: [],
         resetGroupFlag: false,
         history: {
@@ -1238,6 +1239,18 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                         ...state.player.cameraParam,
                         fetching: false,
                     },
+                },
+            };
+        }
+        case AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_SUCCESS: {
+            const { projectionStates, history } = action.payload;
+
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    projectionStates,
+                    history,
                 },
             };
         }

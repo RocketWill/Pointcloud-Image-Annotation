@@ -911,6 +911,21 @@ export default function (state = defaultState, action: AnyAction): Notifications
                 },
             };
         }
+        case AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_FAILED: {
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    annotation: {
+                        ...state.errors.annotation,
+                        creating: {
+                            message: 'Could not create projection annotations',
+                            reason: action.payload.error.toString(),
+                        },
+                    },
+                },
+            };
+        }
         case AnnotationActionTypes.MERGE_ANNOTATIONS_FAILED: {
             return {
                 ...state,

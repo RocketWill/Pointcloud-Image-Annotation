@@ -86,6 +86,7 @@ interface Props {
     onResetCanvas: () => void;
     onUpdateAnnotations(states: any[]): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
+    onCreateProjectionAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onGroupAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onSplitAnnotations(sessionInstance: any, frame: number, state: any): void;
@@ -140,7 +141,9 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         imageName,
         contextIndex,
         canvasInstance: canvasInstance3D,  // 3d instance
+        onCreateProjectionAnnotations,
     } = props;
+    console.log("🤡 ~ file: canvas-context.tsx ~ line 146 ~ CanvasWrapperContextComponent ~ onCreateProjectionAnnotations", onCreateProjectionAnnotations)
     const canvasInstance = useMemo(() => new Canvas(), []);  // 2d instance
     const cameraParam = allCameraParam?.data?.[imageName];
     const {

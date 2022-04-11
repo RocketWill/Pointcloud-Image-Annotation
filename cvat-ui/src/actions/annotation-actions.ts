@@ -200,6 +200,8 @@ export enum AnnotationActionTypes {
     GET_CAMERA_PARAM = 'GET_CAMERA_PARAM',
     GET_CAMERA_PARAM_SUCCESS = 'GET_CAMERA_PARAM_SUCCESS',
     GET_CAMERA_PARAM_FAILED = 'GET_CAMERA_PARAM_FAILED',
+    CREATE_PROJECTION_ANNOTATIONS_SUCCESS = 'CREATE_PROJECTION_ANNOTATIONS_SUCCESS',
+    CREATE_PROJECTION_ANNOTATIONS_FAILED = 'CREATE_PROJECTION_ANNOTATIONS_FAILED',
 }
 
 export function saveLogsAsync(): ThunkAction {
@@ -1698,5 +1700,32 @@ export function switchNavigationBlocked(navigationBlocked: boolean): AnyAction {
         payload: {
             navigationBlocked,
         },
+    };
+}
+
+// [CY] 3d to 2d
+export function createProjectionAnnotationsAsync(sessionInstance: any, frame: number, statesToCreate: any[]): ThunkAction {
+    return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
+        try {
+            const { filters, showAllInterpolationTracks } = receiveAnnotationsParameters();
+            await sessionInstance.annotations.putProjection(statesToCreate);
+            const projectionStates = await sessionInstance.annotations.getProjection(frame, filters);
+            const history = await sessionInstance.actions.get();
+
+            dispatch({
+                type: AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_SUCCESS,
+                payload: {
+                    projectionStates,
+                    history,
+                },
+            });
+        } catch (error) {
+            dispatch({
+                type: AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_FAILED,
+                payload: {
+                    error,
+                },
+            });
+        }
     };
 }

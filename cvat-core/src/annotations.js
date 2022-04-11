@@ -85,6 +85,18 @@
         return cache.get(session).collection.get(frame, allTracks, filters);
     }
 
+    async function getProjctionAnnotations(session, frame, filters) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            return cache.get(session).collection.getProjection(frame, filters);
+        }
+
+        // await getAnnotationsFromServer(session);
+        return cache.get(session).collection.getProjection(frame, filters);
+    }
+
     async function saveAnnotations(session, onUpdate) {
         const sessionType = session instanceof Task ? 'task' : 'job';
         const cache = getCache(sessionType);
@@ -208,6 +220,19 @@
             return cache.get(session).collection.put(objectStates);
         }
 
+        throw new DataError(
+            'Collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
+        );
+    }
+
+    // 3d to 2d projection
+    function putProjectionAnnotations(session, objectStates) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            return cache.get(session).collection.putProjection(objectStates);
+        }
         throw new DataError(
             'Collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
         );
@@ -367,7 +392,9 @@
 
     module.exports = {
         getAnnotations,
+        getProjctionAnnotations,
         putAnnotations,
+        putProjectionAnnotations,
         saveAnnotations,
         hasUnsavedChanges,
         mergeAnnotations,

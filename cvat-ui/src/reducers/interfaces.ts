@@ -603,6 +603,7 @@ export interface AnnotationState {
         collapsed: Record<number, boolean>;
         collapsedAll: boolean;
         states: any[];
+        projectionStates: any[];
         filters: any[];
         resetGroupFlag: boolean;
         history: {
