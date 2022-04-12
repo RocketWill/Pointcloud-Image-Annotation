@@ -2,7 +2,7 @@
  * @Date: 2022-04-08 16:01:25
  * @Company: Luokung Technology Corp.
  * @LastEditors: Will Cheng
- * @LastEditTime: 2022-04-12 14:54:05
+ * @LastEditTime: 2022-04-12 15:45:39
  */
 import React, {
     ReactElement, SyntheticEvent, useEffect, useReducer, useRef, useMemo, useState
@@ -213,12 +213,15 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     };
 
     const onCanvasEditDone = (event: any): void => {
-        const { onEditShape, onUpdateAnnotations } = props;
+        const { onEditShape, onUpdateAnnotations, jobInstance, frame } = props;
         onEditShape(false);
         const { state, points, rotation } = event.detail;
         state.points = points;
         state.rotation = rotation;
         onUpdateAnnotations([state]);
+
+        const projAnnos = projAnnotations(null);
+        onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
     };
 
     const onCanvasDragStart = (): void => {
@@ -721,14 +724,13 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
     useEffect(() => {
         // 初始绘制映射框
-        const { frame, jobInstance } = props;
+        const { jobInstance, frame } = props;
         if (annotations && cameraParam) {
             updateCanvas(null);
             updateShapesView();
         }
         const projAnnos = projAnnotations(null);
         onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
-        console.log("🚀 ~ file: canvas-context.tsx ~ line 733 ~ useEffect ~ projAnnotations", projectionAnnotations)
     }, [annotations, cameraParam, projFrameData]);
 
     useEffect(() => {
@@ -752,6 +754,10 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     useEffect(() => {
         updateShapesView();
     }, [opacity, outlined, outlineColor, selectedOpacity, colorBy])
+
+    useEffect(() => {
+        updateCanvas(null);
+    }, [projectionAnnotations])
 
     return (
         <div style={{ margin: 10, marginRight: 20, padding: 10, background: 'rgba(0, 0, 0, 0.05)', borderRadius: 5 }}>
