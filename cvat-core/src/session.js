@@ -58,11 +58,12 @@
                         return result;
                     },
 
-                    async putProjection(arrayOfObjects = []) {
+                    async putProjection(arrayOfObjects = [], contextIndex = 0) {
                         const result = await PluginRegistry.apiWrapper.call(
                             this,
                             prototype.annotations.putProjection,
                             arrayOfObjects,
+                            contextIndex,
                         );
                         return result;
                     },
@@ -78,12 +79,13 @@
                         return result;
                     },
 
-                    async getProjection(frame, filters = []) {
+                    async getProjection(frame, filters = [], contextIndex = 0) {
                         const result = await PluginRegistry.apiWrapper.call(
                             this,
                             prototype.annotations.getProjection,
                             frame,
                             filters,
+                            contextIndex,
                         );
                         return result;
                     },
@@ -1946,7 +1948,7 @@
         return annotationsData;
     };
 
-    Job.prototype.annotations.getProjection.implementation = async function (frame, filters) {
+    Job.prototype.annotations.getProjection.implementation = async function (frame, filters, contextIndex) {
         if (!Array.isArray(filters)) {
             throw new ArgumentError('Filters must be an array');
         }
@@ -1959,7 +1961,7 @@
             throw new ArgumentError(`Frame ${frame} does not exist in the job`);
         }
 
-        const annotationsData = await getProjctionAnnotations(this, frame, filters);
+        const annotationsData = await getProjctionAnnotations(this, frame, filters, contextIndex);
         return annotationsData;
     };
 
@@ -2048,8 +2050,8 @@
         return result;
     };
 
-    Job.prototype.annotations.putProjection.implementation = function (objectStates) {
-        const result = putProjectionAnnotations(this, objectStates);
+    Job.prototype.annotations.putProjection.implementation = function (objectStates, contextIndex) {
+        const result = putProjectionAnnotations(this, objectStates, contextIndex);
         return result;
     };
 

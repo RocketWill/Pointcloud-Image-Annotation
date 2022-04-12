@@ -2,7 +2,7 @@
  * @Date: 2022-04-08 16:01:25
  * @Company: Luokung Technology Corp.
  * @LastEditors: Will Cheng
- * @LastEditTime: 2022-04-11 18:37:54
+ * @LastEditTime: 2022-04-12 14:54:05
  */
 import React, {
     ReactElement, SyntheticEvent, useEffect, useReducer, useRef, useMemo, useState
@@ -33,6 +33,7 @@ interface Props {
     activatedStateID: number | null;
     activatedAttributeID: number | null;
     annotations: any[];
+    projectionAnnotations: any;
     frameData: any;
     frameAngle: number;
     frameFetching: boolean;
@@ -86,7 +87,7 @@ interface Props {
     onResetCanvas: () => void;
     onUpdateAnnotations(states: any[]): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
-    onCreateProjectionAnnotations(sessionInstance: any, frame: number, states: any[]): void;
+    onCreateProjectionAnnotations(sessionInstance: any, frame: number, states: any[], contextIndex: number): void;
     onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onGroupAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onSplitAnnotations(sessionInstance: any, frame: number, state: any): void;
@@ -125,6 +126,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         colorBy,
         frameFetching,
         annotations,
+        projectionAnnotations,
         activatedStateID,
         automaticBordering,
         intelligentPolygonCrop,
@@ -143,7 +145,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         canvasInstance: canvasInstance3D,  // 3d instance
         onCreateProjectionAnnotations,
     } = props;
-    console.log("🤡 ~ file: canvas-context.tsx ~ line 146 ~ CanvasWrapperContextComponent ~ onCreateProjectionAnnotations", onCreateProjectionAnnotations)
     const canvasInstance = useMemo(() => new Canvas(), []);  // 2d instance
     const cameraParam = allCameraParam?.data?.[imageName];
     const {
@@ -478,7 +479,8 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         if (projFrameData) {
             canvasInstance.setup(
                 projFrameData,
-                projAnnotations(null),
+                // projAnnotations(null),
+                projectionAnnotations[contextIndex],
                 0,
             );
         }
@@ -719,11 +721,14 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
     useEffect(() => {
         // 初始绘制映射框
-        console.log("🚀 ~ file: canvas-context.tsx ~ line 711 ~ useEffect ~ annotations", annotations)
+        const { frame, jobInstance } = props;
         if (annotations && cameraParam) {
             updateCanvas(null);
             updateShapesView();
         }
+        const projAnnos = projAnnotations(null);
+        onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
+        console.log("🚀 ~ file: canvas-context.tsx ~ line 733 ~ useEffect ~ projAnnotations", projectionAnnotations)
     }, [annotations, cameraParam, projFrameData]);
 
     useEffect(() => {

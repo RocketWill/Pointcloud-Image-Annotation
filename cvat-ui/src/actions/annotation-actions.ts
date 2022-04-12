@@ -1704,18 +1704,19 @@ export function switchNavigationBlocked(navigationBlocked: boolean): AnyAction {
 }
 
 // [CY] 3d to 2d
-export function createProjectionAnnotationsAsync(sessionInstance: any, frame: number, statesToCreate: any[]): ThunkAction {
+export function createProjectionAnnotationsAsync(sessionInstance: any, frame: number, statesToCreate: any[], contextIndex: number): ThunkAction {
     return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
         try {
             const { filters, showAllInterpolationTracks } = receiveAnnotationsParameters();
-            await sessionInstance.annotations.putProjection(statesToCreate);
-            const projectionStates = await sessionInstance.annotations.getProjection(frame, filters);
+            await sessionInstance.annotations.putProjection(statesToCreate, contextIndex);
+            const projectionStates = await sessionInstance.annotations.getProjection(frame, filters, contextIndex);
             const history = await sessionInstance.actions.get();
 
             dispatch({
                 type: AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_SUCCESS,
                 payload: {
                     projectionStates,
+                    contextIndex,
                     history,
                 },
             });

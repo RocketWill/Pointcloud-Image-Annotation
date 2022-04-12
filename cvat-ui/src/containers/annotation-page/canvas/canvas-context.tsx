@@ -1,8 +1,8 @@
 /*
  * @Date: 2022-04-08 23:15:44
  * @Company: Luokung Technology Corp.
- * @LastEditors: Will Cheng Yong
- * @LastEditTime: 2022-04-09 10:55:04
+ * @LastEditors: Will Cheng
+ * @LastEditTime: 2022-04-12 12:02:11
  */
 
 import { connect } from 'react-redux';
@@ -68,6 +68,7 @@ interface StateToProps {
     activatedStateID: number | null;
     activatedAttributeID: number | null;
     annotations: any[];
+    projectionAnnotations: any;
     frameData: any;
     frameAngle: number;
     frameFetching: boolean;
@@ -123,7 +124,7 @@ interface DispatchToProps {
     onEditShape: (enabled: boolean) => void;
     onUpdateAnnotations(states: any[]): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
-    onCreateProjectionAnnotations(sessionInstance: any, frame: number, states: any[]): void;
+    onCreateProjectionAnnotations(sessionInstance: any, frame: number, states: any[], contextIndex: number): void;
     onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onGroupAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onSplitAnnotations(sessionInstance: any, frame: number, state: any): void;
@@ -156,6 +157,7 @@ function mapStateToProps(state: CombinedState, { imageData, imageName, contextIn
             },
             annotations: {
                 states: annotations,
+                projectionStates: projectionAnnotations,
                 activatedStateID,
                 activatedAttributeID,
                 zLayer: { cur: curZLayer, min: minZLayer, max: maxZLayer },
@@ -204,6 +206,7 @@ function mapStateToProps(state: CombinedState, { imageData, imageName, contextIn
         activatedStateID,
         activatedAttributeID,
         annotations,
+        projectionAnnotations,
         opacity: opacity / 100,
         colorBy,
         selectedOpacity: selectedOpacity / 100,
@@ -282,8 +285,8 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void {
             dispatch(createAnnotationsAsync(sessionInstance, frame, states));
         },
-        onCreateProjectionAnnotations(sessionInstance: any, frame: number, states: any[]): void {
-            dispatch(createProjectionAnnotationsAsync(sessionInstance, frame, states));
+        onCreateProjectionAnnotations(sessionInstance: any, frame: number, states: any[], contextIndex: number): void {
+            dispatch(createProjectionAnnotationsAsync(sessionInstance, frame, states, contextIndex));
         },
         onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void {
             dispatch(mergeAnnotationsAsync(sessionInstance, frame, states));

@@ -175,20 +175,34 @@
             return result;
         }
 
-        importProjection(data) {
+        importProjection(data, contextIndex) {
             const result = {
                 tags: [],
                 shapes: [],
                 tracks: [],
             };
-
+            const updatedShapeModels = [];
             for (const shape of data.shapes) {
-                const clientID = ++this.count;
+                // const clientID = ++this.count;
+                const clientID = shape.client_id;
                 const shapeModel = shapeFactory(shape, clientID, this.injection);
-                this.projectionShapes[shapeModel.frame] = this.projectionShapes[shapeModel.frame] || [];
-                this.projectionShapes[shapeModel.frame].push(shapeModel);
-                // this.objects[clientID] = shapeModel;
-                result.shapes.push(shapeModel);
+
+                if (!this.projectionShapes[shapeModel.frame]) {
+                    this.projectionShapes[shapeModel.frame] = {};
+                }
+                if (!this.projectionShapes[shapeModel.frame][contextIndex]) {
+                    this.projectionShapes[shapeModel.frame][contextIndex] = [];
+                }
+
+                updatedShapeModels.push(shapeModel);
+                // const shapeModels = createdShapeModels.concat(updatedShapeModels);
+                // this.projectionShapes[shapeModel.frame] = shapeModels;
+                // this.projectionShapes[shapeModel.frame] = this.projectionShapes[shapeModel.frame] || [];
+                // this.projectionShapes[shapeModel.frame].push(shapeModel);
+                result.shapes = updatedShapeModels;
+                this.projectionShapes[shapeModel.frame][contextIndex] = updatedShapeModels;
+                this.objects[clientID] = shapeModel;
+                // result.shapes.push(shapeModel);
             }
             return result;
         }
@@ -254,8 +268,9 @@
             return objectStates;
         }
 
-        getProjection(frame, filters) {
-            const shapes = this.projectionShapes[frame] || [];
+        getProjection(frame, filters, contextIndex=0) {
+            const frameShapes =  this.projectionShapes[frame] || {};
+            const shapes = frameShapes[contextIndex] || [];
             const objects = shapes;
             const visible = {
                 models: [],
@@ -906,7 +921,7 @@
             return importedArray.map((value) => value.clientID);
         }
 
-        putProjection(objectStates) {
+        putProjection(objectStates, contextIndex) {
             checkObjectType('shapes for put', objectStates, null, Array);
             const constructed = {
                 shapes: [],
@@ -931,7 +946,7 @@
 
             for (const state of objectStates) {
                 checkObjectType('object state', state, null, ObjectState);
-                checkObjectType('state client ID', state.clientID, 'undefined', null);
+                checkObjectType('state client ID', state.clientID, 'integer', null); // should be 3d box's id
                 checkObjectType('state frame', state.frame, 'integer', null);
                 checkObjectType('state rotation', state.rotation || 0, 'number', null);
                 checkObjectType('state attributes', state.attributes, null, Object);
@@ -962,14 +977,15 @@
                         checkObjectType('point coordinate', coord, 'number', null);
                     }
 
-                    if (!Object.values(ObjectShape).includes(state.shapeType)) {
-                        throw new ArgumentError(
-                            `Object shape must be one of: ${JSON.stringify(Object.values(ObjectShape))}`,
-                        );
-                    }
-
-                    if (state.objectType === 'shape') {
+                    // if (!Object.values(ObjectShape).includes(state.shapeType)) {
+                    //     throw new ArgumentError(
+                    //         `Object shape must be one of: ${JSON.stringify(Object.values(ObjectShape))}`,
+                    //     );
+                    // }
+                    // if (state.objectType === 'cuboid')
+                    if (state.shapeType === 'cuboid') {
                         constructed.shapes.push({
+                            client_id: state.clientID,
                             attributes,
                             descriptions: state.descriptions,
                             frame: state.frame,
@@ -992,7 +1008,7 @@
 
             // Add constructed objects to a collection
             // eslint-disable-next-line no-unsanitized/method
-            const imported = this.importProjection(constructed);
+            const imported = this.importProjection(constructed, contextIndex);
             const importedArray = imported.shapes;
 
             if (objectStates.length) {

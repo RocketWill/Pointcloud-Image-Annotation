@@ -91,7 +91,7 @@ const defaultState: AnnotationState = {
         collapsed: {},
         collapsedAll: true,
         states: [],
-        projectionStates: [],
+        projectionStates: {},
         filters: [],
         resetGroupFlag: false,
         history: {
@@ -1243,13 +1243,17 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
             };
         }
         case AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_SUCCESS: {
-            const { projectionStates, history } = action.payload;
+            const { projectionStates, contextIndex, history } = action.payload;
+            const updatedProjectionStates = {
+                ...state.annotations.projectionStates
+            }
+            updatedProjectionStates[contextIndex] = projectionStates;
 
             return {
                 ...state,
                 annotations: {
                     ...state.annotations,
-                    projectionStates,
+                    projectionStates: updatedProjectionStates,
                     history,
                 },
             };

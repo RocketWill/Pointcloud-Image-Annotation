@@ -85,16 +85,16 @@
         return cache.get(session).collection.get(frame, allTracks, filters);
     }
 
-    async function getProjctionAnnotations(session, frame, filters) {
+    async function getProjctionAnnotations(session, frame, filters, contextIndex) {
         const sessionType = session instanceof Task ? 'task' : 'job';
         const cache = getCache(sessionType);
 
         if (cache.has(session)) {
-            return cache.get(session).collection.getProjection(frame, filters);
+            return cache.get(session).collection.getProjection(frame, filters, contextIndex);
         }
 
         // await getAnnotationsFromServer(session);
-        return cache.get(session).collection.getProjection(frame, filters);
+        return cache.get(session).collection.getProjection(frame, filters, contextIndex);
     }
 
     async function saveAnnotations(session, onUpdate) {
@@ -226,12 +226,12 @@
     }
 
     // 3d to 2d projection
-    function putProjectionAnnotations(session, objectStates) {
+    function putProjectionAnnotations(session, objectStates, contextIndex) {
         const sessionType = session instanceof Task ? 'task' : 'job';
         const cache = getCache(sessionType);
 
         if (cache.has(session)) {
-            return cache.get(session).collection.putProjection(objectStates);
+            return cache.get(session).collection.putProjection(objectStates, contextIndex);
         }
         throw new DataError(
             'Collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
