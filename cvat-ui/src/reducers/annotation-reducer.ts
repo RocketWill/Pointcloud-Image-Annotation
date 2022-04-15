@@ -1258,6 +1258,48 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 },
             };
         }
+        case AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_SUCCESS: {
+            const {
+                history, states: updatedStates, minZ, maxZ,
+            } = action.payload;
+            const { projectionStates: prevStates } = state.annotations;
+            const nextStates = [...prevStates];
+
+            const clientIDs = prevStates.map((prevState: any): number => prevState.clientID);
+            for (const updatedState of updatedStates) {
+                const index = clientIDs.indexOf(updatedState.clientID);
+                if (index !== -1) {
+                    nextStates[index] = updatedState;
+                }
+            }
+
+            const maxZLayer = Math.max(state.annotations.zLayer.max, maxZ);
+            const minZLayer = Math.min(state.annotations.zLayer.min, minZ);
+
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    zLayer: {
+                        min: minZLayer,
+                        max: maxZLayer,
+                        cur: maxZLayer,
+                    },
+                    states: nextStates,
+                    history,
+                },
+            };
+        }
+        case AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_FAILED: {
+            const { states } = action.payload;
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    states,
+                },
+            };
+        }
         case AnnotationActionTypes.SWITCH_NAVIGATION_BLOCKED: {
             return {
                 ...state,

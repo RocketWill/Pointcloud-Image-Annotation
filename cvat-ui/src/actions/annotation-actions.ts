@@ -202,6 +202,8 @@ export enum AnnotationActionTypes {
     GET_CAMERA_PARAM_FAILED = 'GET_CAMERA_PARAM_FAILED',
     CREATE_PROJECTION_ANNOTATIONS_SUCCESS = 'CREATE_PROJECTION_ANNOTATIONS_SUCCESS',
     CREATE_PROJECTION_ANNOTATIONS_FAILED = 'CREATE_PROJECTION_ANNOTATIONS_FAILED',
+    UPDATE_PROJECTION_ANNOTATIONS_SUCCESS = 'UPDATE_PROJECTION_ANNOTATIONS_SUCCESS',
+    UPDATE_PROJECTION_ANNOTATIONS_FAILED = 'UPDATE_PROJECTION_ANNOTATIONS_FAILED',
 }
 
 export function saveLogsAsync(): ThunkAction {
@@ -1725,6 +1727,45 @@ export function createProjectionAnnotationsAsync(sessionInstance: any, frame: nu
                 type: AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_FAILED,
                 payload: {
                     error,
+                },
+            });
+        }
+    };
+}
+
+export function updateProjectionAnnotationsAsync(statesToUpdate: any[]): ThunkAction {
+    return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
+        const {
+            jobInstance, filters, frame, showAllInterpolationTracks,
+        } = receiveAnnotationsParameters();
+
+        try {
+            if (statesToUpdate.some((state: any): boolean => state.updateFlags.zOrder)) {
+                // deactivate object to visualize changes immediately (UX)
+                dispatch(activateObject(null, null));
+            }
+
+            const promises = statesToUpdate.map((objectState: any): Promise<any> => objectState.save());
+            const states = await Promise.all(promises);
+            const history = await jobInstance.actions.get();
+            const [minZ, maxZ] = computeZRange(states);
+
+            dispatch({
+                type: AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_SUCCESS,
+                payload: {
+                    states,
+                    history,
+                    minZ,
+                    maxZ,
+                },
+            });
+        } catch (error) {
+            const states = await jobInstance.annotations.get(frame, showAllInterpolationTracks, filters);
+            dispatch({
+                type: AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_FAILED,
+                payload: {
+                    error,
+                    states,
                 },
             });
         }

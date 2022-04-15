@@ -2,11 +2,12 @@
  * @Date: 2022-04-08 16:01:25
  * @Company: Luokung Technology Corp.
  * @LastEditors: Will Cheng
- * @LastEditTime: 2022-04-12 15:45:39
+ * @LastEditTime: 2022-04-15 13:34:08
  */
 import React, {
     ReactElement, SyntheticEvent, useEffect, useReducer, useRef, useMemo, useState
 } from 'react';
+import { usePrevious } from 'utils/hooks';
 import Typography from 'antd/lib/typography';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
 import {
@@ -145,6 +146,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         canvasInstance: canvasInstance3D,  // 3d instance
         onCreateProjectionAnnotations,
     } = props;
+    const prevActivatedStateID = usePrevious(activatedStateID);
     const canvasInstance = useMemo(() => new Canvas(), []);  // 2d instance
     const cameraParam = allCameraParam?.data?.[imageName];
     const {
@@ -158,8 +160,16 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         onAddZLayer,
     } = props;
 
+
     useEffect(() => {
-        console.log("🤡 ~ file: canvas-context.tsx ~ line 161 ~ CanvasWrapperContextComponent ~ activatedStateID", activatedStateID)
+        if (prevActivatedStateID !== null && prevActivatedStateID !== activatedStateID) {
+            canvasInstance.activate(null);
+            const els = document.querySelectorAll(`#cvat_canvas_shape_${prevActivatedStateID}`);
+            for (const el of els) {
+                (el as any).instance.fill({ opacity });
+            }
+        }
+        activateOnCanvas();
     }, [activatedStateID])
 
     const preventDefault = (event: KeyboardEvent | undefined): void => {
@@ -182,9 +192,11 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     };
 
     const onCanvasMouseDown = (e: MouseEvent): void => {
+        console.log("🚀 ~ file: canvas-context.tsx ~ line 208 ~ onCanvasMouseDown ~ e", e)
         const { workspace, activatedStateID, onActivateObject } = props;
         if ((e.target as HTMLElement).tagName === 'svg' && e.button !== 2) {
             if (activatedStateID !== null && workspace !== Workspace.ATTRIBUTE_ANNOTATION) {
+                console.log("🚀 ~ file: canvas-context.tsx ~ line 203 ~ onCanvasMouseDown ~ activatedStateID", activatedStateID)
                 onActivateObject(null);
             }
         }
@@ -207,6 +219,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     };
 
     const onCanvasEditStart = (): void => {
+        console.log("🚀 ~ file: canvas-context.tsx ~ line 215 ~ onCanvasEditStart ~ onCanvasEditStart")
         const { onActivateObject, onEditShape } = props;
         onActivateObject(null);
         onEditShape(true);
@@ -218,10 +231,10 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         const { state, points, rotation } = event.detail;
         state.points = points;
         state.rotation = rotation;
-        onUpdateAnnotations([state]);
+        // onUpdateAnnotations([state]);
 
-        const projAnnos = projAnnotations(null);
-        onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
+        // const projAnnos = projAnnotations(null);
+        // onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
     };
 
     const onCanvasDragStart = (): void => {
@@ -389,8 +402,8 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             if (activatedState && activatedState.objectType !== ObjectType.TAG) {
                 canvasInstance.activate(activatedStateID, activatedAttributeID);
             }
-            const el = window.document.getElementById(`cvat_canvas_shape_${activatedStateID}`);
-            if (el) {
+            const els = document.querySelectorAll(`#cvat_canvas_shape_${activatedStateID}`);
+            for (const el of els) {
                 ((el as any) as SVGElement).setAttribute('fill-opacity', `${selectedOpacity}`);
             }
         }
@@ -496,6 +509,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         // when we activate element, canvas deactivates the previous
         // and triggers this event
         // in this case we do not need to update our state
+        console.log("🚀 ~ file: canvas-context.tsx ~ line 506 ~ onCanvasShapeDeactivated ~ e", e)
         if (state.clientID === activatedStateID) {
             onActivateObject(null);
         }
