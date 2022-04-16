@@ -87,6 +87,7 @@ interface Props {
     onShapeDrawn: () => void;
     onResetCanvas: () => void;
     onUpdateAnnotations(states: any[]): void;
+    onUpdateProjectionAnnotations(states: any[], contextIndex: number): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onCreateProjectionAnnotations(sessionInstance: any, frame: number, states: any[], contextIndex: number): void;
     onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void;
@@ -144,6 +145,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         imageName,
         contextIndex,
         canvasInstance: canvasInstance3D,  // 3d instance
+        onUpdateProjectionAnnotations,
         onCreateProjectionAnnotations,
     } = props;
     const prevActivatedStateID = usePrevious(activatedStateID);
@@ -226,12 +228,12 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     };
 
     const onCanvasEditDone = (event: any): void => {
-        const { onEditShape, onUpdateAnnotations, jobInstance, frame } = props;
+        const { onEditShape, onUpdateProjectionAnnotations } = props;
         onEditShape(false);
         const { state, points, rotation } = event.detail;
         state.points = points;
         state.rotation = rotation;
-        // onUpdateAnnotations([state]);
+        onUpdateProjectionAnnotations([state], contextIndex);
 
         // const projAnnos = projAnnotations(null);
         // onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
@@ -743,9 +745,15 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             updateCanvas(null);
             updateShapesView();
         }
+        // const projAnnos = projAnnotations(null);
+        // onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
+    }, [annotations, cameraParam, projFrameData]);
+
+    useEffect(() => {
+        const { jobInstance, frame } = props;
         const projAnnos = projAnnotations(null);
         onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
-    }, [annotations, cameraParam, projFrameData]);
+    }, []);
 
     useEffect(() => {
         canvasInstance.configure({

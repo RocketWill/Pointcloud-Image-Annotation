@@ -20,6 +20,7 @@ import {
     splitTrack,
     editShape,
     updateAnnotationsAsync,
+    updateProjectionAnnotationsAsync,
     createAnnotationsAsync,
     createProjectionAnnotationsAsync,
     mergeAnnotationsAsync,
@@ -123,6 +124,7 @@ interface DispatchToProps {
     onSplitTrack: (enabled: boolean) => void;
     onEditShape: (enabled: boolean) => void;
     onUpdateAnnotations(states: any[]): void;
+    onUpdateProjectionAnnotations(states: any[], contextIndex: number): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onCreateProjectionAnnotations(sessionInstance: any, frame: number, states: any[], contextIndex: number): void;
     onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void;
@@ -281,6 +283,9 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         },
         onUpdateAnnotations(states: any[]): void {
             dispatch(updateAnnotationsAsync(states));
+        },
+        onUpdateProjectionAnnotations(states: any[], contextIndex: number): void {
+            dispatch(updateProjectionAnnotationsAsync(states, contextIndex));
         },
         onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void {
             dispatch(createAnnotationsAsync(sessionInstance, frame, states));

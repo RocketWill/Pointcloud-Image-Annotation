@@ -1711,13 +1711,13 @@ export function createProjectionAnnotationsAsync(sessionInstance: any, frame: nu
         try {
             const { filters, showAllInterpolationTracks } = receiveAnnotationsParameters();
             await sessionInstance.annotations.putProjection(statesToCreate, contextIndex);
-            const projectionStates = await sessionInstance.annotations.getProjection(frame, filters, contextIndex);
+            const projectionIndexStates = await sessionInstance.annotations.getProjection(frame, filters, contextIndex);
             const history = await sessionInstance.actions.get();
 
             dispatch({
                 type: AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_SUCCESS,
                 payload: {
-                    projectionStates,
+                    projectionIndexStates,
                     contextIndex,
                     history,
                 },
@@ -1733,7 +1733,7 @@ export function createProjectionAnnotationsAsync(sessionInstance: any, frame: nu
     };
 }
 
-export function updateProjectionAnnotationsAsync(statesToUpdate: any[]): ThunkAction {
+export function updateProjectionAnnotationsAsync(statesToUpdate: any[], contextIndex: number): ThunkAction {
     return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
         const {
             jobInstance, filters, frame, showAllInterpolationTracks,
@@ -1746,26 +1746,28 @@ export function updateProjectionAnnotationsAsync(statesToUpdate: any[]): ThunkAc
             }
 
             const promises = statesToUpdate.map((objectState: any): Promise<any> => objectState.save());
-            const states = await Promise.all(promises);
+            const projectionIndexStates = await Promise.all(promises);
             const history = await jobInstance.actions.get();
-            const [minZ, maxZ] = computeZRange(states);
+            const [minZ, maxZ] = computeZRange(projectionIndexStates);
 
             dispatch({
                 type: AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_SUCCESS,
                 payload: {
-                    states,
+                    projectionIndexStates,
+                    contextIndex,
                     history,
                     minZ,
                     maxZ,
                 },
             });
         } catch (error) {
-            const states = await jobInstance.annotations.get(frame, showAllInterpolationTracks, filters);
+            const projectionIndexStates = await jobInstance.annotations.getProjection(frame, filters, contextIndex);
             dispatch({
                 type: AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_FAILED,
                 payload: {
                     error,
-                    states,
+                    projectionIndexStates,
+                    contextIndex,
                 },
             });
         }

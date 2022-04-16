@@ -1243,11 +1243,11 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
             };
         }
         case AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_SUCCESS: {
-            const { projectionStates, contextIndex, history } = action.payload;
+            const { projectionIndexStates, contextIndex, history } = action.payload;
             const updatedProjectionStates = {
                 ...state.annotations.projectionStates
             }
-            updatedProjectionStates[contextIndex] = projectionStates;
+            updatedProjectionStates[contextIndex] = projectionIndexStates;
 
             return {
                 ...state,
@@ -1260,21 +1260,24 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
         }
         case AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_SUCCESS: {
             const {
-                history, states: updatedStates, minZ, maxZ,
+                history, projectionIndexStates: updatedStates, contextIndex, minZ, maxZ,
             } = action.payload;
             const { projectionStates: prevStates } = state.annotations;
-            const nextStates = [...prevStates];
+            const prevIndexStates = prevStates[contextIndex];
+            const nextStates = {...prevStates};
+            const nextIndexStates = [...prevIndexStates];
 
-            const clientIDs = prevStates.map((prevState: any): number => prevState.clientID);
+            const clientIDs = prevIndexStates.map((prevIndexState: any): number => prevIndexState.clientID);
             for (const updatedState of updatedStates) {
                 const index = clientIDs.indexOf(updatedState.clientID);
                 if (index !== -1) {
-                    nextStates[index] = updatedState;
+                    nextIndexStates[index] = updatedState;
                 }
             }
 
             const maxZLayer = Math.max(state.annotations.zLayer.max, maxZ);
             const minZLayer = Math.min(state.annotations.zLayer.min, minZ);
+            nextStates[contextIndex] = nextIndexStates;
 
             return {
                 ...state,
@@ -1285,18 +1288,21 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                         max: maxZLayer,
                         cur: maxZLayer,
                     },
-                    states: nextStates,
+                    projectionStates: nextStates,
                     history,
                 },
             };
         }
         case AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_FAILED: {
-            const { states } = action.payload;
+            const { projectionIndexStates, contextIndex } = action.payload;
+            const { projectionStates: prevStates } = state.annotations;
+            const nextStates = {...prevStates};
+            nextStates[contextIndex] = projectionIndexStates;
             return {
                 ...state,
                 annotations: {
                     ...state.annotations,
-                    states,
+                    projectionStates: nextStates,
                 },
             };
         }
