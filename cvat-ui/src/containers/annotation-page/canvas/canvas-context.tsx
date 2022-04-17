@@ -126,7 +126,7 @@ interface DispatchToProps {
     onUpdateAnnotations(states: any[]): void;
     onUpdateProjectionAnnotations(states: any[], contextIndex: number): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
-    onCreateProjectionAnnotations(sessionInstance: any, frame: number, states: any[], contextIndex: number): void;
+    onCreateProjectionAnnotations(sessionInstance: any, frame: number, projectionIndexStates: any[], contextIndex: number): void;
     onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onGroupAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onSplitAnnotations(sessionInstance: any, frame: number, state: any): void;
@@ -290,8 +290,8 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void {
             dispatch(createAnnotationsAsync(sessionInstance, frame, states));
         },
-        onCreateProjectionAnnotations(sessionInstance: any, frame: number, states: any[], contextIndex: number): void {
-            dispatch(createProjectionAnnotationsAsync(sessionInstance, frame, states, contextIndex));
+        onCreateProjectionAnnotations(sessionInstance: any, frame: number, projectionIndexStates: any[], contextIndex: number): void {
+            dispatch(createProjectionAnnotationsAsync(sessionInstance, frame, projectionIndexStates, contextIndex));
         },
         onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void {
             dispatch(mergeAnnotationsAsync(sessionInstance, frame, states));

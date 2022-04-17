@@ -89,7 +89,7 @@ interface Props {
     onUpdateAnnotations(states: any[]): void;
     onUpdateProjectionAnnotations(states: any[], contextIndex: number): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
-    onCreateProjectionAnnotations(sessionInstance: any, frame: number, states: any[], contextIndex: number): void;
+    onCreateProjectionAnnotations(sessionInstance: any, frame: number, projectionIndexStates: any[], contextIndex: number): void;
     onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onGroupAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onSplitAnnotations(sessionInstance: any, frame: number, state: any): void;
