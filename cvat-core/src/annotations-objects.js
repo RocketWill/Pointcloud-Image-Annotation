@@ -519,6 +519,10 @@
             this.rotation = data.rotation || 0;
             this.occluded = data.occluded;
             this.zOrder = data.z_order;
+
+            // [CY] for 3D projection
+            this.contextIndex = data.contextIndex || -1;
+            this.modified2d = false;
         }
 
         // Method is used to export data to the server
@@ -543,6 +547,8 @@
                 label_id: this.label.id,
                 group: this.group,
                 source: this.source,
+                contextIndex: this.contextIndex,
+                modified2d: this.modified2d,
             };
         }
 

@@ -181,28 +181,14 @@
                 shapes: [],
                 tracks: [],
             };
-            const updatedShapeModels = [];
             for (const shape of data.shapes) {
                 // const clientID = ++this.count;
                 const clientID = shape.client_id;
                 const shapeModel = shapeFactory(shape, clientID, this.injection);
-
-                if (!this.projectionShapes[shapeModel.frame]) {
-                    this.projectionShapes[shapeModel.frame] = {};
-                }
-                if (!this.projectionShapes[shapeModel.frame][contextIndex]) {
-                    this.projectionShapes[shapeModel.frame][contextIndex] = [];
-                }
-
-                updatedShapeModels.push(shapeModel);
-                // const shapeModels = createdShapeModels.concat(updatedShapeModels);
-                // this.projectionShapes[shapeModel.frame] = shapeModels;
-                // this.projectionShapes[shapeModel.frame] = this.projectionShapes[shapeModel.frame] || [];
-                // this.projectionShapes[shapeModel.frame].push(shapeModel);
-                result.shapes = updatedShapeModels;
-                this.projectionShapes[shapeModel.frame][contextIndex] = updatedShapeModels;
+                this.projectionShapes[shapeModel.frame] = this.projectionShapes[shapeModel.frame] || [];
+                this.projectionShapes[shapeModel.frame].push(shapeModel);
                 this.objects[clientID] = shapeModel;
-                // result.shapes.push(shapeModel);
+                result.shapes.push(shapeModel);
             }
             return result;
         }
@@ -225,7 +211,19 @@
                     .filter((tag) => !tag.removed)
                     .map((tag) => tag.toJSON()),
             };
+            return data;
+        }
 
+        exportProjections() {
+            const data = {
+                shapes: Object.values(this.projectionShapes)
+                    .reduce((accumulator, value) => {
+                        accumulator.push(...value);
+                        return accumulator;
+                    }, [])
+                    .filter((shape) => !shape.removed)
+                    .map((shape) => shape.toJSON()),
+            };
             return data;
         }
 
@@ -268,10 +266,9 @@
             return objectStates;
         }
 
-        getProjection(frame, filters, contextIndex=0) {
-            const frameShapes =  this.projectionShapes[frame] || {};
-            const shapes = frameShapes[contextIndex] || [];
-            const objects = shapes;
+        getProjection(frame, filters, contextIndex) {
+            const shapes = this.projectionShapes[frame] || [];
+            const objects = shapes.filter(shape => shape.contextIndex === contextIndex);
             const visible = {
                 models: [],
                 data: [],
@@ -301,7 +298,6 @@
                     objectStates.push(objectState);
                 }
             });
-
             return objectStates;
         }
 
@@ -989,6 +985,8 @@
                             attributes,
                             descriptions: state.descriptions,
                             frame: state.frame,
+                            contextIndex: contextIndex,
+                            modified2d: false,
                             group: 0,
                             label_id: state.label.id,
                             occluded: state.occluded || false,
