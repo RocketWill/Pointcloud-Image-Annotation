@@ -266,9 +266,9 @@
             return objectStates;
         }
 
-        getProjection(frame, filters, contextIndex) {
+        getProjection(frame, filters) {
             const shapes = this.projectionShapes[frame] || [];
-            const objects = shapes.filter(shape => shape.contextIndex === contextIndex);
+            const objects = [...shapes];
             const visible = {
                 models: [],
                 data: [],
@@ -985,7 +985,7 @@
                             attributes,
                             descriptions: state.descriptions,
                             frame: state.frame,
-                            contextIndex: contextIndex,
+                            contextIndex,
                             modified2d: false,
                             group: 0,
                             label_id: state.label.id,

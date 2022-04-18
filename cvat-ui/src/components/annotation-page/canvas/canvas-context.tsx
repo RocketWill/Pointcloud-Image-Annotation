@@ -2,7 +2,7 @@
  * @Date: 2022-04-08 16:01:25
  * @Company: Luokung Technology Corp.
  * @LastEditors: Will Cheng
- * @LastEditTime: 2022-04-15 13:34:08
+ * @LastEditTime: 2022-04-18 15:10:17
  */
 import React, {
     ReactElement, SyntheticEvent, useEffect, useReducer, useRef, useMemo, useState
@@ -469,8 +469,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                 return new cvat.classes.ObjectState({
                     points: boxPoints,
                     color: annotation.label.color,
-                    // opacity: annotation.clientID === clientID ? 0.3 : 0.03,
-                    // opacity: annotation.clientID == 0.03,
                     clientID: annotation.clientID,
                     zOrder: annotation.zOrder,
                     hidden: annotation.hidden,
@@ -485,6 +483,8 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                     source: annotation.source,
                     updated: annotation.updated,
                     attributes: annotation.attributes,
+                    contextIndex,
+                    modified2d: false
                 });
             }
         })
@@ -498,7 +498,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             canvasInstance.setup(
                 projFrameData,
                 // projAnnotations(null),
-                projectionAnnotations[contextIndex],
+                projectionAnnotations.filter((projAnnotation: any) => projAnnotation.contextIndex === contextIndex),
                 0,
             );
         }
@@ -511,7 +511,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         // when we activate element, canvas deactivates the previous
         // and triggers this event
         // in this case we do not need to update our state
-        console.log("🚀 ~ file: canvas-context.tsx ~ line 506 ~ onCanvasShapeDeactivated ~ e", e)
         if (state.clientID === activatedStateID) {
             onActivateObject(null);
         }
@@ -746,6 +745,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             updateShapesView();
         }
         // const projAnnos = projAnnotations(null);
+        // console.log("🚀 ~ file: canvas-context.tsx ~ line 749 ~ useEffect ~ projAnnos", projAnnos)
         // onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
     }, [annotations, cameraParam, projFrameData]);
 

@@ -91,7 +91,7 @@ const defaultState: AnnotationState = {
         collapsed: {},
         collapsedAll: true,
         states: [],
-        projectionStates: {},
+        projectionStates: [],
         filters: [],
         resetGroupFlag: false,
         history: {
@@ -1243,41 +1243,39 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
             };
         }
         case AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_SUCCESS: {
-            const { projectionIndexStates, contextIndex, history } = action.payload;
-            const updatedProjectionStates = {
-                ...state.annotations.projectionStates
-            }
-            updatedProjectionStates[contextIndex] = projectionIndexStates;
+            const { projectionStates, history } = action.payload;
 
             return {
                 ...state,
                 annotations: {
                     ...state.annotations,
-                    projectionStates: updatedProjectionStates,
+                    projectionStates,
                     history,
                 },
             };
         }
         case AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_SUCCESS: {
             const {
-                history, projectionIndexStates: updatedStates, contextIndex, minZ, maxZ,
+                history, projectionIndexStates: updatedStates, minZ, maxZ,
             } = action.payload;
             const { projectionStates: prevStates } = state.annotations;
-            const prevIndexStates = prevStates[contextIndex];
-            const nextStates = {...prevStates};
-            const nextIndexStates = [...prevIndexStates];
+            const nextStates = [...prevStates];
 
-            const clientIDs = prevIndexStates.map((prevIndexState: any): number => prevIndexState.clientID);
+            const clientIDContextIndexes = prevStates.map((prevState: any): any => {
+                return { clientID: prevState.clientID, contextIndex: prevState.contextIndex }
+            });
             for (const updatedState of updatedStates) {
-                const index = clientIDs.indexOf(updatedState.clientID);
+                // const index = clientIDs.indexOf(updatedState.clientID);
+                const index = clientIDContextIndexes.findIndex((object: any) => {
+                    return object.clientID === updatedState.clientID && object.contextIndex === updatedState.contextIndex;
+                });
                 if (index !== -1) {
-                    nextIndexStates[index] = updatedState;
+                    nextStates[index] = updatedState;
                 }
             }
 
             const maxZLayer = Math.max(state.annotations.zLayer.max, maxZ);
             const minZLayer = Math.min(state.annotations.zLayer.min, minZ);
-            nextStates[contextIndex] = nextIndexStates;
 
             return {
                 ...state,
@@ -1294,15 +1292,12 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
             };
         }
         case AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_FAILED: {
-            const { projectionIndexStates, contextIndex } = action.payload;
-            const { projectionStates: prevStates } = state.annotations;
-            const nextStates = {...prevStates};
-            nextStates[contextIndex] = projectionIndexStates;
+            const { projectionStates } = state.annotations;
             return {
                 ...state,
                 annotations: {
                     ...state.annotations,
-                    projectionStates: nextStates,
+                    projectionStates,
                 },
             };
         }

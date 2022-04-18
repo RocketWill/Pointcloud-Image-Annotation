@@ -521,7 +521,7 @@
             this.zOrder = data.z_order;
 
             // [CY] for 3D projection
-            this.contextIndex = data.contextIndex || -1;
+            this.contextIndex = data.contextIndex >= 0 ? data.contextIndex: -1;
             this.modified2d = false;
         }
 
@@ -578,6 +578,9 @@
                 pinned: this.pinned,
                 frame,
                 source: this.source,
+                // for 3d projection
+                contextIndex: this.contextIndex,
+                modified2d: this.modified2d,
             };
         }
 

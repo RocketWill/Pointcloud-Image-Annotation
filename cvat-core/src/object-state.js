@@ -50,6 +50,10 @@ const { Source } = require('./enums');
                 objectType: serialized.objectType,
                 shapeType: serialized.shapeType,
                 updateFlags: {},
+
+                // for 3d projection
+                contextIndex: serialized.contextIndex >= 0 ? serialized.contextIndex : -1,
+                modified2d: false,
             };
 
             // Shows whether any properties updated since last reset() or interpolation
@@ -69,6 +73,10 @@ const { Source } = require('./enums');
                     this.lock = false;
                     this.color = false;
                     this.hidden = false;
+
+                    // for 3d projection
+                    this.contextIndex = false;
+                    this.modified2d = false;
 
                     return reset;
                 },
@@ -401,6 +409,32 @@ const { Source } = require('./enums');
 
                             data.updateFlags.descriptions = true;
                             data.descriptions = [...descriptions];
+                        },
+                    },
+                    contextIndex: {
+                        /**
+                         * @name contextIndex
+                         * @type {integer}
+                         * @memberof module:API.cvat.classes.ObjectState
+                         * @instance
+                         */
+                        get: () => data.contextIndex,
+                        set: (contextIndex) => {
+                            data.updateFlags.contextIndex = true;
+                            data.contextIndex = contextIndex;
+                        },
+                    },
+                    modified2d: {
+                        /**
+                         * @name modified2d
+                         * @type {boolean}
+                         * @memberof module:API.cvat.classes.ObjectState
+                         * @instance
+                         */
+                        get: () => data.modified2d,
+                        set: (isModified) => {
+                            data.updateFlags.modified2d = true;
+                            data.modified2d = isModified;
                         },
                     },
                 }),
