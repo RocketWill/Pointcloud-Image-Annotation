@@ -567,6 +567,8 @@ class Shape(models.Model):
     z_order = models.IntegerField(default=0)
     points = FloatArrayField()
     rotation = FloatField(default=0)
+    context_index = models.IntegerField(default=-1)
+    modified_2d = models.BooleanField(default=False)
 
     class Meta:
         abstract = True

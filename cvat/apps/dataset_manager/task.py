@@ -391,6 +391,8 @@ class JobAnnotation:
             'z_order',
             'rotation',
             'points',
+            'context_index',
+            'modified_2d',
             'labeledshapeattributeval__spec_id',
             'labeledshapeattributeval__value',
             'labeledshapeattributeval__id',

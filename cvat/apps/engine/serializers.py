@@ -734,6 +734,8 @@ class ShapeSerializer(serializers.Serializer):
         child=serializers.FloatField(),
         allow_empty=False,
     )
+    context_index = serializers.IntegerField(default=-1)
+    modified_2d = serializers.BooleanField(default=False)
 
 class LabeledShapeSerializer(ShapeSerializer, AnnotationSerializer):
     attributes = AttributeValSerializer(many=True,
