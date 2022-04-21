@@ -58,16 +58,6 @@
                         return result;
                     },
 
-                    async putProjection(arrayOfObjects = [], contextIndex = 0) {
-                        const result = await PluginRegistry.apiWrapper.call(
-                            this,
-                            prototype.annotations.putProjection,
-                            arrayOfObjects,
-                            contextIndex,
-                        );
-                        return result;
-                    },
-
                     async get(frame, allTracks = false, filters = []) {
                         const result = await PluginRegistry.apiWrapper.call(
                             this,
@@ -75,17 +65,6 @@
                             frame,
                             allTracks,
                             filters,
-                        );
-                        return result;
-                    },
-
-                    async getProjection(frame, filters = [], contextIndex = 0) {
-                        const result = await PluginRegistry.apiWrapper.call(
-                            this,
-                            prototype.annotations.getProjection,
-                            frame,
-                            filters,
-                            contextIndex,
                         );
                         return result;
                     },
@@ -174,6 +153,48 @@
 
                     hasUnsavedChanges() {
                         const result = prototype.annotations.hasUnsavedChanges.implementation.call(this);
+                        return result;
+                    },
+
+                    // for 3d projection
+                    async getProjection(frame, filters = [], contextIndex) {
+                        const result = await PluginRegistry.apiWrapper.call(
+                            this,
+                            prototype.annotations.getProjection,
+                            frame,
+                            filters,
+                            contextIndex,
+                        );
+                        return result;
+                    },
+
+                    async putProjection(arrayOfObjects = [], contextIndex = 0) {
+                        const result = await PluginRegistry.apiWrapper.call(
+                            this,
+                            prototype.annotations.putProjection,
+                            arrayOfObjects,
+                            contextIndex,
+                        );
+                        return result;
+                    },
+
+                    async saveProjection(onUpdate) {
+                        const result = await PluginRegistry.apiWrapper.call(this, prototype.annotations.saveProjection, onUpdate);
+                        return result;
+                    },
+
+                    async projectionStatistics() {
+                        const result = await PluginRegistry.apiWrapper.call(this, prototype.annotations.projectionStatistics);
+                        return result;
+                    },
+
+                    async importProjection(data) {
+                        const result = await PluginRegistry.apiWrapper.call(this, prototype.annotations.importProjection, data);
+                        return result;
+                    },
+
+                    async exportProjection() {
+                        const result = await PluginRegistry.apiWrapper.call(this, prototype.annotations.exportProjection);
                         return result;
                     },
                 },
@@ -987,9 +1008,7 @@
             // So, we need return it
             this.annotations = {
                 get: Object.getPrototypeOf(this).annotations.get.bind(this),
-                getProjection: Object.getPrototypeOf(this).annotations.getProjection.bind(this),
                 put: Object.getPrototypeOf(this).annotations.put.bind(this),
-                putProjection: Object.getPrototypeOf(this).annotations.putProjection.bind(this),
                 save: Object.getPrototypeOf(this).annotations.save.bind(this),
                 merge: Object.getPrototypeOf(this).annotations.merge.bind(this),
                 split: Object.getPrototypeOf(this).annotations.split.bind(this),
@@ -1004,6 +1023,13 @@
                 statistics: Object.getPrototypeOf(this).annotations.statistics.bind(this),
                 hasUnsavedChanges: Object.getPrototypeOf(this).annotations.hasUnsavedChanges.bind(this),
                 exportDataset: Object.getPrototypeOf(this).annotations.exportDataset.bind(this),
+                // for 3d projection
+                getProjection: Object.getPrototypeOf(this).annotations.getProjection.bind(this),
+                putProjection: Object.getPrototypeOf(this).annotations.putProjection.bind(this),
+                saveProjection: Object.getPrototypeOf(this).annotations.saveProjection.bind(this),
+                projectionStatistics: Object.getPrototypeOf(this).annotations.projectionStatistics.bind(this),
+                importProjection: Object.getPrototypeOf(this).annotations.importProjection.bind(this),
+                exportProjection: Object.getPrototypeOf(this).annotations.exportProjection.bind(this),
             };
 
             this.actions = {
@@ -1833,9 +1859,7 @@
 
     const {
         getAnnotations,
-        getProjctionAnnotations,
         putAnnotations,
-        putProjectionAnnotations,
         saveAnnotations,
         hasUnsavedChanges,
         searchAnnotations,
@@ -1856,6 +1880,13 @@
         clearActions,
         getActions,
         closeSession,
+        // for 3d projection
+        getProjctionAnnotations,
+        putProjectionAnnotations,
+        saveProjectionAnnotations,
+        annotationsProjectionStatistics,
+        importProjectionAnnotations,
+        exportProjectionAnnotations,
     } = require('./annotations');
 
     buildDuplicatedAPI(Job.prototype);
@@ -1948,23 +1979,6 @@
         return annotationsData;
     };
 
-    Job.prototype.annotations.getProjection.implementation = async function (frame, filters, contextIndex) {
-        if (!Array.isArray(filters)) {
-            throw new ArgumentError('Filters must be an array');
-        }
-
-        if (!Number.isInteger(frame)) {
-            throw new ArgumentError('The frame argument must be an integer');
-        }
-
-        if (frame < this.startFrame || frame > this.stopFrame) {
-            throw new ArgumentError(`Frame ${frame} does not exist in the job`);
-        }
-
-        const annotationsData = await getProjctionAnnotations(this, frame, filters, contextIndex);
-        return annotationsData;
-    };
-
     Job.prototype.annotations.search.implementation = function (filters, frameFrom, frameTo) {
         if (!Array.isArray(filters)) {
             throw new ArgumentError('Filters must be an array');
@@ -2047,11 +2061,6 @@
 
     Job.prototype.annotations.put.implementation = function (objectStates) {
         const result = putAnnotations(this, objectStates);
-        return result;
-    };
-
-    Job.prototype.annotations.putProjection.implementation = function (objectStates, contextIndex) {
-        const result = putProjectionAnnotations(this, objectStates, contextIndex);
         return result;
     };
 
@@ -2152,6 +2161,48 @@
         clearFrames(this.taskId);
         closeSession(this);
         return this;
+    };
+
+    Job.prototype.annotations.getProjection.implementation = async function (frame, filters, contextIndex) {
+        if (!Array.isArray(filters)) {
+            throw new ArgumentError('Filters must be an array');
+        }
+
+        if (!Number.isInteger(frame)) {
+            throw new ArgumentError('The frame argument must be an integer');
+        }
+
+        if (frame < this.startFrame || frame > this.stopFrame) {
+            throw new ArgumentError(`Frame ${frame} does not exist in the job`);
+        }
+
+        const annotationsData = await getProjctionAnnotations(this, frame, filters, contextIndex);
+        return annotationsData;
+    };
+
+    Job.prototype.annotations.putProjection.implementation = function (objectStates, contextIndex) {
+        const result = putProjectionAnnotations(this, objectStates, contextIndex);
+        return result;
+    };
+
+    Job.prototype.annotations.saveProjection.implementation = async function (onUpdate) {
+        const result = await saveProjectionAnnotations(this, onUpdate);
+        return result;
+    };
+
+    Job.prototype.annotations.projectionStatistics.implementation = function () {
+        const result = annotationsProjectionStatistics(this);
+        return result;
+    };
+
+    Job.prototype.annotations.importProjection.implementation = function (data) {
+        const result = importProjectionAnnotations(this, data);
+        return result;
+    };
+
+    Job.prototype.annotations.exportProjection.implementation = function () {
+        const result = exportProjectionAnnotations(this);
+        return result;
     };
 
     Task.prototype.close.implementation = function closeTask() {

@@ -37,26 +37,6 @@
         return shapeModel;
     }
 
-    function trackFactory(trackData, clientID, injection) {
-        if (trackData.shapes.length) {
-            const { type } = trackData.shapes[0];
-            const color = colors[clientID % colors.length];
-
-            let trackModel = null;
-            switch (type) {
-                case 'cuboid':
-                    trackModel = new CuboidTrack(trackData, clientID, color, injection);
-                    break;
-                default:
-                    throw new DataError(`An unexpected type of track "${type}"`);
-            }
-            return trackModel;
-        }
-
-        console.warn('The track without any shapes had been found. It was ignored.');
-        return null;
-    }
-
     class ProjectionCollection {
         constructor(data) {
             this.startFrame = data.startFrame;

@@ -113,7 +113,6 @@
             this.annotationsFilter = new AnnotationsFilter();
             this.history = data.history;
             this.shapes = {}; // key is a frame
-            this.projectionShapes = {}; // 3d to 2d shapes
             this.tags = {}; // key is a frame
             this.tracks = [];
             this.objects = {}; // key is a client id
@@ -175,24 +174,6 @@
             return result;
         }
 
-        importProjection(data, contextIndex) {
-            const result = {
-                tags: [],
-                shapes: [],
-                tracks: [],
-            };
-            for (const shape of data.shapes) {
-                // const clientID = ++this.count;
-                const clientID = shape.client_id;
-                const shapeModel = shapeFactory(shape, clientID, this.injection);
-                this.projectionShapes[shapeModel.frame] = this.projectionShapes[shapeModel.frame] || [];
-                this.projectionShapes[shapeModel.frame].push(shapeModel);
-                this.objects[clientID] = shapeModel;
-                result.shapes.push(shapeModel);
-            }
-            return result;
-        }
-
         export() {
             const data = {
                 tracks: this.tracks.filter((track) => !track.removed).map((track) => track.toJSON()),
@@ -210,19 +191,6 @@
                     }, [])
                     .filter((tag) => !tag.removed)
                     .map((tag) => tag.toJSON()),
-            };
-            return data;
-        }
-
-        exportProjections() {
-            const data = {
-                shapes: Object.values(this.projectionShapes)
-                    .reduce((accumulator, value) => {
-                        accumulator.push(...value);
-                        return accumulator;
-                    }, [])
-                    .filter((shape) => !shape.removed)
-                    .map((shape) => shape.toJSON()),
             };
             return data;
         }
@@ -263,41 +231,6 @@
                 }
             });
 
-            return objectStates;
-        }
-
-        getProjection(frame, filters) {
-            const shapes = this.projectionShapes[frame] || [];
-            const objects = [...shapes];
-            const visible = {
-                models: [],
-                data: [],
-            };
-
-            for (const object of objects) {
-                if (object.removed) {
-                    continue;
-                }
-
-                const stateData = object.get(frame);
-                if (stateData.outside && !stateData.keyframe) {
-                    continue;
-                }
-
-                visible.models.push(object);
-                visible.data.push(stateData);
-            }
-
-            const objectStates = [];
-            const filtered = this.annotationsFilter.filter(visible.data, filters);
-
-            visible.data.forEach((stateData, idx) => {
-                if (!filters.length || filtered.includes(stateData.clientID)) {
-                    const model = visible.models[idx];
-                    const objectState = objectStateFactory.call(model, frame, stateData);
-                    objectStates.push(objectState);
-                }
-            });
             return objectStates;
         }
 
@@ -894,120 +827,6 @@
             // eslint-disable-next-line no-unsanitized/method
             const imported = this.import(constructed);
             const importedArray = imported.tags.concat(imported.tracks).concat(imported.shapes);
-
-            if (objectStates.length) {
-                this.history.do(
-                    HistoryActions.CREATED_OBJECTS,
-                    () => {
-                        importedArray.forEach((object) => {
-                            object.removed = true;
-                        });
-                    },
-                    () => {
-                        importedArray.forEach((object) => {
-                            object.removed = false;
-                            object.serverID = undefined;
-                        });
-                    },
-                    importedArray.map((object) => object.clientID),
-                    objectStates[0].frame,
-                );
-            }
-
-            return importedArray.map((value) => value.clientID);
-        }
-
-        putProjection(objectStates, contextIndex) {
-            checkObjectType('shapes for put', objectStates, null, Array);
-            const constructed = {
-                shapes: [],
-                tracks: [],
-                tags: [],
-            };
-
-            function convertAttributes(accumulator, attrID) {
-                const specID = +attrID;
-                const value = this.attributes[attrID];
-
-                checkObjectType('attribute id', specID, 'integer', null);
-                checkObjectType('attribute value', value, 'string', null);
-
-                accumulator.push({
-                    spec_id: specID,
-                    value,
-                });
-
-                return accumulator;
-            }
-
-            for (const state of objectStates) {
-                checkObjectType('object state', state, null, ObjectState);
-                checkObjectType('state client ID', state.clientID, 'integer', null); // should be 3d box's id
-                checkObjectType('state frame', state.frame, 'integer', null);
-                checkObjectType('state rotation', state.rotation || 0, 'number', null);
-                checkObjectType('state attributes', state.attributes, null, Object);
-                checkObjectType('state label', state.label, null, Label);
-
-                const attributes = Object.keys(state.attributes).reduce(convertAttributes.bind(state), []);
-                const labelAttributes = state.label.attributes.reduce((accumulator, attribute) => {
-                    accumulator[attribute.id] = attribute;
-                    return accumulator;
-                }, {});
-
-                // Construct whole objects from states
-                if (state.objectType === 'tag') {
-                    constructed.tags.push({
-                        attributes,
-                        frame: state.frame,
-                        label_id: state.label.id,
-                        group: 0,
-                    });
-                } else {
-                    checkObjectType('state occluded', state.occluded, 'boolean', null);
-                    checkObjectType('state points', state.points, null, Array);
-                    checkObjectType('state zOrder', state.zOrder, 'integer', null);
-                    checkObjectType('state descriptions', state.descriptions, null, Array);
-                    state.descriptions.forEach((desc) => checkObjectType('state description', desc, 'string'));
-
-                    for (const coord of state.points) {
-                        checkObjectType('point coordinate', coord, 'number', null);
-                    }
-
-                    // if (!Object.values(ObjectShape).includes(state.shapeType)) {
-                    //     throw new ArgumentError(
-                    //         `Object shape must be one of: ${JSON.stringify(Object.values(ObjectShape))}`,
-                    //     );
-                    // }
-                    // if (state.objectType === 'cuboid')
-                    if (state.shapeType === 'cuboid') {
-                        constructed.shapes.push({
-                            client_id: state.clientID,
-                            attributes,
-                            descriptions: state.descriptions,
-                            frame: state.frame,
-                            contextIndex,
-                            modified2d: false,
-                            group: 0,
-                            label_id: state.label.id,
-                            occluded: state.occluded || false,
-                            points: [...state.points],
-                            rotation: state.rotation || 0,
-                            type: state.shapeType,
-                            z_order: state.zOrder,
-                            source: state.source,
-                        });
-                    } else {
-                        throw new ArgumentError(
-                            `Object type must be one of: ${JSON.stringify(Object.values(ObjectType))}`,
-                        );
-                    }
-                }
-            }
-
-            // Add constructed objects to a collection
-            // eslint-disable-next-line no-unsanitized/method
-            const imported = this.importProjection(constructed, contextIndex);
-            const importedArray = imported.shapes;
 
             if (objectStates.length) {
                 this.history.do(

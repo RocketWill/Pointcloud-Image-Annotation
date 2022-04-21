@@ -6,6 +6,8 @@
     const serverProxy = require('./server-proxy');
     const Collection = require('./annotations-collection');
     const AnnotationsSaver = require('./annotations-saver');
+    const ProjectionCollection = require('./annotations-projection-collection');  // for 3d projection
+    const AnnotationsProjectionSaver = require('./annotations-projection-saver');
     const AnnotationsHistory = require('./annotations-history');
     const { checkObjectType } = require('./common');
     const { Project } = require('./project');
@@ -56,9 +58,27 @@
 
             const saver = new AnnotationsSaver(rawAnnotations.version, collection, session);
 
+            const projectionCollection = session.dimension === '3d'
+                ? new ProjectionCollection({
+                    labels: session.labels || session.task.labels,
+                    history,
+                    startFrame,
+                    stopFrame,
+                    frameMeta,
+                })
+                : null
+            // TODO: import projection collection from server
+            // projectionCollection.import(rawAnnotations);
+
+            const projectionSaver = session.dimension === '3d'
+                ? new AnnotationsProjectionSaver(rawAnnotations.version, projectionCollection, session)
+                : null
+
             cache.set(session, {
                 collection,
+                projectionCollection,
                 saver,
+                projectionSaver,
                 history,
             });
         }
@@ -83,18 +103,6 @@
 
         await getAnnotationsFromServer(session);
         return cache.get(session).collection.get(frame, allTracks, filters);
-    }
-
-    async function getProjctionAnnotations(session, frame, filters, contextIndex) {
-        const sessionType = session instanceof Task ? 'task' : 'job';
-        const cache = getCache(sessionType);
-
-        if (cache.has(session)) {
-            return cache.get(session).collection.getProjection(frame, filters, contextIndex);
-        }
-
-        // await getAnnotationsFromServer(session);
-        return cache.get(session).collection.getProjection(frame, filters, contextIndex);
     }
 
     async function saveAnnotations(session, onUpdate) {
@@ -220,19 +228,6 @@
             return cache.get(session).collection.put(objectStates);
         }
 
-        throw new DataError(
-            'Collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
-        );
-    }
-
-    // 3d to 2d projection
-    function putProjectionAnnotations(session, objectStates, contextIndex) {
-        const sessionType = session instanceof Task ? 'task' : 'job';
-        const cache = getCache(sessionType);
-
-        if (cache.has(session)) {
-            return cache.get(session).collection.putProjection(objectStates, contextIndex);
-        }
         throw new DataError(
             'Collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
         );
@@ -390,11 +385,103 @@
         );
     }
 
+    async function getProjctionAnnotations(session, frame, filters, contextIndex) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            const { projectionCollection } = cache.get(session);
+            if (projectionCollection !== null) {
+                return projectionCollection.get(frame, filters, contextIndex);
+            }
+            return [];
+        }
+
+        await getAnnotationsFromServer(session);
+        const { projectionCollection } = cache.get(session);
+        if (projectionCollection !== null) {
+            return projectionCollection.get(frame, filters, contextIndex);
+        }
+        return [];
+    }
+
+    function putProjectionAnnotations(session, objectStates, contextIndex) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            const { projectionCollection } = cache.get(session);
+            if (projectionCollection !== null) {
+                return projectionCollection.put(objectStates, contextIndex);
+            }
+            return [];
+        }
+        throw new DataError(
+            'Projection collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
+        );
+    }
+
+    async function saveProjectionAnnotations(session, onUpdate) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            await cache.get(session).projectionSaver.save(onUpdate);
+        }
+    }
+
+    function annotationsProjectionStatistics(session) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            const { projectionCollection } = cache.get(session);
+            if (projectionCollection !== null) {
+                return projectionCollection.statistics();
+            }
+        }
+
+        throw new DataError(
+            'Collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
+        );
+    }
+
+    function importProjectionAnnotations(session, data) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            // eslint-disable-next-line no-unsanitized/method
+            const { projectionCollection } = cache.get(session);
+            if (projectionCollection !== null) {
+                return projectionCollection.import(data);
+            }
+        }
+
+        throw new DataError(
+            'Projection collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
+        );
+    }
+
+    function exportProjectionAnnotations(session) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            const { projectionCollection } = cache.get(session);
+            if (projectionCollection !== null) {
+                return projectionCollection.export();
+            }
+        }
+
+        throw new DataError(
+            'Projection collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
+        );
+    }
+
     module.exports = {
         getAnnotations,
-        getProjctionAnnotations,
         putAnnotations,
-        putProjectionAnnotations,
         saveAnnotations,
         hasUnsavedChanges,
         mergeAnnotations,
@@ -416,5 +503,12 @@
         clearActions,
         getActions,
         closeSession,
+        // for 3d projection
+        getProjctionAnnotations,
+        putProjectionAnnotations,
+        saveProjectionAnnotations,
+        annotationsProjectionStatistics,
+        importProjectionAnnotations,
+        exportProjectionAnnotations,
     };
 })();
