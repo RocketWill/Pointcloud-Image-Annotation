@@ -68,7 +68,7 @@
             };
         }
 
-        import(data, contextIndex) {
+        import(data) {
             // only support shape in this version
             const result = {
                 tags: [],
@@ -80,7 +80,7 @@
                 const shapeModel = shapeFactory(shape, clientID, this.injection);
                 this.shapes[shapeModel.frame] = this.shapes[shapeModel.frame] || [];
                 this.shapes[shapeModel.frame].push(shapeModel);
-                const objectKey = `${clientID}-${contextIndex}`  // a clientID could exist in many canvas
+                const objectKey = `${clientID}-${shape.context_index}`  // a clientID could exist in many canvas
                 this.objects[objectKey] = shapeModel;
                 result.shapes.push(shapeModel);
             }
@@ -277,7 +277,7 @@
             return new Statistics(labels, total);
         }
 
-        put(objectStates, contextIndex) {
+        put(objectStates) {
             checkObjectType('shapes for put', objectStates, null, Array);
             const constructed = {
                 shapes: [],
@@ -345,8 +345,8 @@
                             attributes,
                             descriptions: state.descriptions,
                             frame: state.frame,
-                            contextIndex,
-                            modified2d: false,
+                            context_index: state.contextIndex,
+                            modified_2d: false,
                             group: 0,
                             label_id: state.label.id,
                             occluded: state.occluded || false,
@@ -366,7 +366,7 @@
 
             // Add constructed objects to a collection
             // eslint-disable-next-line no-unsanitized/method
-            const imported = this.import(constructed, contextIndex);
+            const imported = this.import(constructed);
             const importedArray = imported.shapes;
 
             if (objectStates.length) {

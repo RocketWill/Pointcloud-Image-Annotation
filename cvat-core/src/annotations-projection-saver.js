@@ -109,7 +109,8 @@
                 'source',
                 'outside',
                 'contextIndex',
-                'modified2d'
+                'modified2d',
+                'clientID'
             ];
 
             // Find created and updated objects
@@ -174,9 +175,9 @@
         _receiveIndexes(exported) {
             // Receive client indexes before saving
             const indexes = {
-                tracks: exported.tracks.map((track) => `${track.clientID}-${track.contextIndex}`),
-                shapes: exported.shapes.map((shape) => `${shape.clientID}-${shape.contextIndex}`),
-                tags: exported.tags.map((tag) => `${tag.clientID}-${tag.contextIndex}`),
+                tracks: exported.tracks.map((track) => `${track.clientID}-${track.context_index}`),
+                shapes: exported.shapes.map((shape) => `${shape.clientID}-${shape.context_index}`),
+                tags: exported.tags.map((tag) => `${tag.clientID}-${tag.context_index}`),
             };
 
             // Remove them from the request body
@@ -199,7 +200,7 @@
             const exported = this.collection.export();
             const { flush } = this.collection;
             if (flush) {
-                onUpdate('Created objects are being saved on the server');
+                onUpdate('Created projection objects are being saved on the server');
                 const indexes = this._receiveIndexes(exported);
                 const savedData = await this._put({ ...exported, version: this.version });
                 this.version = savedData.version;
@@ -213,10 +214,11 @@
                         this.initialObjects[type][object.id] = object;
                     }
                 }
-            } else {
+            }
+            else {
                 const { created, updated, deleted } = this._split(exported);
 
-                onUpdate('Created objects are being saved on the server');
+                onUpdate('新创建的映射对象正在保存到服务器');
                 const indexes = this._receiveIndexes(created);
                 const createdData = await this._create({ ...created, version: this.version });
                 this.version = createdData.version;
@@ -229,7 +231,7 @@
                     }
                 }
 
-                onUpdate('Updated objects are being saved on the server');
+                onUpdate('更新的映射对象正在保存到服务器');
                 this._receiveIndexes(updated);
                 const updatedData = await this._update({ ...updated, version: this.version });
                 this.version = updatedData.version;
@@ -240,7 +242,7 @@
                     }
                 }
 
-                onUpdate('Deleted objects are being deleted from the server');
+                onUpdate('删除的映射对象正在保存到服务器');
                 this._receiveIndexes(deleted);
                 const deletedData = await this._delete({ ...deleted, version: this.version });
                 this._version = deletedData.version;

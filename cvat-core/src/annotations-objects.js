@@ -521,8 +521,9 @@
             this.zOrder = data.z_order;
 
             // [CY] for 3D projection
-            this.contextIndex = data.contextIndex >= 0 ? data.contextIndex: -1;
+            this.contextIndex = data.context_index >= 0 ? data.context_index: -1;
             this.modified2d = false;
+            this.clientProjID = clientID;
         }
 
         // Method is used to export data to the server
@@ -547,8 +548,9 @@
                 label_id: this.label.id,
                 group: this.group,
                 source: this.source,
-                contextIndex: this.contextIndex,
-                modified2d: this.modified2d,
+                context_index: this.contextIndex,
+                modified_2d: this.modified2d,
+                client_proj_id: this.clientProjID,
             };
         }
 

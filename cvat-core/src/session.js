@@ -157,13 +157,12 @@
                     },
 
                     // for 3d projection
-                    async getProjection(frame, filters = [], contextIndex) {
+                    async getProjection(frame, filters = []) {
                         const result = await PluginRegistry.apiWrapper.call(
                             this,
                             prototype.annotations.getProjection,
                             frame,
                             filters,
-                            contextIndex,
                         );
                         return result;
                     },
@@ -2163,7 +2162,7 @@
         return this;
     };
 
-    Job.prototype.annotations.getProjection.implementation = async function (frame, filters, contextIndex) {
+    Job.prototype.annotations.getProjection.implementation = async function (frame, filters) {
         if (!Array.isArray(filters)) {
             throw new ArgumentError('Filters must be an array');
         }
@@ -2176,7 +2175,7 @@
             throw new ArgumentError(`Frame ${frame} does not exist in the job`);
         }
 
-        const annotationsData = await getProjctionAnnotations(this, frame, filters, contextIndex);
+        const annotationsData = await getProjctionAnnotations(this, frame, filters);
         return annotationsData;
     };
 

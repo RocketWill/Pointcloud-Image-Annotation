@@ -1077,6 +1077,9 @@ class JobViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
         self._object = self.get_object() # force to call check_object_permissions
         if request.method == 'GET':
             data = dm.task.get_job_data(pk)
+            shapes = data['shapes']
+            filter_shapes = [shape for shape in shapes if shape['context_index'] == -1]
+            data['shapes'] = filter_shapes
             return Response(data)
         elif request.method == 'POST' or request.method == 'OPTIONS':
             return self.upload_data(request)
@@ -1107,6 +1110,84 @@ class JobViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
                 raise serializers.ValidationError(
                     "Please specify a correct 'action' for the request")
             serializer = LabeledDataSerializer(data=request.data)
+            if serializer.is_valid(raise_exception=True):
+                try:
+                    data = dm.task.patch_job_data(pk, serializer.data, action)
+                except (AttributeError, IntegrityError) as e:
+                    return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
+                return Response(data)
+
+    @extend_schema(methods=['GET'], summary='Method returns projection annotations for a specific job',
+        responses={
+            '200': LabeledDataSerializer(many=True),
+        }, tags=['jobs'], versions=['2.0'])
+    @extend_schema(methods=['PUT'], summary='Method performs an update of all projection annotations in a specific job',
+        request=AnnotationFileSerializer, responses={
+            '201': OpenApiResponse(description='Uploading has finished'),
+            '202': OpenApiResponse(description='Uploading has been started'),
+            '405': OpenApiResponse(description='Format is not available'),
+        }, tags=['jobs'], versions=['2.0'])
+    @extend_schema(methods=['PATCH'], summary='Method performs a partial update of projection annotations in a specific job',
+        parameters=[
+            OpenApiParameter('action', location=OpenApiParameter.QUERY, type=OpenApiTypes.STR,
+                required=True, enum=['create', 'update', 'delete'])
+        ],
+        responses={
+            #TODO
+            '200': OpenApiResponse(description=''),
+        }, tags=['jobs'], versions=['2.0'])
+    @extend_schema(methods=['DELETE'], summary='Method deletes all projection annotations for a specific job',
+        responses={
+            '204': OpenApiResponse(description='The projection annotation has been deleted'),
+        }, tags=['jobs'], versions=['2.0'])
+    @action(detail=True, methods=['GET', 'DELETE', 'PUT', 'PATCH', 'POST', 'OPTIONS'], url_path=r'projection-annotations/?$',
+        serializer_class=LabeledDataSerializer)
+    def projectionAnnotations(self, request, pk):
+        self._object = self.get_object() # force to call check_object_permissions
+        if request.method == 'GET':
+            data = dm.task.get_job_data(pk)
+            shapes = data['shapes']
+            filter_shapes = [shape for shape in shapes if shape['context_index'] > -1]
+            data['shapes'] = filter_shapes
+            return Response(data)
+        elif request.method == 'POST' or request.method == 'OPTIONS':
+            return self.upload_data(request)
+        elif request.method == 'PUT':
+            format_name = request.query_params.get('format', '')
+            if format_name:
+                return _import_annotations(
+                    request=request,
+                    rq_id="{}@/api/jobs/{}/projection-annotations/upload".format(request.user, pk),
+                    rq_func=dm.task.import_job_annotations,
+                    pk=pk,
+                    format_name=format_name
+                )
+            else:
+                serializer = LabeledDataSerializer(data=request.data)
+                if serializer.is_valid(raise_exception=True):
+                    try:
+                        data = dm.task.put_job_data(pk, serializer.data)
+                    except (AttributeError, IntegrityError) as e:
+                        return Response(data=str(e), status=status.HTTP_400_BAD_REQUEST)
+                    return Response(data)
+        elif request.method == 'DELETE':
+            dm.task.delete_job_data(pk)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        elif request.method == 'PATCH':
+            action = self.request.query_params.get("action", None)
+            if action not in dm.task.PatchAction.values():
+                raise serializers.ValidationError(
+                    "Please specify a correct 'action' for the request")
+            from copy import deepcopy
+            new_data = deepcopy(request.data)
+            for shape in new_data['shapes']:
+                # shape['context_index'] = shape['contextIndex']
+                # shape['modified_2d'] = shape['modified2d']
+                shape['client_id'] = shape['client_proj_id']
+                # del shape['modified2d']
+                # del shape['contextIndex']
+                del shape['client_proj_id']
+            serializer = LabeledDataSerializer(data=new_data)
             if serializer.is_valid(raise_exception=True):
                 try:
                     data = dm.task.patch_job_data(pk, serializer.data, action)

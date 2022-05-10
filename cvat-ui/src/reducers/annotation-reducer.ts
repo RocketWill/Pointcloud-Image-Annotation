@@ -150,6 +150,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
             const {
                 job,
                 states,
+                projectionStates,
                 openTime,
                 frameNumber: number,
                 frameFilename: filename,
@@ -191,6 +192,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 annotations: {
                     ...state.annotations,
                     states,
+                    projectionStates,
                     filters,
                     zLayer: {
                         min: minZ,
@@ -389,6 +391,51 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 },
             };
         }
+
+        case AnnotationActionTypes.SAVE_UPDATE_PROJECTION_ANNOTATIONS_STATUS: {
+            const { status } = action.payload;
+
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    saving: {
+                        ...state.annotations.saving,
+                        statuses: [...state.annotations.saving.statuses, status],
+                    },
+                },
+            };
+        }
+
+        case AnnotationActionTypes.SAVE_PROJECTION_ANNOTATIONS_SUCCESS: {
+            const { projectionStates } = action.payload;
+            // does not update activatedStateID
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    projectionStates,
+                    saving: {
+                        ...state.annotations.saving,
+                        uploading: false,
+                    },
+                },
+            };
+        }
+
+        case AnnotationActionTypes.SAVE_PROJECTION_ANNOTATIONS_FAILED: {
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    saving: {
+                        ...state.annotations.saving,
+                        uploading: false,
+                    },
+                },
+            };
+        }
+
         case AnnotationActionTypes.SWITCH_PLAY: {
             const { playing } = action.payload;
 

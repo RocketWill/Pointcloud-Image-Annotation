@@ -736,6 +736,7 @@ class ShapeSerializer(serializers.Serializer):
     )
     context_index = serializers.IntegerField(default=-1)
     modified_2d = serializers.BooleanField(default=False)
+    client_id = serializers.IntegerField(default=-1)
 
 class LabeledShapeSerializer(ShapeSerializer, AnnotationSerializer):
     attributes = AttributeValSerializer(many=True,

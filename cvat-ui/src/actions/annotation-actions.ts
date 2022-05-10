@@ -204,6 +204,9 @@ export enum AnnotationActionTypes {
     CREATE_PROJECTION_ANNOTATIONS_FAILED = 'CREATE_PROJECTION_ANNOTATIONS_FAILED',
     UPDATE_PROJECTION_ANNOTATIONS_SUCCESS = 'UPDATE_PROJECTION_ANNOTATIONS_SUCCESS',
     UPDATE_PROJECTION_ANNOTATIONS_FAILED = 'UPDATE_PROJECTION_ANNOTATIONS_FAILED',
+    SAVE_UPDATE_PROJECTION_ANNOTATIONS_STATUS = 'SAVE_UPDATE_PROJECTION_ANNOTATIONS_STATUS',
+    SAVE_PROJECTION_ANNOTATIONS_SUCCESS = 'SAVE_PROJECTION_ANNOTATIONS_SUCCESS',
+    SAVE_PROJECTION_ANNOTATIONS_FAILED = 'SAVE_PROJECTION_ANNOTATIONS_FAILED',
 }
 
 export function saveLogsAsync(): ThunkAction {
@@ -1039,6 +1042,7 @@ export function getJobAsync(tid: number, jid: number, initialFrame: number, init
                 });
             }
             const states = await job.annotations.get(frameNumber, showAllInterpolationTracks, filters);
+            const projectionStates = await job.annotations.getProjection(frameNumber, filters);
             const issues = await job.issues();
             const [minZ, maxZ] = computeZRange(states);
             const colors = [...cvat.enums.colors];
@@ -1053,6 +1057,7 @@ export function getJobAsync(tid: number, jid: number, initialFrame: number, init
                     job,
                     issues,
                     states,
+                    projectionStates,
                     frameNumber,
                     frameFilename: frameData.filename,
                     frameHasRelatedContext: frameData.hasRelatedContext,
@@ -1130,12 +1135,25 @@ export function saveAnnotationsAsync(sessionInstance: any, afterSave?: () => voi
                     },
                 });
             });
+            // for 3d annotation, save projections
+            await sessionInstance.annotations.saveProjection((status: string) => {
+                dispatch({
+                    type: AnnotationActionTypes.SAVE_UPDATE_PROJECTION_ANNOTATIONS_STATUS,
+                    payload: {
+                        status,
+                    },
+                });
+            });
+
             await saveJobEvent.close();
             await sessionInstance.logger.log(LogType.sendTaskInfo, await jobInfoGenerator(sessionInstance));
             dispatch(saveLogsAsync());
 
             const { frame } = receiveAnnotationsParameters();
             const states = await sessionInstance.annotations.get(frame, showAllInterpolationTracks, filters);
+            const projectionStates = await sessionInstance.annotations.getProjection(frame, filters);
+            console.log("🤡 ~ file: annotation-actions.ts ~ line 1151 ~ return ~ projectionStates", projectionStates)
+
             if (typeof afterSave === 'function') {
                 afterSave();
             }
@@ -1151,9 +1169,21 @@ export function saveAnnotationsAsync(sessionInstance: any, afterSave?: () => voi
                     states,
                 },
             });
+            dispatch({
+                type: AnnotationActionTypes.SAVE_PROJECTION_ANNOTATIONS_SUCCESS,
+                payload: {
+                    projectionStates,
+                },
+            });
         } catch (error) {
             dispatch({
                 type: AnnotationActionTypes.SAVE_ANNOTATIONS_FAILED,
+                payload: {
+                    error,
+                },
+            });
+            dispatch({
+                type: AnnotationActionTypes.SAVE_PROJECTION_ANNOTATIONS_FAILED,
                 payload: {
                     error,
                 },

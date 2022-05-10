@@ -36,6 +36,7 @@
 
         if (!cache.has(session)) {
             const rawAnnotations = await serverProxy.annotations.getAnnotations(sessionType, session.id);
+            const rawProjectionAnnotation = await serverProxy.annotations.getProjectionAnnotations(sessionType, session.id);
 
             // Get meta information about frames
             const startFrame = sessionType === 'job' ? session.startFrame : 0;
@@ -68,10 +69,12 @@
                 })
                 : null
             // TODO: import projection collection from server
-            // projectionCollection.import(rawAnnotations);
+            if (projectionCollection !== null) {
+                projectionCollection.import(rawProjectionAnnotation);
+            }
 
             const projectionSaver = session.dimension === '3d'
-                ? new AnnotationsProjectionSaver(rawAnnotations.version, projectionCollection, session)
+                ? new AnnotationsProjectionSaver(rawProjectionAnnotation.version, projectionCollection, session)
                 : null
 
             cache.set(session, {
@@ -385,14 +388,14 @@
         );
     }
 
-    async function getProjctionAnnotations(session, frame, filters, contextIndex) {
+    async function getProjctionAnnotations(session, frame, filters) {
         const sessionType = session instanceof Task ? 'task' : 'job';
         const cache = getCache(sessionType);
 
         if (cache.has(session)) {
             const { projectionCollection } = cache.get(session);
             if (projectionCollection !== null) {
-                return projectionCollection.get(frame, filters, contextIndex);
+                return projectionCollection.get(frame, filters);
             }
             return [];
         }
@@ -400,19 +403,19 @@
         await getAnnotationsFromServer(session);
         const { projectionCollection } = cache.get(session);
         if (projectionCollection !== null) {
-            return projectionCollection.get(frame, filters, contextIndex);
+            return projectionCollection.get(frame, filters);
         }
         return [];
     }
 
-    function putProjectionAnnotations(session, objectStates, contextIndex) {
+    function putProjectionAnnotations(session, objectStates) {
         const sessionType = session instanceof Task ? 'task' : 'job';
         const cache = getCache(sessionType);
 
         if (cache.has(session)) {
             const { projectionCollection } = cache.get(session);
             if (projectionCollection !== null) {
-                return projectionCollection.put(objectStates, contextIndex);
+                return projectionCollection.put(objectStates);
             }
             return [];
         }
@@ -426,7 +429,9 @@
         const cache = getCache(sessionType);
 
         if (cache.has(session)) {
-            await cache.get(session).projectionSaver.save(onUpdate);
+            if (cache.get(session).projectionSaver !== null) {
+                await cache.get(session).projectionSaver.save(onUpdate);
+            }
         }
     }
 
