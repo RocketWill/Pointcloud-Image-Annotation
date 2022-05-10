@@ -69,7 +69,7 @@ interface StateToProps {
     activatedStateID: number | null;
     activatedAttributeID: number | null;
     annotations: any[];
-    projectionAnnotations: any;
+    projectionAnnotations: any[];
     frameData: any;
     frameAngle: number;
     frameFetching: boolean;
@@ -111,6 +111,8 @@ interface StateToProps {
     imageData: ImageData;
     imageName: string;
     contextIndex: number;
+    psrToXyz: Function;
+    points3dHomoToImage2d: Function;
 }
 
 interface DispatchToProps {
@@ -146,7 +148,7 @@ interface DispatchToProps {
     onStartIssue(position: number[]): void;
 }
 
-function mapStateToProps(state: CombinedState, { imageData, imageName, contextIndex }: { imageData: ImageData, imageName: string, contextIndex: number }): StateToProps {
+function mapStateToProps(state: CombinedState, { imageData, imageName, contextIndex, boxOps: { psrToXyz, points3dHomoToImage2d } }: { imageData: ImageData, imageName: string, contextIndex: number, boxOps: {psrToXyz: Function, points3dHomoToImage2d: Function} }): StateToProps {
     const {
         annotation: {
             canvas: { activeControl, instance: canvasInstance },
@@ -249,6 +251,8 @@ function mapStateToProps(state: CombinedState, { imageData, imageName, contextIn
         imageData,
         imageName,
         contextIndex,
+        psrToXyz,
+        points3dHomoToImage2d,
     };
 }
 

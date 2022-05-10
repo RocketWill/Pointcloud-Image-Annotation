@@ -19,7 +19,7 @@ import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import getCore from 'cvat-core-wrapper';
 import consts from 'consts';
 import CVATTooltip from 'components/common/cvat-tooltip';
-import { Calib, psrToXyz, points3dHomoToImage2d } from '../standard-workspace/context-image/shared'
+import { Calib } from '../standard-workspace/context-image/shared'
 
 const cvat = getCore();
 
@@ -76,6 +76,8 @@ interface Props {
     imageData: any;
     imageName: string;
     contextIndex: number;
+    psrToXyz: Function;
+    points3dHomoToImage2d: Function;
 
     onSetupCanvas: () => void;
     onDragCanvas: (enabled: boolean) => void;
@@ -109,16 +111,6 @@ interface Props {
     onStartIssue(position: number[]): void;
 }
 
-function boxTo2DPoints(points: number[], calib: Calib) {
-    const position = [points[0], points[1], points[2]];
-    const rotation = [points[3], points[4], points[5]];
-    const scale    = [points[6], points[7], points[8]];
-    let box3d = psrToXyz(position, scale, rotation);
-    box3d = box3d.slice(0, 8 * 4);
-    const box2dPoints = points3dHomoToImage2d(box3d, calib, false, []);
-    return box2dPoints;
-}
-
 const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     const [projFrameData, setProjFrameData] = useState(null as any);
     const {
@@ -144,6 +136,8 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         imageData,
         imageName,
         contextIndex,
+        psrToXyz,
+        points3dHomoToImage2d,
         canvasInstance: canvasInstance3D,  // 3d instance
         onUpdateProjectionAnnotations,
         onCreateProjectionAnnotations,
@@ -161,7 +155,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         onSwitchZLayer,
         onAddZLayer,
     } = props;
-
 
     useEffect(() => {
         if (prevActivatedStateID !== null && prevActivatedStateID !== activatedStateID) {
@@ -193,8 +186,17 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         },
     };
 
+    const boxTo2DPoints = (points: number[], calib: Calib) => {
+        const position = [points[0], points[1], points[2]];
+        const rotation = [points[3], points[4], points[5]];
+        const scale    = [points[6], points[7], points[8]];
+        let box3d = psrToXyz(position, scale, rotation);
+        box3d = box3d.slice(0, 8 * 4);
+        const box2dPoints = points3dHomoToImage2d(box3d, calib, false, []);
+        return box2dPoints;
+    }
+
     const onCanvasMouseDown = (e: MouseEvent): void => {
-        console.log("🚀 ~ file: canvas-context.tsx ~ line 208 ~ onCanvasMouseDown ~ e", e)
         const { workspace, activatedStateID, onActivateObject } = props;
         if ((e.target as HTMLElement).tagName === 'svg' && e.button !== 2) {
             if (activatedStateID !== null && workspace !== Workspace.ATTRIBUTE_ANNOTATION) {
@@ -745,14 +747,15 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             updateShapesView();
         }
         // const projAnnos = projAnnotations(null);
-        // console.log("🚀 ~ file: canvas-context.tsx ~ line 749 ~ useEffect ~ projAnnos", projAnnos)
         // onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
     }, [annotations, cameraParam, projFrameData]);
 
     useEffect(() => {
-        const { jobInstance, frame } = props;
-        const projAnnos = projAnnotations(null);
-        onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
+        // const { jobInstance, frame } = props;
+        // const projAnnos = projAnnotations(null);
+        // onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex);
+        console.log("🤡 ~ file: canvas-context.tsx ~ line 758 ~ useEffect ~ annotations", annotations)
+        console.log("🤡 ~ file: canvas-context.tsx ~ line 759 ~ useEffect ~ projAnnotations", projectionAnnotations)
     }, []);
 
     useEffect(() => {

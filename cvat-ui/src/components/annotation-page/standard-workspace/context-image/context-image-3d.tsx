@@ -22,6 +22,8 @@ import { hideShowContextImage, getContextImageAsync, getCameraParamAsync } from 
 import CVATTooltip from 'components/common/cvat-tooltip';
 import ContextImageCanvas, { ImageData } from './context-image-canvas';
 import CanvasWrapperContextContainer from 'containers/annotation-page/canvas/canvas-context';
+import { wrapPsrToXyz, wrapPoints3dHomoToImage2d } from './box-ops';
+import createModule from "./boxOps.mjs";
 
 const { Text } = Typography;
 
@@ -71,6 +73,8 @@ function ContextImage(): JSX.Element | null {
 
     const [requested, setRequested] = useState(false);
     const [targetInContext, setTargetInContext] = useState({ activeID: -1, imageNames: [] } as TargetInContextInfo);
+    const [psrToXyz, setPsrToXyz] = useState(null);
+    const [points3dHomoToImage2d, setPoints3dHomoToImage2d] = useState(null);
 
     const calculateTargetInContext = (clientID: number, imageName: string): void => {
         setTargetInContext({
@@ -78,6 +82,13 @@ function ContextImage(): JSX.Element | null {
             imageNames: clientID === targetInContext.activeID ? [...targetInContext.imageNames, imageName] : [imageName]
         })
     }
+
+    useEffect(() => {
+        createModule().then((Module: any) => {
+            setPsrToXyz(() => wrapPsrToXyz(Module));
+            setPoints3dHomoToImage2d(() => wrapPoints3dHomoToImage2d(Module));
+        });
+    }, []);
 
     useEffect(() => {
         if (requested) {
@@ -140,13 +151,15 @@ function ContextImage(): JSX.Element | null {
                 />
             )
             } */}
-            {contextImageData && Object.keys(contextImageData).map((imageName: string, contextIndex: number) =>
-                <CanvasWrapperContextContainer
-                    imageData={contextImageData[imageName]}
-                    imageName={imageName}
-                    contextIndex={contextIndex}
-                    key={`ctx-img-canvas-${contextImageData[imageName].name}`}
-                />
+            {contextImageData && psrToXyz && points3dHomoToImage2d &&
+                Object.keys(contextImageData).map((imageName: string, contextIndex: number) =>
+                    <CanvasWrapperContextContainer
+                        imageData={contextImageData[imageName]}
+                        imageName={imageName}
+                        contextIndex={contextIndex}
+                        boxOps={{psrToXyz, points3dHomoToImage2d}}
+                        key={`ctx-img-canvas-${contextImageData[imageName].name}`}
+                    />
             )
             }
         </div>
