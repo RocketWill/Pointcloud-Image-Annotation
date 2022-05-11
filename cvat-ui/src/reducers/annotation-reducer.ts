@@ -1303,7 +1303,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
         }
         case AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_SUCCESS: {
             const {
-                history, projectionIndexStates: updatedStates, minZ, maxZ,
+                history, projectionStates: updatedStates, minZ, maxZ,
             } = action.payload;
             const { projectionStates: prevStates } = state.annotations;
             const nextStates = [...prevStates];
