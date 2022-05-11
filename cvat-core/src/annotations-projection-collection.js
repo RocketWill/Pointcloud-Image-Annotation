@@ -75,14 +75,29 @@
                 shapes: [],
                 tracks: [],
             };
+            let keys = [];
             for (const shape of data.shapes) {
-                const clientID = shape.client_id;
+                // TODO
+                // check if objectKey is already in shapes (update projection)
+                const clientID = shape.client_proj_id;
+                const objectKey = `${clientID}-${shape.context_index}`  // a clientID could exist in many canvas
                 const shapeModel = shapeFactory(shape, clientID, this.injection);
                 this.shapes[shapeModel.frame] = this.shapes[shapeModel.frame] || [];
-                this.shapes[shapeModel.frame].push(shapeModel);
-                const objectKey = `${clientID}-${shape.context_index}`  // a clientID could exist in many canvas
+
+                // only save latest cuboid
+                const updatedShapes = this.shapes[shapeModel.frame]
+                    .filter(item => item.clientID !== clientID && item.contextIndex !== shape.context_index);
+
+                // this.shapes[shapeModel.frame].push(shapeModel);
+                updatedShapes.push(shapeModel);
+                this.shapes[shapeModel.frame] = [...updatedShapes];
                 this.objects[objectKey] = shapeModel;
-                result.shapes.push(shapeModel);
+
+                const newKeys = keys
+                    .filter(item => item.clientID !== clientID && item.contextIndex !== shape.context_index);
+                newKeys.push(shapeModel);
+                keys = [...newKeys];
+                result.shapes = [...newKeys];
             }
             return result;
         }
@@ -347,6 +362,7 @@
                             frame: state.frame,
                             context_index: state.contextIndex,
                             modified_2d: false,
+                            client_proj_id: state.clientProjID,
                             group: 0,
                             label_id: state.label.id,
                             occluded: state.occluded || false,

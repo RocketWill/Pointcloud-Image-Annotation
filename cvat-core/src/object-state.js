@@ -54,6 +54,7 @@ const { Source } = require('./enums');
                 // for 3d projection
                 contextIndex: serialized.contextIndex >= 0 ? serialized.contextIndex : -1,
                 modified2d: false,
+                clientProjID: serialized.clientProjID,
             };
 
             // Shows whether any properties updated since last reset() or interpolation
@@ -77,6 +78,7 @@ const { Source } = require('./enums');
                     // for 3d projection
                     this.contextIndex = false;
                     this.modified2d = false;
+                    this.clientProjID = false;
 
                     return reset;
                 },
@@ -435,6 +437,19 @@ const { Source } = require('./enums');
                         set: (isModified) => {
                             data.updateFlags.modified2d = true;
                             data.modified2d = isModified;
+                        },
+                    },
+                    clientProjID: {
+                        /**
+                         * @name clientProjID
+                         * @type {integer}
+                         * @memberof module:API.cvat.classes.ObjectState
+                         * @instance
+                         */
+                        get: () => data.clientProjID,
+                        set: (clientProjID) => {
+                            data.updateFlags.clientProjID = true;
+                            data.clientProjID = clientProjID;
                         },
                     },
                 }),

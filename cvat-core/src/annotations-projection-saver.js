@@ -74,6 +74,7 @@
         }
 
         _split(exported) {
+            console.log("🤡 ~ file: annotations-projection-saver.js ~ line 77 ~ AnnotationsProjectionSaver ~ _split ~ exported", exported)
             const splitted = {
                 created: {
                     shapes: [],
@@ -108,9 +109,9 @@
                 'spec_id',
                 'source',
                 'outside',
-                'contextIndex',
-                'modified2d',
-                'clientID'
+                'context_index',
+                'modified_2d',
+                'client_proj_id'
             ];
 
             // Find created and updated objects
@@ -217,6 +218,7 @@
             }
             else {
                 const { created, updated, deleted } = this._split(exported);
+                console.log("🤡 ~ file: annotations-projection-saver.js ~ line 220 ~ AnnotationsProjectionSaver ~ save ~ created, updated, deleted", created, updated, deleted)
 
                 onUpdate('新创建的映射对象正在保存到服务器');
                 const indexes = this._receiveIndexes(created);

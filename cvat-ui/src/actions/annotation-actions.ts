@@ -1152,7 +1152,6 @@ export function saveAnnotationsAsync(sessionInstance: any, afterSave?: () => voi
             const { frame } = receiveAnnotationsParameters();
             const states = await sessionInstance.annotations.get(frame, showAllInterpolationTracks, filters);
             const projectionStates = await sessionInstance.annotations.getProjection(frame, filters);
-            console.log("🤡 ~ file: annotation-actions.ts ~ line 1151 ~ return ~ projectionStates", projectionStates)
 
             if (typeof afterSave === 'function') {
                 afterSave();

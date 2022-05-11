@@ -583,6 +583,7 @@
                 // for 3d projection
                 contextIndex: this.contextIndex,
                 modified2d: this.modified2d,
+                clientProjID: this.clientProjID,
             };
         }
 

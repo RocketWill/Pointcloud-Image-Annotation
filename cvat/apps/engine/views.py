@@ -1180,13 +1180,6 @@ class JobViewSet(viewsets.GenericViewSet, mixins.ListModelMixin,
                     "Please specify a correct 'action' for the request")
             from copy import deepcopy
             new_data = deepcopy(request.data)
-            for shape in new_data['shapes']:
-                # shape['context_index'] = shape['contextIndex']
-                # shape['modified_2d'] = shape['modified2d']
-                shape['client_id'] = shape['client_proj_id']
-                # del shape['modified2d']
-                # del shape['contextIndex']
-                del shape['client_proj_id']
             serializer = LabeledDataSerializer(data=new_data)
             if serializer.is_valid(raise_exception=True):
                 try:

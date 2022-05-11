@@ -569,7 +569,7 @@ class Shape(models.Model):
     rotation = FloatField(default=0)
     context_index = models.IntegerField(default=-1)
     modified_2d = models.BooleanField(default=False)
-    client_id = models.IntegerField(default=-1)
+    client_proj_id = models.IntegerField(default=-1)
     class Meta:
         abstract = True
         default_permissions = ()

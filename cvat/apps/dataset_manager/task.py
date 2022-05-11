@@ -393,7 +393,7 @@ class JobAnnotation:
             'points',
             'context_index',
             'modified_2d',
-            'client_id',
+            'client_proj_id',
             'labeledshapeattributeval__spec_id',
             'labeledshapeattributeval__value',
             'labeledshapeattributeval__id',

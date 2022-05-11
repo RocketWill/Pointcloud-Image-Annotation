@@ -113,6 +113,7 @@ interface Props {
 
 const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     const [projFrameData, setProjFrameData] = useState(null as any);
+    const [listenProjection, setListenProjection] = useState(false);
     const {
         opacity,
         outlined,
@@ -468,7 +469,28 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                     box[12], box[13],
                     box[10], box[11]
                 ]
-                return new cvat.classes.ObjectState({
+                // return new cvat.classes.ObjectState({
+                //     points: boxPoints,
+                //     color: annotation.label.color,
+                //     clientID: annotation.clientID,
+                //     zOrder: annotation.zOrder,
+                //     hidden: annotation.hidden,
+                //     outside: annotation.outside,
+                //     occluded: annotation.occluded,
+                //     shapeType: 'cuboid',
+                //     pinned: annotation.pinned,
+                //     descriptions: annotation.descriptions,
+                //     frame: annotation.frame,
+                //     label: annotation.label,
+                //     lock: annotation.lock,
+                //     source: annotation.source,
+                //     updated: annotation.updated,
+                //     attributes: annotation.attributes,
+                //     contextIndex,
+                //     modified2d: false,
+                //     clientProjID: annotation.clientID,
+                // });
+                return ({
                     points: boxPoints,
                     color: annotation.label.color,
                     clientID: annotation.clientID,
@@ -486,7 +508,8 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                     updated: annotation.updated,
                     attributes: annotation.attributes,
                     contextIndex,
-                    modified2d: false
+                    modified2d: false,
+                    clientProjID: annotation.clientID,
                 });
             }
         })
@@ -499,7 +522,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         if (projFrameData) {
             canvasInstance.setup(
                 projFrameData,
-                // projAnnotations(null),
                 projectionAnnotations.filter((projAnnotation: any) => projAnnotation.contextIndex === contextIndex),
                 0,
             );
@@ -649,6 +671,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         canvasInstance.html().addEventListener('canvas.error', onCanvasErrorOccurrence);
 
         // 3d instance listener
+        // TODO: add more listener
         canvasInstance3D?.html()?.perspective.addEventListener('canvas.selected', updateCanvas);
         canvasInstance3D?.html()?.perspective.addEventListener('canvas.edited', updateCanvas);
     }
@@ -746,17 +769,36 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             updateCanvas(null);
             updateShapesView();
         }
+        // console.log("🤡 ~ file: canvas-context.tsx ~ line 752 ~ CanvasWrapperContextComponent ~ annotations", annotations)
         // const projAnnos = projAnnotations(null);
         // onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
     }, [annotations, cameraParam, projFrameData]);
 
     useEffect(() => {
-        // const { jobInstance, frame } = props;
-        // const projAnnos = projAnnotations(null);
-        // onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex);
-        console.log("🤡 ~ file: canvas-context.tsx ~ line 758 ~ useEffect ~ annotations", annotations)
-        console.log("🤡 ~ file: canvas-context.tsx ~ line 759 ~ useEffect ~ projAnnotations", projectionAnnotations)
-    }, []);
+        if (listenProjection === false) {
+            setListenProjection(true);
+            return
+        }
+        const { jobInstance, frame } = props;
+        const calculatedProjectionAnnotations = projAnnotations(null);
+        let currentProjectionAnnotations = [...projectionAnnotations];
+        const updated = [];
+
+        calculatedProjectionAnnotations.forEach((calAnno: any) => {
+            const oldProjAnnos = currentProjectionAnnotations.filter(item => item.clientID === calAnno.clientID && item.contextIndex === contextIndex);
+            // const updatedProjAnnos = projectionAnnotations.filter(item => item.clientID !== calAnno.clientID);
+            if (oldProjAnnos.length) {
+                oldProjAnnos[0].points = calAnno['points'];
+                updated.push(oldProjAnnos[0]);
+            }
+            else {
+                // console.log("🤡 ~ file: canvas-context.tsx ~ line 795 ~ calculatedProjectionAnnotations.forEach ~ calAnno", calAnno)
+                updated.push(new cvat.classes.ObjectState(calAnno));
+            }
+        })
+
+        onCreateProjectionAnnotations(jobInstance, frame, updated, contextIndex);
+    }, [annotations]);
 
     useEffect(() => {
         canvasInstance.configure({
