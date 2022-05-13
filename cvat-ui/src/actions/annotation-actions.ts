@@ -207,6 +207,8 @@ export enum AnnotationActionTypes {
     SAVE_UPDATE_PROJECTION_ANNOTATIONS_STATUS = 'SAVE_UPDATE_PROJECTION_ANNOTATIONS_STATUS',
     SAVE_PROJECTION_ANNOTATIONS_SUCCESS = 'SAVE_PROJECTION_ANNOTATIONS_SUCCESS',
     SAVE_PROJECTION_ANNOTATIONS_FAILED = 'SAVE_PROJECTION_ANNOTATIONS_FAILED',
+    REMOVE_PROJECTION_OBJECT_SUCCESS = 'REMOVE_PROJECTION_OBJECT_SUCCESS',
+    REMOVE_PROJECTION_OBJECT_FAILED = 'REMOVE_PROJECTION_OBJECT_FAILED',
 }
 
 export function saveLogsAsync(): ThunkAction {
@@ -546,6 +548,37 @@ export function removeObjectAsync(sessionInstance: any, objectState: any, force:
         } catch (error) {
             dispatch({
                 type: AnnotationActionTypes.REMOVE_OBJECT_FAILED,
+                payload: {
+                    error,
+                },
+            });
+        }
+    };
+}
+
+export function removeProjectionObjectAsync(sessionInstance: any, objectState: any, force: boolean): ThunkAction {
+    return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
+        try {
+            await sessionInstance.logger.log(LogType.deleteObject, { count: 1 });
+            const { frame } = receiveAnnotationsParameters();
+
+            const removed = await objectState.delete(frame, force);
+            const history = await sessionInstance.actions.get();
+
+            if (removed) {
+                dispatch({
+                    type: AnnotationActionTypes.REMOVE_PROJECTION_OBJECT_SUCCESS,
+                    payload: {
+                        objectState,
+                        history,
+                    },
+                });
+            } else {
+                throw new Error('Could not remove the locked object');
+            }
+        } catch (error) {
+            dispatch({
+                type: AnnotationActionTypes.REMOVE_PROJECTION_OBJECT_FAILED,
                 payload: {
                     error,
                 },

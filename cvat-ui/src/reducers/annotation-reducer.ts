@@ -83,6 +83,8 @@ const defaultState: AnnotationState = {
     annotations: {
         activatedStateID: null,
         activatedAttributeID: null,
+        latestState: null,
+        removedState: null,
         saving: {
             forceExit: false,
             uploading: false,
@@ -687,11 +689,13 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
         }
         case AnnotationActionTypes.CREATE_ANNOTATIONS_SUCCESS: {
             const { states, history } = action.payload;
+            const latestState = states.at(-1);
 
             return {
                 ...state,
                 annotations: {
                     ...state.annotations,
+                    latestState,
                     states,
                     history,
                 },
@@ -782,7 +786,33 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     ...state.annotations,
                     history,
                     activatedStateID: null,
+                    removedState: objectState,
                     states: state.annotations.states.filter(
+                        (_objectState: any) => _objectState.clientID !== objectState.clientID,
+                    ),
+                },
+                canvas: {
+                    ...state.canvas,
+                    contextMenu: {
+                        ...state.canvas.contextMenu,
+                        clientID: objectState.clientID === contextMenuClientID ? null : contextMenuClientID,
+                        visible: objectState.clientID === contextMenuClientID ? false : contextMenuVisible,
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.REMOVE_PROJECTION_OBJECT_SUCCESS: {
+            const { objectState, history } = action.payload;
+            const contextMenuClientID = state.canvas.contextMenu.clientID;
+            const contextMenuVisible = state.canvas.contextMenu.visible;
+
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    history,
+                    activatedStateID: null,
+                    projectionStates: state.annotations.projectionStates.filter(
                         (_objectState: any) => _objectState.clientID !== objectState.clientID,
                     ),
                 },

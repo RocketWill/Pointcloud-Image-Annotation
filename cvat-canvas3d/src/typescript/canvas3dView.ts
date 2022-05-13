@@ -17,7 +17,7 @@ import {
 import {
     createRotationHelper, CuboidModel, setEdges, setTranslationHelper,
 } from './cuboid';
-import { matmul, euler_angle_to_rotate_matrix, transpose, psr_to_xyz, array_as_vector_range, array_as_vector_index_range, vector_range, euler_angle_to_rotate_matrix_3by3, getPointInBetweenByLen } from "./utils/util"
+import { matmul, euler_angle_to_rotate_matrix, transpose, getPointInBetweenByLen } from "./utils/util"
 
 export interface Canvas3dView {
     html(): ViewsDOM;

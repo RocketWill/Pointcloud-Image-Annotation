@@ -32,6 +32,7 @@ import {
     switchZLayer,
     fetchAnnotationsAsync,
     getDataFailed,
+    removeProjectionObjectAsync,
 } from 'actions/annotation-actions';
 import {
     switchGrid,
@@ -69,8 +70,11 @@ interface StateToProps {
     activatedStateID: number | null;
     activatedAttributeID: number | null;
     annotations: any[];
+    latestAnnotation: any;
+    removedAnnotation: any;
     projectionAnnotations: any[];
     frameData: any;
+    contextFrameData: any;
     frameAngle: number;
     frameFetching: boolean;
     frame: number;
@@ -126,7 +130,7 @@ interface DispatchToProps {
     onSplitTrack: (enabled: boolean) => void;
     onEditShape: (enabled: boolean) => void;
     onUpdateAnnotations(states: any[]): void;
-    onUpdateProjectionAnnotations(states: any[], contextIndex: number): void;
+    onUpdateProjectionAnnotations(states: any[]): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onCreateProjectionAnnotations(sessionInstance: any, frame: number, projectionIndexStates: any[], contextIndex: number): void;
     onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void;
@@ -146,9 +150,10 @@ interface DispatchToProps {
     onFetchAnnotation(): void;
     onGetDataFailed(error: any): void;
     onStartIssue(position: number[]): void;
+    removeObject: (sessionInstance: any, objectState: any) => void;
 }
 
-function mapStateToProps(state: CombinedState, { imageData, imageName, contextIndex, boxOps: { psrToXyz, points3dHomoToImage2d } }: { imageData: ImageData, imageName: string, contextIndex: number, boxOps: {psrToXyz: Function, points3dHomoToImage2d: Function} }): StateToProps {
+function mapStateToProps(state: CombinedState, { imageData, imageName, contextIndex, boxOps: { psrToXyz, points3dHomoToImage2d }, contextFrameData }: { imageData: ImageData, imageName: string, contextIndex: number, boxOps: {psrToXyz: Function, points3dHomoToImage2d: Function}, contextFrameData: any }): StateToProps {
     const {
         annotation: {
             canvas: { activeControl, instance: canvasInstance },
@@ -160,6 +165,8 @@ function mapStateToProps(state: CombinedState, { imageData, imageName, contextIn
                 cameraParam,
             },
             annotations: {
+                latestState: latestAnnotation,
+                removedState: removedAnnotation,
                 states: annotations,
                 projectionStates: projectionAnnotations,
                 activatedStateID,
@@ -204,12 +211,15 @@ function mapStateToProps(state: CombinedState, { imageData, imageName, contextIn
         canvasInstance,
         jobInstance,
         frameData,
+        contextFrameData,
         frameAngle: frameAngles[frame - jobInstance.startFrame],
         frameFetching,
         frame,
         activatedStateID,
         activatedAttributeID,
         annotations,
+        latestAnnotation,
+        removedAnnotation,
         projectionAnnotations,
         opacity: opacity / 100,
         colorBy,
@@ -288,8 +298,8 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         onUpdateAnnotations(states: any[]): void {
             dispatch(updateAnnotationsAsync(states));
         },
-        onUpdateProjectionAnnotations(states: any[], contextIndex: number): void {
-            dispatch(updateProjectionAnnotationsAsync(states, contextIndex));
+        onUpdateProjectionAnnotations(states: any[]): void {
+            dispatch(updateProjectionAnnotationsAsync(states));
         },
         onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void {
             dispatch(createAnnotationsAsync(sessionInstance, frame, states));
@@ -357,6 +367,9 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         },
         onStartIssue(position: number[]): void {
             dispatch(reviewActions.startIssue(position));
+        },
+        removeObject(sessionInstance: any, objectState: any): void {
+            dispatch(removeProjectionObjectAsync(sessionInstance, objectState, true));
         },
     };
 }

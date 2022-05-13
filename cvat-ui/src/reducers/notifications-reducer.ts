@@ -987,6 +987,22 @@ export default function (state = defaultState, action: AnyAction): Notifications
                 },
             };
         }
+        case AnnotationActionTypes.REMOVE_PROJECTION_OBJECT_FAILED: {
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    annotation: {
+                        ...state.errors.annotation,
+                        removing: {
+                            message: 'Could not remove the projection object',
+                            reason: action.payload.error.toString(),
+                            className: 'cvat-notification-notice-remove-object-failed',
+                        },
+                    },
+                },
+            };
+        }
         case AnnotationActionTypes.PROPAGATE_OBJECT_FAILED: {
             return {
                 ...state,

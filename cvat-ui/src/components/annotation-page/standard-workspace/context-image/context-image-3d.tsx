@@ -8,7 +8,7 @@
 //
 // SPDX-License-Identifier: MIT
 
-import React, { useEffect, useState, useRef, useLayoutEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import notification from 'antd/lib/notification';
 import { useDispatch, useSelector } from 'react-redux';
 import { QuestionCircleOutlined, ShrinkOutlined } from '@ant-design/icons';
@@ -108,6 +108,7 @@ function ContextImage(): JSX.Element | null {
     //     return null;
     // }
 
+
     return (
         <div style={{ height: '100%', overflow: 'scroll' }}>
             {contextImageFetching ?
@@ -159,6 +160,7 @@ function ContextImage(): JSX.Element | null {
                         contextIndex={contextIndex}
                         boxOps={{psrToXyz, points3dHomoToImage2d}}
                         key={`ctx-img-canvas-${contextImageData[imageName].name}`}
+                        contextFrameData={null}
                     />
             )
             }

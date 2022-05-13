@@ -69,7 +69,7 @@
         }
 
         import(data) {
-            // only support shape in this version
+            // only support shape in this version\
             const result = {
                 tags: [],
                 shapes: [],
@@ -85,19 +85,20 @@
                 this.shapes[shapeModel.frame] = this.shapes[shapeModel.frame] || [];
 
                 // only save latest cuboid
-                const updatedShapes = this.shapes[shapeModel.frame]
-                    .filter(item => item.clientID !== clientID && item.contextIndex !== shape.context_index);
+                // const updatedShapes = this.shapes[shapeModel.frame]
+                //     .filter(item => item.clientID !== clientID && item.contextIndex !== shape.context_index);
 
-                // this.shapes[shapeModel.frame].push(shapeModel);
-                updatedShapes.push(shapeModel);
-                this.shapes[shapeModel.frame] = [...updatedShapes];
+                this.shapes[shapeModel.frame].push(shapeModel);
+                // updatedShapes.push(shapeModel);
+                // this.shapes[shapeModel.frame] = updatedShapes;
                 this.objects[objectKey] = shapeModel;
 
-                const newKeys = keys
-                    .filter(item => item.clientID !== clientID && item.contextIndex !== shape.context_index);
-                newKeys.push(shapeModel);
-                keys = [...newKeys];
-                result.shapes = [...newKeys];
+                // const newKeys = keys
+                //     .filter(item => item.clientID !== clientID && item.contextIndex !== shape.context_index);
+                // newKeys.push(shapeModel);
+                // keys = newKeys
+                // result.shapes = [...newKeys];
+                result.shapes.push(shapeModel)
             }
             return result;
         }
