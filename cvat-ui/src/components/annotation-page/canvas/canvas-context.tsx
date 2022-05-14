@@ -457,7 +457,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         }
     }
 
-    const calProjectionAnno = (points: any): any => {
+    const calProjectionAnno = (points: any, cameraParam: any): any => {
         if (!cameraParam) {
             console.error('Camera params not found!');
             return null;
@@ -480,7 +480,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     }
 
     const calCreateProjectionAnno = (annotation: any, cameraParam: any): any => {
-        const box = calProjectionAnno(annotation.points);
+        const box = calProjectionAnno(annotation.points, cameraParam);
         if (box === null) return null;
         const annotationState = createAnnotationState(annotation);
         annotationState.points = box;
@@ -574,7 +574,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     const onCanvas3DEditDone = (e: any): void => {
         const { points, state } = e.detail;
         const { jobInstance, frame } = props;
-        const projectionState = calProjectionAnno(points);
+        const projectionState = calProjectionAnno(points, cameraParamRef.current);
         const prevState = projAnnosRef.current.filter((projState: any) => projState.clientID === state.clientID && contextIndex === projState.contextIndex)
         if (prevState.length > 0 && projectionState !== null) {
             prevState[0].points = projectionState;
@@ -596,6 +596,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     }
 
     const updateCanvas = (e: any): void => {
+        if (!projectionAnnotations) return;
         if (projFrameData) {
             canvasInstance.setup(
                 projFrameData,

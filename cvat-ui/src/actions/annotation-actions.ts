@@ -271,6 +271,7 @@ export function fetchAnnotationsAsync(): ThunkAction {
                 filters, frame, showAllInterpolationTracks, jobInstance,
             } = receiveAnnotationsParameters();
             const states = await jobInstance.annotations.get(frame, showAllInterpolationTracks, filters);
+            const projectionStates = await jobInstance.annotations.getProjection(frame, filters);
             const history = await jobInstance.actions.get();
             const [minZ, maxZ] = computeZRange(states);
 
@@ -278,6 +279,7 @@ export function fetchAnnotationsAsync(): ThunkAction {
                 type: AnnotationActionTypes.FETCH_ANNOTATIONS_SUCCESS,
                 payload: {
                     states,
+                    projectionStates,
                     history,
                     minZ,
                     maxZ,
@@ -759,6 +761,7 @@ export function changeFrameAsync(
                         delay: currentState.annotation.player.frame.delay,
                         changeTime: currentState.annotation.player.frame.changeTime,
                         states: currentState.annotation.annotations.states,
+                        projectionStates: currentState.annotation.annotations.projectionStates,
                         minZ: currentState.annotation.annotations.zLayer.min,
                         maxZ: currentState.annotation.annotations.zLayer.max,
                         curZ: currentState.annotation.annotations.zLayer.cur,
@@ -778,6 +781,7 @@ export function changeFrameAsync(
 
             const data = await job.frames.get(toFrame, fillBuffer, frameStep);
             const states = await job.annotations.get(toFrame, showAllInterpolationTracks, filters);
+            const projectionStates = await job.annotations.getProjection(toFrame, filters);
 
             if (!isAbleToChangeFrame()) {
                 // while doing async actions above, canvas can become used by a user in another way
@@ -822,6 +826,7 @@ export function changeFrameAsync(
                     filename: data.filename,
                     hasRelatedContext: data.hasRelatedContext,
                     states,
+                    projectionStates,
                     minZ,
                     maxZ,
                     curZ: maxZ,
@@ -865,6 +870,7 @@ export function undoActionAsync(sessionInstance: any, frame: number): ThunkActio
             await sessionInstance.actions.undo();
             const history = await sessionInstance.actions.get();
             const states = await sessionInstance.annotations.get(frame, showAllInterpolationTracks, filters);
+            const projectionStates = await sessionInstance.annotations.getProjection(frame, filters);
             const [minZ, maxZ] = computeZRange(states);
             await undoLog.close();
 
@@ -873,6 +879,7 @@ export function undoActionAsync(sessionInstance: any, frame: number): ThunkActio
                 payload: {
                     history,
                     states,
+                    projectionStates,
                     minZ,
                     maxZ,
                 },
@@ -914,6 +921,7 @@ export function redoActionAsync(sessionInstance: any, frame: number): ThunkActio
             await sessionInstance.actions.redo();
             const history = await sessionInstance.actions.get();
             const states = await sessionInstance.annotations.get(frame, showAllInterpolationTracks, filters);
+            const projectionStates = await sessionInstance.annotations.getProjection(frame, filters);
             const [minZ, maxZ] = computeZRange(states);
             await redoLog.close();
 
@@ -922,6 +930,7 @@ export function redoActionAsync(sessionInstance: any, frame: number): ThunkActio
                 payload: {
                     history,
                     states,
+                    projectionStates,
                     minZ,
                     maxZ,
                 },

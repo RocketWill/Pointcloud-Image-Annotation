@@ -273,6 +273,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 filename,
                 hasRelatedContext,
                 states,
+                projectionStates,
                 minZ,
                 maxZ,
                 curZ,
@@ -302,6 +303,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     ...state.annotations,
                     activatedStateID: updateActivatedStateID(states, activatedStateID),
                     states,
+                    projectionStates,
                     zLayer: {
                         min: minZ,
                         max: maxZ,
