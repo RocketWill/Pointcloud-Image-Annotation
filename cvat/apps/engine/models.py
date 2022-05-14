@@ -365,6 +365,7 @@ class RelatedFile(models.Model):
     data = models.ForeignKey(Data, on_delete=models.CASCADE, related_name="related_files", default=1, null=True)
     path = models.FileField(upload_to=upload_path_handler,
                             max_length=1024, storage=MyFileSystemStorage())
+    order = models.IntegerField(default=-1)
     primary_image = models.ForeignKey(Image, on_delete=models.CASCADE, related_name="related_files", null=True)
 
     class Meta:

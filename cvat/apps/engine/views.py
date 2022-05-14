@@ -14,6 +14,7 @@ from datetime import datetime
 from distutils.util import strtobool
 from tempfile import mkstemp, NamedTemporaryFile
 import base64
+import operator
 
 import cv2
 from django.db.models.query import Prefetch
@@ -517,17 +518,18 @@ class DataChunkGetter:
 
             image = Image.objects.get(data_id=db_data.id, frame=self.number)
             images = {}
-            for idx, i in enumerate(image.related_files.all()):
+            image_related_files = list(image.related_files.all())
+            image_related_files.sort(key=operator.attrgetter('order'))
+            for idx, i in enumerate(image_related_files):
                 path = os.path.realpath(str(i.path))
                 image = cv2.imread(path)
-                # cv2.imwrite("/workspace/cvat-develop/{}.jpg".format(idx), image)
                 success, result = cv2.imencode('.JPEG', image)
                 if not success:
                     raise Exception('Failed to encode image to ".jpeg" format')
                 jpg_as_text = base64.b64encode(result)
                 # images.append({'name': ntpath.basename(path), 'size': [image.shape[0], image.shape[1]], 'data': jpg_as_text.decode()})
                 images[ntpath.basename(path).rsplit('.', 1)[0]] = \
-                    {'name': ntpath.basename(path), 'size': [image.shape[0], image.shape[1]], 'data': jpg_as_text.decode()}
+                    {'name': ntpath.basename(path), 'size': [image.shape[0], image.shape[1]], 'data': jpg_as_text.decode(), 'order': i.order}
 
                 # return HttpResponse(io.BytesIO(result.tobytes()), content_type='image/jpeg')
 
