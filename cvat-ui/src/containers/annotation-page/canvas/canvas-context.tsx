@@ -74,7 +74,6 @@ interface StateToProps {
     removedAnnotation: any;
     projectionAnnotations: any[];
     frameData: any;
-    contextFrameData: any;
     frameAngle: number;
     frameFetching: boolean;
     frame: number;
@@ -153,7 +152,12 @@ interface DispatchToProps {
     removeObject: (sessionInstance: any, objectState: any) => void;
 }
 
-function mapStateToProps(state: CombinedState, { imageData, imageName, contextIndex, boxOps: { psrToXyz, points3dHomoToImage2d }, contextFrameData }: { imageData: ImageData, imageName: string, contextIndex: number, boxOps: {psrToXyz: Function, points3dHomoToImage2d: Function}, contextFrameData: any }): StateToProps {
+function mapStateToProps(
+    state: CombinedState,
+    { imageData, imageName, contextIndex, boxOps: { psrToXyz, points3dHomoToImage2d } }:
+    { imageData: ImageData, imageName: string, contextIndex: number,
+      boxOps: { psrToXyz: Function, points3dHomoToImage2d: Function } }
+): StateToProps {
     const {
         annotation: {
             canvas: { activeControl, instance: canvasInstance },
@@ -211,7 +215,6 @@ function mapStateToProps(state: CombinedState, { imageData, imageName, contextIn
         canvasInstance,
         jobInstance,
         frameData,
-        contextFrameData,
         frameAngle: frameAngles[frame - jobInstance.startFrame],
         frameFetching,
         frame,

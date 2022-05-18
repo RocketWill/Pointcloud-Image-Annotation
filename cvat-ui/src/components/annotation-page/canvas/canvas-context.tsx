@@ -5,7 +5,7 @@
  * @LastEditTime: 2022-04-18 15:10:17
  */
 import React, {
-    ReactElement, SyntheticEvent, useEffect, useReducer, useRef, useMemo, useState
+    ReactElement, useEffect, useRef, useMemo, useState
 } from 'react';
 import { usePrevious } from 'utils/hooks';
 import Typography from 'antd/lib/typography';
@@ -20,12 +20,9 @@ import getCore from 'cvat-core-wrapper';
 import consts from 'consts';
 import CVATTooltip from 'components/common/cvat-tooltip';
 import { Calib } from '../standard-workspace/context-image/shared'
-import { fdatasync } from 'fs';
 
 const cvat = getCore();
-
 const MAX_DISTANCE_TO_OPEN_SHAPE = 50;
-
 const { Paragraph } = Typography;
 
 interface Props {
@@ -117,8 +114,7 @@ interface Props {
 
 const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     const [projFrameData, setProjFrameData] = useState(null as any);
-    const [listenProjection, setListenProjection] = useState(false);
-    const projAnnosRef = useRef();
+    const projAnnosRef = useRef([] as any[]);
     const lastestAnnoRef = useRef();
     const cameraParamRef = useRef();
     const {
@@ -126,7 +122,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         outlined,
         outlineColor,
         colorBy,
-        frameFetching,
         frame,
         annotations,
         latestAnnotation,
@@ -146,59 +141,15 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         cameraParam: allCameraParam,
         imageData,
         imageName,
-        contextIndex,
-        psrToXyz,
-        points3dHomoToImage2d,
         canvasInstance: canvasInstance3D,  // 3d instance
-        onUpdateProjectionAnnotations,
-        onCreateProjectionAnnotations,
-        removeObject,
     } = props;
+
     const prevActivatedStateID = usePrevious(activatedStateID);
     const canvasInstance = useMemo(() => new Canvas(), []);  // 2d instance
     const cameraParam = allCameraParam?.data?.[imageName];
-    const {
-        maxZLayer,
-        curZLayer,
-        minZLayer,
-        keyMap,
-        switchableAutomaticBordering,
-        onSwitchAutomaticBordering,
-        onSwitchZLayer,
-        onAddZLayer,
-    } = props;
-
-    useEffect(() => {
-        if (prevActivatedStateID !== null && prevActivatedStateID !== activatedStateID) {
-            canvasInstance.activate(null);
-            const els = document.querySelectorAll(`#cvat_canvas_shape_${prevActivatedStateID}`);
-            for (const el of els) {
-                (el as any).instance.fill({ opacity });
-            }
-        }
-        activateOnCanvas();
-    }, [activatedStateID])
-
-    const preventDefault = (event: KeyboardEvent | undefined): void => {
-        if (event) {
-            event.preventDefault();
-        }
-    };
-
-    // const subKeyMap = {
-    //     SWITCH_AUTOMATIC_BORDERING: keyMap.SWITCH_AUTOMATIC_BORDERING,
-    // };
-
-    const handlers = {
-        SWITCH_AUTOMATIC_BORDERING: (event: KeyboardEvent | undefined) => {
-            if (switchableAutomaticBordering) {
-                preventDefault(event);
-                onSwitchAutomaticBordering(!automaticBordering);
-            }
-        },
-    };
 
     const boxTo2DPoints = (points: number[], calib: Calib) => {
+        const { psrToXyz, points3dHomoToImage2d } = props;
         const position = [points[0], points[1], points[2]];
         const rotation = [points[3], points[4], points[5]];
         const scale    = [points[6], points[7], points[8]];
@@ -206,6 +157,64 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         box3d = box3d.slice(0, 8 * 4);
         const box2dPoints = points3dHomoToImage2d(box3d, calib, false, []);
         return box2dPoints;
+    }
+
+    const calProjectionAnno = (points: any, cameraParam: any): any => {
+        if (!cameraParam) {
+            console.error('Camera params not found!');
+            return null;
+        }
+        if (!points) {
+            console.log("No projection get.");
+            return null;
+        }
+        const susBox = boxTo2DPoints(points, cameraParam);
+        if (susBox === null) return null;
+        return [
+            susBox[4],  susBox[5],
+            susBox[2],  susBox[3],
+            susBox[6],  susBox[7],
+            susBox[0],  susBox[1],
+            susBox[14], susBox[15],
+            susBox[8],  susBox[9],
+            susBox[12], susBox[13],
+            susBox[10], susBox[11]
+        ]
+    }
+
+    const calCreateProjectionAnno = (annotation: any, cameraParam: any): any => {
+        const box = calProjectionAnno(annotation.points, cameraParam);
+        if (box === null) {
+            return null;
+        }
+        const annotationState = createAnnotationState(annotation);
+        annotationState.points = box;
+        return annotationState;
+    }
+
+    const createAnnotationState = (annotation: any) => {
+        const { contextIndex } = props;
+        return ({
+            points: annotation.points,
+            color: annotation.label.color,
+            clientID: annotation.clientID,
+            zOrder: annotation.zOrder,
+            hidden: annotation.hidden,
+            outside: annotation.outside,
+            occluded: annotation.occluded,
+            shapeType: 'cuboid',
+            pinned: annotation.pinned,
+            descriptions: annotation.descriptions,
+            frame: annotation.frame,
+            label: annotation.label,
+            lock: annotation.lock,
+            source: annotation.source,
+            updated: annotation.updated,
+            attributes: annotation.attributes,
+            contextIndex,
+            modified2d: false,
+            clientProjID: annotation.clientID,
+        });
     }
 
     const onCanvasMouseDown = (e: MouseEvent): void => {
@@ -246,8 +255,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         state.points = points;
         state.rotation = rotation;
         onUpdateProjectionAnnotations([state]);
-        // const projAnnos = projAnnotations(null);
-        // onCreateProjectionAnnotations(jobInstance, frame, projAnnos, contextIndex)
     };
 
     const onCanvasDragStart = (): void => {
@@ -457,110 +464,8 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         }
     }
 
-    const calProjectionAnno = (points: any, cameraParam: any): any => {
-        if (!cameraParam) {
-            console.error('Camera params not found!');
-            return null;
-        }
-        if (!points) {
-            return null;
-        }
-        const susBox = boxTo2DPoints(points, cameraParam);
-        if (susBox === null) return null;
-        return [
-            susBox[4],  susBox[5],
-            susBox[2],  susBox[3],
-            susBox[6],  susBox[7],
-            susBox[0],  susBox[1],
-            susBox[14], susBox[15],
-            susBox[8],  susBox[9],
-            susBox[12], susBox[13],
-            susBox[10], susBox[11]
-        ]
-    }
-
-    const calCreateProjectionAnno = (annotation: any, cameraParam: any): any => {
-        const box = calProjectionAnno(annotation.points, cameraParam);
-        if (box === null) return null;
-        const annotationState = createAnnotationState(annotation);
-        annotationState.points = box;
-        return annotationState;
-    }
-
-    const createAnnotationState = (annotation: any) => {
-        return ({
-            points: annotation.points,
-            color: annotation.label.color,
-            clientID: annotation.clientID,
-            zOrder: annotation.zOrder,
-            hidden: annotation.hidden,
-            outside: annotation.outside,
-            occluded: annotation.occluded,
-            shapeType: 'cuboid',
-            pinned: annotation.pinned,
-            descriptions: annotation.descriptions,
-            frame: annotation.frame,
-            label: annotation.label,
-            lock: annotation.lock,
-            source: annotation.source,
-            updated: annotation.updated,
-            attributes: annotation.attributes,
-            contextIndex,
-            modified2d: false,
-            clientProjID: annotation.clientID,
-        });
-    }
-
-    const projAnnotations = (event: any): any => {
-        if (!cameraParam) return;
-        const clientID = event?.detail?.clientID;
-        let filteredAnnotations = annotations.map((annotation: any) => {
-            const box = boxTo2DPoints(annotation.points, cameraParam);
-            if (box) {
-                // calculate target quantity in context image
-                // if (clientID === annotation.clientID) {
-                //     calculateTargetInContext(annotation.clientID, imageName);
-                // }
-                const boxPoints = [
-                    box[4], box[5],
-                    box[2], box[3],
-                    box[6], box[7],
-                    box[0], box[1],
-                    box[14], box[15],
-                    box[8], box[9],
-                    box[12], box[13],
-                    box[10], box[11]
-                ]
-                return ({
-                    points: boxPoints,
-                    color: annotation.label.color,
-                    clientID: annotation.clientID,
-                    zOrder: annotation.zOrder,
-                    hidden: annotation.hidden,
-                    outside: annotation.outside,
-                    occluded: annotation.occluded,
-                    shapeType: 'cuboid',
-                    pinned: annotation.pinned,
-                    descriptions: annotation.descriptions,
-                    frame: annotation.frame,
-                    label: annotation.label,
-                    lock: annotation.lock,
-                    source: annotation.source,
-                    updated: annotation.updated,
-                    attributes: annotation.attributes,
-                    contextIndex,
-                    modified2d: false,
-                    clientProjID: annotation.clientID,
-                });
-            }
-        })
-        filteredAnnotations = filteredAnnotations.filter((annotation: any) => annotation !== undefined);
-        // canvasInstance.setupObjectsUnite(filteredAnnotations);
-        return filteredAnnotations;
-    }
-
     const createProjectionAnnotations = (state3D: any) => {
-        const { jobInstance, frame } = props;
+        const { jobInstance, frame, contextIndex, onCreateProjectionAnnotations } = props;
         const stateToCreate = calCreateProjectionAnno(state3D, cameraParamRef.current);
         if (stateToCreate !== null) {
             onCreateProjectionAnnotations(jobInstance, frame, [new cvat.classes.ObjectState(stateToCreate)], contextIndex);
@@ -568,16 +473,28 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     }
 
     const onCanvas3DShapeDrawn = (e: any): void => {
-        console.log("🤡 ~ file: canvas-context.tsx ~ line 575 ~ onCanvas3DShapeDrawn ~ e", e)
+        // Listen 3d shape drawn
+        // We do not use this 'cause clientID was generated after creating ShapeState
     }
 
     const onCanvas3DEditDone = (e: any): void => {
         const { points, state } = e.detail;
-        const { jobInstance, frame } = props;
+        const { jobInstance, frame, contextIndex, onUpdateProjectionAnnotations, onCreateProjectionAnnotations, removeObject } = props;
         const projectionState = calProjectionAnno(points, cameraParamRef.current);
         const prevState = projAnnosRef.current.filter((projState: any) => projState.clientID === state.clientID && contextIndex === projState.contextIndex)
         if (prevState.length > 0 && projectionState !== null) {
             prevState[0].points = projectionState;
+            prevState[0].label = state.label;
+            prevState[0].color = state.color;
+            prevState[0].zOrder = state.zOrder;
+            prevState[0].hidden = state.hidden;
+            prevState[0].outside = state.outside ? state.outside : false;
+            prevState[0].occluded = state.occluded;
+            prevState[0].pinned = state.pinned;
+            prevState[0].descriptions = state.descriptions;
+            prevState[0].lock = state.lock;
+            prevState[0].attributes = state.attributes;
+            prevState[0].modified2d = state.modified2d;
             console.log(`Update 2D projection of Client ${state.clientID}.`);
             onUpdateProjectionAnnotations([prevState[0]]);
         }
@@ -595,7 +512,8 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         }
     }
 
-    const updateCanvas = (e: any): void => {
+    const updateCanvas = (): void => {
+        const { contextIndex } = props;
         if (!projectionAnnotations) return;
         if (projFrameData) {
             canvasInstance.setup(
@@ -680,10 +598,8 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             gridSize,
             gridColor,
             gridOpacity,
-            brightnessLevel,
-            contrastLevel,
-            saturationLevel,
             canvasBackgroundColor,
+            contextIndex,
         } = props;
 
         // Size
@@ -755,7 +671,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         // 3d instance listener
         // TODO: add more listener
         // canvasInstance3D?.html()?.perspective.addEventListener('canvas.selected', updateCanvas);
-        // canvasInstance3D?.html()?.perspective.addEventListener('canvas.edited', updateCanvas);
         canvasInstance3D?.html()?.perspective.addEventListener('canvas.drawn', onCanvas3DShapeDrawn);
         canvasInstance3D?.html()?.perspective.addEventListener('canvas.edited', onCanvas3DEditDone);
     }
@@ -792,13 +707,11 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             canvasInstance.html().removeEventListener('canvas.error', onCanvasErrorOccurrence);
 
             // canvasInstance3D?.html()?.perspective.removeEventListener('canvas.selected', updateCanvas);
-            // canvasInstance3D?.html()?.perspective.removeEventListener('canvas.edited', updateCanvas);
             canvasInstance3D?.html()?.perspective.removeEventListener('canvas.drawn', onCanvas3DShapeDrawn);
             canvasInstance3D?.html()?.perspective.removeEventListener('canvas.edited', onCanvas3DEditDone);
     }
 
     const setupFramedata = (): void => {
-        // const { frameData } = props;
         const frameData: any = {};
         const img = new Image(imageData['size'][1], imageData['size'][0]);  // Image(width, height)
         const base64String = 'data:image/jpeg;base64,' + imageData['data'];
@@ -818,18 +731,43 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                 renderHeight: imageData['size'][0],
                 imageData: await createImageBitmap(img)
             }
-            if (frameData !== {}) {
+            if (frameData) {
                 setProjFrameData(frameData)
             }
         }
     }
 
-    const getAnnotationsIndices = (annotations: any[]) => (
-        annotations.map((annotation: any) => annotation.clientID)
-    )
+    const updateProjAttribs = () =>  {
+        const { annotations, projectionAnnotations, onUpdateProjectionAnnotations } = props;
+        annotations.forEach((anno: any) => {
+            const relatedAnnos = projectionAnnotations
+                .filter((projAnno: any) => anno.clientProjID === projAnno.clientProjID);
+            relatedAnnos.forEach((projAnno: any) => {
+                projAnno.hidden = anno.hidden;
+                projAnno.outside = anno.outside ? anno.outside : false;
+                projAnno.occluded = anno.occluded;
+                projAnno.lock = anno.lock;
+                projAnno.label = anno.label;
+                projAnno.pinned = anno.pinned;
+            });
+            onUpdateProjectionAnnotations(relatedAnnos);
+        })
+    }
 
     useEffect(() => {
-        const [wrapper] = window.document.getElementsByClassName(`canvas-context-container-${imageData['name']}`);
+        if (prevActivatedStateID !== null && prevActivatedStateID !== activatedStateID) {
+            canvasInstance.activate(null);
+            const els = document.querySelectorAll(`#cvat_canvas_shape_${prevActivatedStateID}`);
+            for (const el of els) {
+                (el as any).instance.fill({ opacity });
+            }
+        }
+        activateOnCanvas();
+    }, [activatedStateID])
+
+    useEffect(() => {
+        const [wrapper] = window.document
+            .getElementsByClassName(`canvas-context-container-${imageData['name']}`);
         wrapper.appendChild(canvasInstance.html());
         canvasInstance.configure({
             smoothImage,
@@ -855,14 +793,14 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     useEffect(() => {
         // 初始绘制映射框
         if (annotations && cameraParam) {
-            updateCanvas(null);
+            updateCanvas();
             updateShapesView();
             cameraParamRef.current = cameraParam;
         }
     }, [cameraParam, projFrameData]);
 
     useEffect(() => {
-        const { jobInstance } = props;
+        const { jobInstance, removeObject } = props;
         if (removedAnnotation !== null) {
             const stateToRemove = projectionAnnotations.filter((annotation: any) =>
                 annotation.clientID === removedAnnotation.clientID
@@ -894,8 +832,9 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             textContent,
         });
     }, [
-        showObjectsTextAlways, automaticBordering, showProjections, intelligentPolygonCrop,
-        selectedOpacity, smoothImage, textFontSize, textPosition, textContent
+        showObjectsTextAlways, automaticBordering, showProjections,
+        intelligentPolygonCrop, selectedOpacity, smoothImage,
+        textFontSize, textPosition, textContent
     ])
 
     useEffect(() => {
@@ -903,13 +842,24 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     }, [opacity, outlined, outlineColor, selectedOpacity, colorBy])
 
     useEffect(() => {
-        updateCanvas(null);
+        updateCanvas();
         updateShapesView();
         projAnnosRef.current = projectionAnnotations;
     }, [projectionAnnotations])
 
+    useEffect(() => {
+        updateProjAttribs();
+    }, [annotations])
+
     return (
-        <div style={{ margin: 10, marginRight: 20, padding: 10, background: 'rgba(0, 0, 0, 0.05)', borderRadius: 5 }}>
+        <div
+            style={{
+                margin: 10,
+                marginRight: 20,
+                padding: 10,
+                background: 'rgba(0, 0, 0, 0.05)',
+                borderRadius: 5
+            }}>
             <div className={`canvas-context-container-${imageData['name']}`}
                 style={{
                     overflow: 'hidden',
