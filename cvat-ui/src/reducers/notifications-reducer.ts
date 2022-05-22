@@ -911,6 +911,21 @@ export default function (state = defaultState, action: AnyAction): Notifications
                 },
             };
         }
+        case AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_FAILED: {
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    annotation: {
+                        ...state.errors.annotation,
+                        creating: {
+                            message: 'Could not create projection annotations',
+                            reason: action.payload.error.toString(),
+                        },
+                    },
+                },
+            };
+        }
         case AnnotationActionTypes.MERGE_ANNOTATIONS_FAILED: {
             return {
                 ...state,
@@ -965,6 +980,22 @@ export default function (state = defaultState, action: AnyAction): Notifications
                         ...state.errors.annotation,
                         removing: {
                             message: 'Could not remove the object',
+                            reason: action.payload.error.toString(),
+                            className: 'cvat-notification-notice-remove-object-failed',
+                        },
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.REMOVE_PROJECTION_OBJECT_FAILED: {
+            return {
+                ...state,
+                errors: {
+                    ...state.errors,
+                    annotation: {
+                        ...state.errors.annotation,
+                        removing: {
+                            message: 'Could not remove the projection object',
                             reason: action.payload.error.toString(),
                             className: 'cvat-notification-notice-remove-object-failed',
                         },

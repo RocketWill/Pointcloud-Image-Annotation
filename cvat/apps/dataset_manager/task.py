@@ -391,6 +391,9 @@ class JobAnnotation:
             'z_order',
             'rotation',
             'points',
+            'context_index',
+            'modified_2d',
+            'client_proj_id',
             'labeledshapeattributeval__spec_id',
             'labeledshapeattributeval__value',
             'labeledshapeattributeval__id',
@@ -507,6 +510,15 @@ class JobAnnotation:
     @property
     def data(self):
         return self.ir_data.data
+
+    @property
+    def projectionData(self):
+        # return [data for data in self.ir_data.data if data.context_index > 0]
+        data = self.ir_data.data
+        shapes = data['shapes']
+        filter_shapes = [shape for shape in shapes if shape['context_index'] > -1]
+        data['shapes'] = filter_shapes
+        return data
 
     def export(self, dst_file, exporter, host='', **options):
         task_data = TaskData(
