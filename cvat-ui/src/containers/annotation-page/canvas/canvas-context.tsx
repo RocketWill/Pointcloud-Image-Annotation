@@ -129,7 +129,7 @@ interface DispatchToProps {
     onSplitTrack: (enabled: boolean) => void;
     onEditShape: (enabled: boolean) => void;
     onUpdateAnnotations(states: any[]): void;
-    onUpdateProjectionAnnotations(states: any[]): void;
+    onUpdateProjectionAnnotations(states: any[], height_: number | null, width_: number | null): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onCreateProjectionAnnotations(sessionInstance: any, frame: number, projectionIndexStates: any[], contextIndex: number): void;
     onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void;
@@ -301,8 +301,8 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         onUpdateAnnotations(states: any[]): void {
             dispatch(updateAnnotationsAsync(states));
         },
-        onUpdateProjectionAnnotations(states: any[]): void {
-            dispatch(updateProjectionAnnotationsAsync(states));
+        onUpdateProjectionAnnotations(states: any[], height_: number | null, width_: number | null): void {
+            dispatch(updateProjectionAnnotationsAsync(states, height_, width_));
         },
         onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void {
             dispatch(createAnnotationsAsync(sessionInstance, frame, states));
