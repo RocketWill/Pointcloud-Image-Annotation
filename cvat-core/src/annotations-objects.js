@@ -327,7 +327,7 @@
             );
         }
 
-        _validateStateBeforeSave(frame, data, updated) {
+        _validateStateBeforeSave(frame, data, updated, height_, width_) {
             let fittedPoints = [];
 
             if (updated.label) {
@@ -370,6 +370,10 @@
                 // cut points
                 const { width, height, filename } = this.frameMeta[frame];
                 fittedPoints = fitPoints(this.shapeType, data.points, data.rotation, width, height);
+                // for 3D projection shape update
+                if (width_ !== null && height_ !== null) {
+                    fittedPoints = fitPoints(this.shapeType, data.points, data.rotation, width_, height_);
+                }
                 let check = true;
                 if (filename && filename.slice(filename.length - 3) === 'pcd') {
                     check = false;
@@ -670,7 +674,7 @@
             this.zOrder = zOrder;
         }
 
-        save(frame, data) {
+        save(frame, data, height_, width_) {
             if (frame !== this.frame) {
                 throw new ScriptingError('Got frame is not equal to the frame of the shape');
             }
@@ -680,7 +684,7 @@
             }
 
             const updated = data.updateFlags;
-            const fittedPoints = this._validateStateBeforeSave(frame, data, updated);
+            const fittedPoints = this._validateStateBeforeSave(frame, data, updated, height_, width_);
             const { rotation } = data;
 
             // Now when all fields are validated, we can apply them
@@ -1365,7 +1369,7 @@
             };
         }
 
-        save(frame, data) {
+        save(frame, data, height_, width_) {
             if (frame !== this.frame) {
                 throw new ScriptingError('Got frame is not equal to the frame of the tag');
             }
@@ -1375,7 +1379,7 @@
             }
 
             const updated = data.updateFlags;
-            this._validateStateBeforeSave(frame, data, updated);
+            this._validateStateBeforeSave(frame, data, updated, height_, width_);
 
             // Now when all fields are validated, we can apply them
             if (updated.label) {

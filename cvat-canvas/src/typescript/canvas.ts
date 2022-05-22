@@ -20,6 +20,7 @@ import {
 import { Master } from './master';
 import { CanvasController, CanvasControllerImpl } from './canvasController';
 import { CanvasView, CanvasViewImpl } from './canvasView';
+import { CanvasViewContextImpl } from './canvasViewContext';
 
 import '../scss/canvas.scss';
 import pjson from '../../package.json';
@@ -30,6 +31,7 @@ interface Canvas {
     html(): HTMLDivElement;
     add2DPolygon(points: number[], state: any): void;
     setupObjectsUnite(states: any[]): void;
+    setActivatedShapeType(shapeType: 'cuboid' | 'rectangle' | null): void;
     setup(frameData: any, objectStates: any[], zLayer?: number): void;
     setupIssueRegions(issueRegions: Record<number, { hidden: boolean; points: number[] }>): void;
     activate(clientID: number | null, attributeID?: number): void;
@@ -66,10 +68,11 @@ class CanvasImpl implements Canvas {
     private controller: CanvasController;
     private view: CanvasView;
 
-    public constructor() {
+    public constructor(isProjection: Boolean = false) {
         this.model = new CanvasModelImpl();
         this.controller = new CanvasControllerImpl(this.model);
-        this.view = new CanvasViewImpl(this.model, this.controller);
+        if (isProjection) this.view = new CanvasViewContextImpl(this.model, this.controller);
+        else this.view = new CanvasViewImpl(this.model, this.controller);
     }
 
     public html(): HTMLDivElement {
@@ -82,6 +85,11 @@ class CanvasImpl implements Canvas {
 
     public setupObjectsUnite(states: any[]): void {
         return this.view.setupObjectsUnite(states);
+    }
+
+    public setActivatedShapeType(shapeType: 'cuboid' | 'rectangle' | null): void {
+        this.view.setActivatedShapeType(shapeType);
+        this.model.setActivatedShapeType(shapeType);
     }
 
     public setup(frameData: any, objectStates: any[], zLayer = 0): void {

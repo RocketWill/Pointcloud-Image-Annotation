@@ -1803,7 +1803,7 @@ export function createProjectionAnnotationsAsync(sessionInstance: any, frame: nu
     };
 }
 
-export function updateProjectionAnnotationsAsync(statesToUpdate: any[]): ThunkAction {
+export function updateProjectionAnnotationsAsync(statesToUpdate: any[], height_: number | null = null, width_: number | null = null): ThunkAction {
     return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
         const {
             jobInstance, filters, frame, showAllInterpolationTracks,
@@ -1815,7 +1815,7 @@ export function updateProjectionAnnotationsAsync(statesToUpdate: any[]): ThunkAc
                 dispatch(activateObject(null, null));
             }
 
-            const promises = statesToUpdate.map((objectState: any): Promise<any> => objectState.save());
+            const promises = statesToUpdate.map((objectState: any): Promise<any> => objectState.save(height_, width_));
             const projectionStates = await Promise.all(promises);
             const history = await jobInstance.actions.get();
             const [minZ, maxZ] = computeZRange(projectionStates);

@@ -512,8 +512,8 @@ const { Source } = require('./enums');
          * @throws {module:API.cvat.exceptions.ArgumentError}
          * @returns {module:API.cvat.classes.ObjectState} updated state of an object
          */
-        async save() {
-            const result = await PluginRegistry.apiWrapper.call(this, ObjectState.prototype.save);
+        async save(height_ = null, width_ = null) {
+            const result = await PluginRegistry.apiWrapper.call(this, ObjectState.prototype.save, height_, width_);
             return result;
         }
 
@@ -537,9 +537,9 @@ const { Source } = require('./enums');
     }
 
     // Updates element in collection which contains it
-    ObjectState.prototype.save.implementation = function () {
+    ObjectState.prototype.save.implementation = function (height_, width_) {
         if (this.__internal && this.__internal.save) {
-            return this.__internal.save();
+            return this.__internal.save(height_, width_);
         }
 
         return this;

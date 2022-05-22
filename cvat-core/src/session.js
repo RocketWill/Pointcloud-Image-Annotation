@@ -196,6 +196,17 @@
                         const result = await PluginRegistry.apiWrapper.call(this, prototype.annotations.exportProjection);
                         return result;
                     },
+
+                    async selectProjection(objectStates, x, y) {
+                        const result = await PluginRegistry.apiWrapper.call(
+                            this,
+                            prototype.annotations.selectProjection,
+                            objectStates,
+                            x,
+                            y,
+                        );
+                        return result;
+                    },
                 },
                 writable: true,
             }),
@@ -1029,6 +1040,7 @@
                 projectionStatistics: Object.getPrototypeOf(this).annotations.projectionStatistics.bind(this),
                 importProjection: Object.getPrototypeOf(this).annotations.importProjection.bind(this),
                 exportProjection: Object.getPrototypeOf(this).annotations.exportProjection.bind(this),
+                selectProjection: Object.getPrototypeOf(this).annotations.selectProjection.bind(this),
             };
 
             this.actions = {
@@ -1886,6 +1898,7 @@
         annotationsProjectionStatistics,
         importProjectionAnnotations,
         exportProjectionAnnotations,
+        selectProjectionObject,
     } = require('./annotations');
 
     buildDuplicatedAPI(Job.prototype);
@@ -2201,6 +2214,11 @@
 
     Job.prototype.annotations.exportProjection.implementation = function () {
         const result = exportProjectionAnnotations(this);
+        return result;
+    };
+
+    Job.prototype.annotations.selectProjection.implementation = function (frame, x, y) {
+        const result = selectProjectionObject(this, frame, x, y);
         return result;
     };
 

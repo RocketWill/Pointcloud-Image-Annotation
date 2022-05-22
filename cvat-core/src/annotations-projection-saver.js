@@ -176,9 +176,9 @@
         _receiveIndexes(exported) {
             // Receive client indexes before saving
             const indexes = {
-                tracks: exported.tracks.map((track) => `${track.clientID}-${track.context_index}`),
-                shapes: exported.shapes.map((shape) => `${shape.clientID}-${shape.context_index}`),
-                tags: exported.tags.map((tag) => `${tag.clientID}-${tag.context_index}`),
+                tracks: exported.tracks.map((track) => `${track.clientID}-${track.context_index}-${track.type}`),
+                shapes: exported.shapes.map((shape) => `${shape.clientID}-${shape.context_index}-${shape.type}`),
+                tags: exported.tags.map((tag) => `${tag.clientID}-${tag.context_index}-${tag.type}`),
             };
 
             // Remove them from the request body

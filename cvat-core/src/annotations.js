@@ -484,6 +484,20 @@
         );
     }
 
+    function selectProjectionObject(session, objectStates, x, y) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            if (cache.get(session).projectionCollection !== null) {
+                return cache.get(session).projectionCollection.select(objectStates, x, y);
+            }
+        }
+        throw new DataError(
+            'Collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
+        );
+    }
+
     module.exports = {
         getAnnotations,
         putAnnotations,
@@ -515,5 +529,6 @@
         annotationsProjectionStatistics,
         importProjectionAnnotations,
         exportProjectionAnnotations,
+        selectProjectionObject,
     };
 })();

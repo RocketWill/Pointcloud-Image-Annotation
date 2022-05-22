@@ -1341,12 +1341,15 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
             const nextStates = [...prevStates];
 
             const clientIDContextIndexes = prevStates.map((prevState: any): any => {
-                return { clientID: prevState.clientID, contextIndex: prevState.contextIndex }
+                return { clientID: prevState.clientID, contextIndex: prevState.contextIndex, shapeType: prevState.shapeType }
             });
             for (const updatedState of updatedStates) {
                 // const index = clientIDs.indexOf(updatedState.clientID);
+                // consider shape
                 const index = clientIDContextIndexes.findIndex((object: any) => {
-                    return object.clientID === updatedState.clientID && object.contextIndex === updatedState.contextIndex;
+                    return object.clientID === updatedState.clientID &&
+                        object.contextIndex === updatedState.contextIndex &&
+                        object.shapeType === updatedState.shapeType;
                 });
                 if (index !== -1) {
                     nextStates[index] = updatedState;
