@@ -600,9 +600,12 @@ export interface AnnotationState {
     annotations: {
         activatedStateID: number | null;
         activatedAttributeID: number | null;
+        latestState: any;  // used for 3d projection
+        removedState: any;
         collapsed: Record<number, boolean>;
         collapsedAll: boolean;
         states: any[];
+        projectionStates: any;
         filters: any[];
         resetGroupFlag: boolean;
         history: {

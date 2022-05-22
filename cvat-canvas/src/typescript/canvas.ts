@@ -28,6 +28,8 @@ const CanvasVersion = pjson.version;
 
 interface Canvas {
     html(): HTMLDivElement;
+    add2DPolygon(points: number[], state: any): void;
+    setupObjectsUnite(states: any[]): void;
     setup(frameData: any, objectStates: any[], zLayer?: number): void;
     setupIssueRegions(issueRegions: Record<number, { hidden: boolean; points: number[] }>): void;
     activate(clientID: number | null, attributeID?: number): void;
@@ -72,6 +74,14 @@ class CanvasImpl implements Canvas {
 
     public html(): HTMLDivElement {
         return this.view.html();
+    }
+
+    public add2DPolygon(points: number[], state: any): void {
+        return this.view.add2DPolygon(points, state);
+    }
+
+    public setupObjectsUnite(states: any[]): void {
+        return this.view.setupObjectsUnite(states);
     }
 
     public setup(frameData: any, objectStates: any[], zLayer = 0): void {

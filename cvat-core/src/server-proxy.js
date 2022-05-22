@@ -1221,10 +1221,57 @@
                 return response.data;
             }
 
+
+            async function getProjectionAnnotations(session, id) {
+                const { backendAPI } = config;
+
+                let response = null;
+                try {
+                    response = await Axios.get(`${backendAPI}/${session}s/${id}/projection-annotations`, {
+                        proxy: config.proxy,
+                    });
+                } catch (errorData) {
+                    throw generateError(errorData);
+                }
+
+                return response.data;
+            }
+
+
+
             // Session is 'task' or 'job'
             async function updateAnnotations(session, id, data, action) {
                 const { backendAPI } = config;
                 const url = `${backendAPI}/${session}s/${id}/annotations`;
+                const params = {};
+                let requestFunc = null;
+
+                if (action.toUpperCase() === 'PUT') {
+                    requestFunc = Axios.put.bind(Axios);
+                } else {
+                    requestFunc = Axios.patch.bind(Axios);
+                    params.action = action;
+                }
+
+                let response = null;
+                try {
+                    response = await requestFunc(url, JSON.stringify(data), {
+                        proxy: config.proxy,
+                        params,
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                    });
+                } catch (errorData) {
+                    throw generateError(errorData);
+                }
+
+                return response.data;
+            }
+
+            async function updateProjectionAnnotations(session, id, data, action) {
+                const { backendAPI } = config;
+                const url = `${backendAPI}/${session}s/${id}/projection-annotations`;
                 const params = {};
                 let requestFunc = null;
 
@@ -1902,6 +1949,9 @@
                             getAnnotations,
                             dumpAnnotations,
                             uploadAnnotations,
+                            // for 3d projection
+                            getProjectionAnnotations,
+                            updateProjectionAnnotations,
                         }),
                         writable: false,
                     },

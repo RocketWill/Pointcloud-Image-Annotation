@@ -519,6 +519,11 @@
             this.rotation = data.rotation || 0;
             this.occluded = data.occluded;
             this.zOrder = data.z_order;
+
+            // [CY] for 3D projection
+            this.contextIndex = data.context_index >= 0 ? data.context_index: -1;
+            this.modified2d = false;
+            this.clientProjID = clientID;
         }
 
         // Method is used to export data to the server
@@ -543,6 +548,9 @@
                 label_id: this.label.id,
                 group: this.group,
                 source: this.source,
+                context_index: this.contextIndex,
+                modified_2d: this.modified2d,
+                client_proj_id: this.clientProjID,
             };
         }
 
@@ -572,6 +580,10 @@
                 pinned: this.pinned,
                 frame,
                 source: this.source,
+                // for 3d projection
+                contextIndex: this.contextIndex,
+                modified2d: this.modified2d,
+                clientProjID: this.clientProjID,
             };
         }
 

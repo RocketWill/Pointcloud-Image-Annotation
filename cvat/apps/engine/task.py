@@ -623,6 +623,7 @@ def _create_thread(db_task, data, isBackupRestore=False, isDatasetImport=False):
         generator = itertools.groupby(extractor, lambda x: next(counter) // db_data.chunk_size)
         for chunk_idx, chunk_data in generator:
             chunk_data = list(chunk_data)
+            chunk_data.sort()
             original_chunk_path = db_data.get_original_chunk_path(chunk_idx)
             original_chunk_writer.save_as_chunk(chunk_data, original_chunk_path)
 
@@ -637,7 +638,6 @@ def _create_thread(db_task, data, isBackupRestore=False, isDatasetImport=False):
                         frame=data[2],
                         width=size[0],
                         height=size[1])
-
                     for data, size in zip(chunk_data, img_sizes)
                 ])
                 db_camera_params.extend([
@@ -660,11 +660,13 @@ def _create_thread(db_task, data, isBackupRestore=False, isDatasetImport=False):
         created_images = models.Image.objects.filter(data_id=db_data.id)
         models.CameraParam.objects.bulk_create(db_camera_params)
         created_camera_params = models.CameraParam.objects.filter(data_id=db_data.id)
+        for key in related_images.keys():
+            related_images[key] = sorted(related_images[key])
 
         db_related_files = [
-            models.RelatedFile(data=image.data, primary_image=image, path=os.path.join(upload_dir, related_file_path))
-            for image in created_images
-            for related_file_path in related_images.get(image.path, [])
+            models.RelatedFile(data=image.data, primary_image=image, path=os.path.join(upload_dir, related_file_path), order=j)
+            for i, image in enumerate(created_images)
+            for j, related_file_path in enumerate(related_images.get(image.path, []))
         ]
         db_camera_params = [
             models.RelatedCameraParamFile(data=cam_param.data, primary_camera_param=cam_param, path=os.path.join(upload_dir, related_file_path))
