@@ -30,7 +30,8 @@ import { Calib } from 'utils/box-operations/box-operations'
 import { BsBox, BsBoundingBoxCircles } from 'react-icons/bs';
 import { RiEyeCloseLine } from 'react-icons/ri';
 import { MdOutlineFilterCenterFocus } from 'react-icons/md';
-import { HiOutlineDuplicate } from 'react-icons/hi';
+import { BiDuplicate } from 'react-icons/bi';
+import { AiOutlineDelete } from 'react-icons/ai';
 
 const cvat = getCore();
 const MAX_DISTANCE_TO_OPEN_SHAPE = 50;
@@ -860,10 +861,10 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             return;
         }
         // validate selected ID already exists
-        const height = imageData['size'][0];
-        const width = imageData['size'][1];
+        const height = imageData['size'][0];  // image height
+        const width = imageData['size'][1];  // image width
         const centerPoint = [width / 2, height / 2];
-        const rectSize = [width / 10, height / 10];
+        const rectSize = [width / 10, height / 10];  // set default rect size to 10% of image
         const rect = [
             centerPoint[0] - rectSize[0],
             centerPoint[1] - rectSize[1],
@@ -895,6 +896,20 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             onCreateProjectionAnnotations(jobInstance, frame, [new cvat.classes.ObjectState(stateToCreate)], contextIndex);
         }
         updateShowingShapeType();
+    }
+
+    const handleDeleteReplica = () => {
+        const { jobInstance, removeObject } = props;
+        if (activatedStateID === null) {
+            return;
+        }
+        const statesToRemove = projectionAnnotations.filter((projAnno: any) =>
+            projAnno.clientID === activatedStateID
+            && projAnno.contextIndex === contextIndex
+            && projAnno.shapeType === 'rectangle');
+        for (const stateToRemove of statesToRemove) {
+            removeObject(jobInstance, stateToRemove);
+        }
     }
 
     const objectReplicaContent = () => {
@@ -1085,7 +1100,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                         <MdOutlineFilterCenterFocus />
                     </Tag>
                 </CVATTooltip>
-                <CVATTooltip title='创建分身' placement='topLeft'>
+                <CVATTooltip title='创建矩形分身' placement='topLeft'>
                     <Popover
                         placement="rightTop"
                         title={<span style={{ display: 'flex', alignItems: 'center' }}><BsBoundingBoxCircles style={{ marginRight: 5 }} /> 创建矩形分身</span>}
@@ -1094,11 +1109,19 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                     >
                         <Tag
                             className='cvat-canvas-context-wrapper-tools-item'
-                            onClick={() => null}
                         >
-                            <HiOutlineDuplicate />
+                            <BiDuplicate />
                         </Tag>
                     </Popover>
+                </CVATTooltip>
+                <CVATTooltip title='删除矩形分身' placement='topLeft'>
+                    <Tag
+                        color={isolatedMode ? 'blue' : ''}
+                        className='cvat-canvas-context-wrapper-tools-item'
+                        onClick={handleDeleteReplica}
+                    >
+                        <AiOutlineDelete />
+                    </Tag>
                 </CVATTooltip>
             </div>
             <div className={`canvas-context-container-${imageData['name']} canvas-context-container`} />
