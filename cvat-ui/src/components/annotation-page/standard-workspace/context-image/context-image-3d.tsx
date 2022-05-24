@@ -28,7 +28,8 @@ const { Title, Text } = Typography;
 
 function ActiveObjectStatistics({ contextNames, activatedStateID, projectionStates }:
     { contextNames: string[], activatedStateID: null | number, projectionStates: any[] }): JSX.Element | null {
-        const activeProjStates = projectionStates.filter((projAnno: any) => projAnno.clientID === activatedStateID);
+        const activeProjStates = projectionStates.filter((projAnno: any) =>
+            projAnno.clientID === activatedStateID && projAnno.shapeType === 'rectangle');
         const activeProjContextIndices = activeProjStates.map((projAnno: any) => projAnno.contextIndex);
         const element = contextNames.map((contextName: string, contextIndex: number) => {
             const color = activeProjContextIndices.includes(contextIndex) ? '#108ee9' : 'default';

@@ -31,6 +31,13 @@
             margin: 5px 0px 5px 5px;
             cursor: pointer;
         }
+
+        > .cvat-canvas-context-wrapper-tools-divide {
+            border-right: 1px solid #ffffff;
+            width: 7px;
+            height: 15px;
+            box-shadow: 1px 0px 0px 0px rgba(0,0,0,0.5);
+        }
     }
 
     > .canvas-context-container {

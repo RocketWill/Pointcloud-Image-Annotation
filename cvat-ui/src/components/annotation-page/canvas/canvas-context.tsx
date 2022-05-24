@@ -11,7 +11,10 @@ import React, {
 import { usePrevious } from 'utils/hooks';
 import Typography from 'antd/lib/typography';
 import Tag from 'antd/lib/tag';
+import Popover from 'antd/lib/popover';
+import Select from 'antd/lib/select';
 import Button from 'antd/lib/button';
+import notification from 'antd/lib/notification';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
 import {
     ColorBy, GridColor, ObjectType, ContextMenuType, Workspace, ShapeType,
@@ -25,10 +28,14 @@ import CVATTooltip from 'components/common/cvat-tooltip';
 import { Calib } from 'utils/box-operations/box-operations'
 
 import { BsBox, BsBoundingBoxCircles } from 'react-icons/bs';
+import { RiEyeCloseLine } from 'react-icons/ri';
+import { MdOutlineFilterCenterFocus } from 'react-icons/md';
+import { HiOutlineDuplicate } from 'react-icons/hi';
 
 const cvat = getCore();
 const MAX_DISTANCE_TO_OPEN_SHAPE = 50;
 const { Paragraph } = Typography;
+const { Option } = Select;
 
 interface Props {
     sidebarCollapsed: boolean;
@@ -119,8 +126,10 @@ interface Props {
 
 const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     const [projFrameData, setProjFrameData] = useState(null as any);
+    const [isolatedMode, setIsolatedMode] = useState(false);
+    const [annosInvisibility, setAnnosInvisibility] = useState(false);
     const [showShapeType, setShowShapeType] = useState('cuboid' as 'cuboid' | 'rectangle');
-    const [typedProjections, setTypedProjections] = useState([] as any[]);
+    const [replicaID, serReplicaID] = useState(null as number | null);
     const projAnnosRef = useRef([] as any[]);
     const lastestAnnoRef = useRef();
     const cameraParamRef = useRef();
@@ -167,7 +176,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         return box2dPoints;
     }
 
-    const calProjectionAnno = (points: any, cameraParam: any): any => {
+    const calProjectionCuboid = (points: number[] | null, cameraParam: any): any => {
         if (!cameraParam) {
             console.error('Camera params not found!');
             return null;
@@ -190,10 +199,10 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         ]
     }
 
-    const calcalProjectionBoxAnno = (box: any, imageHeight: number, imageWidth: number) => {
-        if (box === null) return null;
-        const xAxiasPoints = box.filter((_: number, index: number) => index % 2 === 0);
-        const yAxiasPoints = box.filter((_: number, index: number) => index % 2 === 1);
+    const calProjectionRect = (points: number[] | null, imageHeight: number, imageWidth: number) => {
+        if (points === null) return null;
+        const xAxiasPoints = points.filter((_: number, index: number) => index % 2 === 0);
+        const yAxiasPoints = points.filter((_: number, index: number) => index % 2 === 1);
         let xMin = Math.min(...xAxiasPoints);
         let xMax = Math.max(...xAxiasPoints);
         let yMin = Math.min(...yAxiasPoints);
@@ -202,11 +211,18 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         if (xMax > imageWidth) xMax = imageWidth;
         if (yMin < 0) yMin = 0;
         if (yMax > imageHeight) yMax = imageHeight;
-        return [xMin, yMin, xMax, yMax];
+        return [xMin, yMin, xMax, yMax]
     }
 
-    const calCreateProjectionCuboidAnno = (annotation: any, cameraParam: any): any => {
-        const box = calProjectionAnno(annotation.points, cameraParam);
+    const calProjectionRectAnno = (points: number[] | null, annotation: any, imageHeight: number, imageWidth: number) => {
+        const rectangle = calProjectionRect(points, imageHeight, imageWidth);
+        if (rectangle === null) return null;
+        const annotationState = createAnnotationState(annotation, 'rectangle');
+        annotationState.points = rectangle;
+        return annotationState;
+    }
+
+    const calCreateProjectionCuboidAnno = (box: number | null, annotation: any, cameraParam: any): any => {
         if (box === null) {
             return null;
         }
@@ -215,7 +231,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         return annotationState;
     }
 
-    const createAnnotationState = (annotation: any, shapeType: string) => {
+    const createAnnotationState = (annotation: any, shapeType: 'cuboid' | 'rectangle') => {
         const { contextIndex } = props;
         return ({
             points: annotation.points,
@@ -437,7 +453,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
         if (activatedStateID !== null) {
             const [activatedState] = projectionAnnotations.filter((state: any): boolean => state.clientID === activatedStateID && state.shapeType === showShapeType);
-            console.log("🤡 ~ file: canvas-context.tsx ~ line 440 ~ activateOnCanvas ~ activatedState", activatedState)
             if (workspace === Workspace.ATTRIBUTE_ANNOTATION) {
                 if (activatedState.objectType !== ObjectType.TAG) {
                     canvasInstance.focus(activatedStateID, aamZoomMargin);
@@ -492,16 +507,13 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
     const createProjectionAnnotations = (state3D: any) => {
         const { jobInstance, frame, contextIndex, onCreateProjectionAnnotations } = props;
-        const stateToCreateCuboid = calCreateProjectionCuboidAnno(state3D, cameraParamRef.current);
-        const box = calProjectionAnno(state3D.points, cameraParamRef.current);
-        const box2DPoints = calcalProjectionBoxAnno(box, imageData['size'][0], imageData['size'][1]);
-        const stateToCreateBox = createAnnotationState(state3D, 'rectangle');
-        stateToCreateBox.points = box2DPoints;
-        if (stateToCreateCuboid !== null) {
-            onCreateProjectionAnnotations(jobInstance, frame, [new cvat.classes.ObjectState(stateToCreateCuboid)], contextIndex);
-        }
-        if (box2DPoints !== null) {
-            onCreateProjectionAnnotations(jobInstance, frame, [new cvat.classes.ObjectState(stateToCreateBox)], contextIndex);
+        const box = calProjectionCuboid(state3D.points, cameraParam);
+        const stateToCreateCuboid = calCreateProjectionCuboidAnno(box, state3D, cameraParamRef.current);
+        const stateToCreateRectangle = calProjectionRectAnno(box, state3D, imageData['size'][0], imageData['size'][1]);
+        if (stateToCreateCuboid !== null && stateToCreateRectangle !== null) {
+            const cuboidState = new cvat.classes.ObjectState(stateToCreateCuboid);
+            const rectangleState = new cvat.classes.ObjectState(stateToCreateRectangle);
+            onCreateProjectionAnnotations(jobInstance, frame, [cuboidState, rectangleState], contextIndex);
         }
     }
 
@@ -513,37 +525,62 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     const onCanvas3DEditDone = (e: any): void => {
         const { points, state } = e.detail;
         const { jobInstance, frame, contextIndex, onUpdateProjectionAnnotations, onCreateProjectionAnnotations, removeObject } = props;
-        const projectionState = calProjectionAnno(points, cameraParamRef.current);
-        const prevState = projAnnosRef.current.filter((projState: any) => projState.clientID === state.clientID && contextIndex === projState.contextIndex)
-        if (prevState.length > 0 && projectionState !== null) {
-            prevState[0].points = projectionState;
-            prevState[0].label = state.label;
-            prevState[0].color = state.color;
-            prevState[0].zOrder = state.zOrder;
-            prevState[0].hidden = state.hidden;
-            prevState[0].outside = state.outside ? state.outside : false;
-            prevState[0].occluded = state.occluded;
-            prevState[0].pinned = state.pinned;
-            prevState[0].descriptions = state.descriptions;
-            prevState[0].lock = state.lock;
-            prevState[0].attributes = state.attributes;
-            prevState[0].modified2d = state.modified2d;
-            console.log(`Update 2D projection of Client ${state.clientID}.`);
-            onUpdateProjectionAnnotations([prevState[0]], imageData['size'][0], imageData['size'][1]);
+        const box = calProjectionCuboid(points, cameraParamRef.current);
+        const rect = calProjectionRect(box, imageData['size'][0], imageData['size'][1])
+        const prevStates = projAnnosRef.current.filter((projState: any) => projState.clientID === state.clientID && contextIndex === projState.contextIndex)
+        for (const prevState of prevStates) {
+            prevState.label = state.label;
+            prevState.color = state.color;
+            prevState.zOrder = state.zOrder;
+            prevState.hidden = state.hidden;
+            prevState.outside = state.outside ? state.outside : false;
+            prevState.occluded = state.occluded;
+            prevState.pinned = state.pinned;
+            prevState.descriptions = state.descriptions;
+            prevState.lock = state.lock;
+            prevState.attributes = state.attributes;
+            prevState.modified2d = state.modified2d;
         }
-        if (prevState.length === 0 && projectionState !== null) {
+        const cuboidPrevState = prevStates.filter((projState: any) => projState.shapeType === 'cuboid');
+        // update Cuboid
+        const rectPrevState = prevStates.filter((projState: any) => projState.shapeType === 'rectangle');
+        if (cuboidPrevState.length > 0 && box !== null) {
+            console.log(`Update 2D cuboid projection of Client ${state.clientID}.`);
+            cuboidPrevState[0].points = box;
+            onUpdateProjectionAnnotations([cuboidPrevState[0]], imageData['size'][0], imageData['size'][1]);
+        }
+        if (cuboidPrevState.length === 0 && box !== null) {
             // create
             const stateToCreate = createAnnotationState(state, 'cuboid');
-            stateToCreate.points = projectionState;
-
+            stateToCreate.points = box;
             onCreateProjectionAnnotations(jobInstance, frame, [new cvat.classes.ObjectState(stateToCreate)], contextIndex);
-            console.log(`Create ouside 2D projection of Client ${state.clientID}.`);
+            console.log(`Create ouside 2D cuboid projection of Client ${state.clientID}.`);
         }
-        if (prevState.length !== 0 && projectionState === null) {
+        if (cuboidPrevState.length !== 0 && box === null) {
             // delete
-            removeObject(jobInstance, prevState[0]);
-            console.log(`Remove ouside 2D projection of Client ${state.clientID}.`);
+            removeObject(jobInstance, cuboidPrevState[0]);
+            console.log(`Remove ouside 2D cuboid projection of Client ${state.clientID}.`);
         }
+
+        // update Rectangle
+        if (rectPrevState.length > 0 && rect !== null) {
+            console.log(`Update 2D rect projection of Client ${state.clientID}.`);
+            rectPrevState[0].points = rect;
+            onUpdateProjectionAnnotations([rectPrevState[0]], imageData['size'][0], imageData['size'][1]);
+        }
+        if (rectPrevState.length === 0 && rect !== null) {
+            // create
+            const stateToCreate = createAnnotationState(state, 'rectangle');
+            stateToCreate.points = rect;
+            onCreateProjectionAnnotations(jobInstance, frame, [new cvat.classes.ObjectState(stateToCreate)], contextIndex);
+            console.log(`Create ouside 2D rect projection of Client ${state.clientID}.`);
+        }
+        if (rectPrevState.length !== 0 && rect === null) {
+            // delete
+            removeObject(jobInstance, rectPrevState[0]);
+            console.log(`Remove ouside 2D rect projection of Client ${state.clientID}.`);
+        }
+        updateShowingShapeType();
     }
 
     const updateCanvas = (projectionAnnotations: any[] = []): void => {
@@ -572,7 +609,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     };
 
     const onCanvasCursorMoved = async (event: any): Promise<void> => {
-    console.log("🤡 ~ file: canvas-context.tsx ~ line 575 ~ onCanvasCursorMoved ~ event", event)
         const {
             jobInstance, activatedStateID, workspace, onActivateObject,
         } = props;
@@ -787,6 +823,118 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         })
     }
 
+    const updateShowingShapeType = (invisible: Boolean = false) => {
+        const { onActivateObject } = props;
+        canvasInstance.activate(null);  // to advoid text positional problem
+        onActivateObject(null);
+        const containerClassName = `canvas-context-container-${imageData['name']}`;
+        const cuboidEls = window.document.getElementsByClassName(containerClassName)[0]
+            .getElementsByClassName('cvat_canvas_shape_cuboid');
+        const rectEls = window.document.getElementsByClassName(containerClassName)[0]
+            .querySelectorAll(`rect.cvat_canvas_shape`);
+        if (invisible) {
+            for (const el of cuboidEls) el.setAttribute('visibility', 'hidden');
+            for (const el of rectEls) el.setAttribute('visibility', 'hidden');
+            return;
+        }
+        if (showShapeType === 'cuboid') {
+            for (const el of cuboidEls) el.setAttribute('visibility', 'visible');
+            for (const el of rectEls) el.setAttribute('visibility', 'hidden');
+            canvasInstance.setActivatedShapeType('cuboid');
+        }
+        else if (showShapeType === 'rectangle') {
+            for (const el of cuboidEls) el.setAttribute('visibility', 'hidden');
+            for (const el of rectEls) el.setAttribute('visibility', 'visible');
+            canvasInstance.setActivatedShapeType('rectangle');
+        }
+    }
+
+    const handleCreateRectReplica = () => {
+        const { jobInstance, frame, onCreateProjectionAnnotations, onUpdateProjectionAnnotations } = props;
+        // validate object is null
+        if (replicaID === null) {
+            notification.error({
+                message: '无法创建矩形分身',
+                description: '请选择目标 ID',
+            });
+            return;
+        }
+        // validate selected ID already exists
+        const height = imageData['size'][0];
+        const width = imageData['size'][1];
+        const centerPoint = [width / 2, height / 2];
+        const rectSize = [width / 10, height / 10];
+        const rect = [
+            centerPoint[0] - rectSize[0],
+            centerPoint[1] - rectSize[1],
+            centerPoint[0] + rectSize[0],
+            centerPoint[1] + rectSize[1],
+        ];
+        const rectIDs = projectionAnnotations
+            .filter((projAnno: any) => projAnno.shapeType === 'rectangle' && projAnno.contextIndex === contextIndex)
+            .map((projAnno: any) => projAnno.clientID)
+        if (rectIDs.includes(replicaID)) {
+            notification.info({
+                message: `ID ${replicaID} 已存在矩形映射框`,
+                description: '将自动更新原映射目标信息',
+            });
+            const statesToUpdate = projectionAnnotations
+                .filter((projAnno: any) =>
+                    projAnno.clientID === replicaID
+                    && projAnno.shapeType === 'rectangle'
+                    && projAnno.contextIndex === contextIndex);
+            for (const stateToUpdate of statesToUpdate) {
+                stateToUpdate.points = rect;
+                onUpdateProjectionAnnotations([stateToUpdate], height, width);
+            }
+        }
+        else {
+            const state3D = annotations.filter((anno: any) => anno.clientID === replicaID)[0];
+            const stateToCreate = createAnnotationState(state3D, 'rectangle');
+            stateToCreate.points = rect;
+            onCreateProjectionAnnotations(jobInstance, frame, [new cvat.classes.ObjectState(stateToCreate)], contextIndex);
+        }
+        updateShowingShapeType();
+    }
+
+    const objectReplicaContent = () => {
+        return (
+            <div>
+                <span>选择目标 ID</span>
+                <Select style={{ width: 80, marginLeft: 10 }} onChange={(v: number) => serReplicaID(v)}>
+                    {annotations.map((anno: any) => <Option key={`replica-${anno.clientID}`} value={anno.clientID}>{anno.clientID}</Option>)}
+                </Select>
+                <br />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                    <Button type="primary" size="small" onClick={handleCreateRectReplica}>创建</Button>
+                </div>
+            </div>
+        );
+    }
+
+    const updateIsolatedShape = (isolatedMode: Boolean) => {
+        if (!isolatedMode) {
+            return
+        }
+        const { activatedStateID } = props;
+        const containerClassName = `canvas-context-container-${imageData['name']}`;
+        const elementID = `#cvat_canvas_shape_${activatedStateID}`;
+        let isolatedEls = [] as any;
+        if (showShapeType === 'cuboid') {
+            isolatedEls = window.document.getElementsByClassName(containerClassName)[0]
+                .querySelectorAll(`g${elementID}`);
+        }
+        else if (showShapeType === 'rectangle') {
+            isolatedEls = window.document.getElementsByClassName(containerClassName)[0]
+                .querySelectorAll(`rect${elementID}`);
+        }
+        const allEls = window.document.getElementsByClassName(containerClassName)[0]
+            .querySelectorAll('.cvat_canvas_shape');
+
+        for (const el of allEls) el.setAttribute('visibility', 'hidden');
+        for (const el of isolatedEls) el.setAttribute('visibility', 'visible');
+    }
+
     useEffect(() => {
         if (prevActivatedStateID !== null && prevActivatedStateID !== activatedStateID) {
             canvasInstance.activate(null);
@@ -826,7 +974,10 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     useEffect(() => {
         // 初始绘制映射框
         if (annotations && cameraParam) {
+            // Set default projection type to Cuboid
+            canvasInstance.setActivatedShapeType('cuboid');
             updateCanvas(projectionAnnotations);
+            updateShowingShapeType();
             updateShapesView();
             cameraParamRef.current = cameraParam;
         }
@@ -836,11 +987,11 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     useEffect(() => {
         const { jobInstance, removeObject } = props;
         if (removedAnnotation !== null) {
-            const stateToRemove = projectionAnnotations.filter((annotation: any) =>
+            const statesToRemove = projectionAnnotations.filter((annotation: any) =>
                 annotation.clientID === removedAnnotation.clientID
             )
-            if (stateToRemove.length > 0) {
-                removeObject(jobInstance, stateToRemove[0]);
+            for (const stateToRemove of statesToRemove) {
+                removeObject(jobInstance, stateToRemove);
             }
         }
     }, [removedAnnotation]);
@@ -876,28 +1027,14 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     }, [opacity, outlined, outlineColor, selectedOpacity, colorBy])
 
     useEffect(() => {
-        const { onActivateObject } = props;
-        canvasInstance.activate(null);
-        onActivateObject(null);
-        const containerClassName = `canvas-context-container-${imageData['name']}`;
-        const cuboidEls = window.document.getElementsByClassName(containerClassName)[0].getElementsByClassName('cvat_canvas_shape_cuboid');
-        const rectEls = window.document.getElementsByClassName(containerClassName)[0].querySelectorAll(`rect.cvat_canvas_shape`);
-        if (showShapeType === 'cuboid') {
-            for (const el of cuboidEls) el.setAttribute('visibility', 'visible');
-            for (const el of rectEls) el.setAttribute('visibility', 'hidden');
-            canvasInstance.setActivatedShapeType('cuboid');
-        }
-        else if (showShapeType === 'rectangle') {
-            for (const el of cuboidEls) el.setAttribute('visibility', 'hidden');
-            for (const el of rectEls) el.setAttribute('visibility', 'visible');
-            canvasInstance.setActivatedShapeType('rectangle');
-        }
-
-    }, [showShapeType])
+        updateShowingShapeType(annosInvisibility);
+        updateIsolatedShape(isolatedMode);
+    }, [showShapeType, annosInvisibility, isolatedMode])
 
     useEffect(() => {
         updateCanvas(projectionAnnotations);
         updateShapesView();
+        updateShowingShapeType();
         projAnnosRef.current = projectionAnnotations;
     }, [projectionAnnotations])
 
@@ -911,22 +1048,60 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                 <span className='cvat-canvas-context-wrapper-tools-index' >
                     {contextIndex + 1}
                 </span>
-                <Tag
-                    color={showShapeType === 'cuboid' ? 'blue' : ''}
-                    className='cvat-canvas-context-wrapper-tools-item'
-                    onClick={() => setShowShapeType('cuboid')}
-                >
-                    <BsBox />
-                </Tag>
-                <Tag
-                    color={showShapeType === 'rectangle' ? 'blue' : ''}
-                    className='cvat-canvas-context-wrapper-tools-item'
-                    onClick={() => setShowShapeType('rectangle')}
-                >
-                    <BsBoundingBoxCircles />
-                </Tag>
+                <CVATTooltip title='显示映射 2D 立体框' placement='topLeft'>
+                    <Tag
+                        color={showShapeType === 'cuboid' ? 'blue' : ''}
+                        className='cvat-canvas-context-wrapper-tools-item'
+                        onClick={() => setShowShapeType('cuboid')}
+                    >
+                        <BsBox />
+                    </Tag>
+                </CVATTooltip>
+                <CVATTooltip title='显示映射矩形框' placement='topLeft'>
+                    <Tag
+                        color={showShapeType === 'rectangle' ? 'blue' : ''}
+                        className='cvat-canvas-context-wrapper-tools-item'
+                        onClick={() => setShowShapeType('rectangle')}
+                    >
+                        <BsBoundingBoxCircles />
+                    </Tag>
+                </CVATTooltip>
+                <span className='cvat-canvas-context-wrapper-tools-divide' />
+                <CVATTooltip title='隐藏所有映射标注框' placement='topLeft'>
+                    <Tag
+                        color={annosInvisibility ? 'blue' : ''}
+                        className='cvat-canvas-context-wrapper-tools-item'
+                        onClick={() => setAnnosInvisibility(!annosInvisibility)}
+                    >
+                        <RiEyeCloseLine />
+                    </Tag>
+                </CVATTooltip>
+                <CVATTooltip title='孤立模式' placement='topLeft'>
+                    <Tag
+                        color={isolatedMode ? 'blue' : ''}
+                        className='cvat-canvas-context-wrapper-tools-item'
+                        onClick={() => setIsolatedMode(!isolatedMode)}
+                    >
+                        <MdOutlineFilterCenterFocus />
+                    </Tag>
+                </CVATTooltip>
+                <CVATTooltip title='创建分身' placement='topLeft'>
+                    <Popover
+                        placement="rightTop"
+                        title={<span style={{ display: 'flex', alignItems: 'center' }}><BsBoundingBoxCircles style={{ marginRight: 5 }} /> 创建矩形分身</span>}
+                        trigger="click"
+                        content={() => objectReplicaContent()}
+                    >
+                        <Tag
+                            className='cvat-canvas-context-wrapper-tools-item'
+                            onClick={() => null}
+                        >
+                            <HiOutlineDuplicate />
+                        </Tag>
+                    </Popover>
+                </CVATTooltip>
             </div>
-            <div className={`canvas-context-container-${imageData['name']} canvas-context-container` } />
+            <div className={`canvas-context-container-${imageData['name']} canvas-context-container`} />
             {imageData &&
                 <Paragraph className='cvat-canvas-context-wrapper-imagename'>
                     <pre>{imageData.name}</pre>
