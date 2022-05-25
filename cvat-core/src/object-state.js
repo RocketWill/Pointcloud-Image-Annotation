@@ -55,6 +55,7 @@ const { Source } = require('./enums');
                 contextIndex: serialized.contextIndex >= 0 ? serialized.contextIndex : -1,
                 modified2d: false,
                 clientProjID: serialized.clientProjID,
+                amountPoints: serialized.amountPoints,
             };
 
             // Shows whether any properties updated since last reset() or interpolation
@@ -79,6 +80,7 @@ const { Source } = require('./enums');
                     this.contextIndex = false;
                     this.modified2d = false;
                     this.clientProjID = false;
+                    this.amountPoints = false;
 
                     return reset;
                 },
@@ -450,6 +452,19 @@ const { Source } = require('./enums');
                         set: (clientProjID) => {
                             data.updateFlags.clientProjID = true;
                             data.clientProjID = clientProjID;
+                        },
+                    },
+                    amountPoints: {
+                        /**
+                         * @name amountPoints
+                         * @type {integer}
+                         * @memberof module:API.cvat.classes.ObjectState
+                         * @instance
+                         */
+                        get: () => data.amountPoints,
+                        set: (amountPoints) => {
+                            data.updateFlags.amountPoints = true;
+                            data.amountPoints = amountPoints;
                         },
                     },
                 }),

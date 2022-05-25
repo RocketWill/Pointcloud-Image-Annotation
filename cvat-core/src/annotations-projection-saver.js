@@ -111,7 +111,8 @@
                 'outside',
                 'context_index',
                 'modified_2d',
-                'client_proj_id'
+                'client_proj_id',
+                'amount_points',
             ];
 
             // Find created and updated objects

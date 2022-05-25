@@ -8,7 +8,7 @@ import { MoreOutlined } from '@ant-design/icons';
 import Dropdown from 'antd/lib/dropdown';
 import Text from 'antd/lib/typography/Text';
 
-import { ObjectType, ShapeType, ColorBy } from 'reducers/interfaces';
+import { ObjectType, ShapeType, ColorBy, DimensionType } from 'reducers/interfaces';
 import CVATTooltip from 'components/common/cvat-tooltip';
 import LabelSelector from 'components/label-selector/label-selector';
 import ItemMenu from './object-item-menu';
@@ -18,6 +18,8 @@ interface Props {
     readonly: boolean;
     clientID: number;
     serverID: number | undefined;
+    amountPoints: number,
+    dimension: DimensionType.DIM_2D | DimensionType.DIM_3D;
     labelID: number;
     labels: any[];
     shapeType: ShapeType;
@@ -50,6 +52,8 @@ function ItemTopComponent(props: Props): JSX.Element {
         readonly,
         clientID,
         serverID,
+        amountPoints,
+        dimension,
         labelID,
         labels,
         shapeType,
@@ -97,6 +101,7 @@ function ItemTopComponent(props: Props): JSX.Element {
         <Row align='middle'>
             <Col span={10}>
                 <Text style={{ fontSize: 12 }}>{clientID}</Text>
+
                 <br />
                 <Text
                     type='secondary'
@@ -105,6 +110,22 @@ function ItemTopComponent(props: Props): JSX.Element {
                 >
                     {type}
                 </Text>
+                <br />
+                {dimension === DimensionType.DIM_3D &&
+                    <span
+                        style={{
+                            fontSize: 10,
+                            color: 'rgba(0, 0, 0, 0.5)',
+                            display: 'inline-block',
+                            marginTop: 4,
+                            padding: 3,
+                            border: '1px solid rgba(0, 0, 0, 0.5)',
+                            borderRadius: 4
+                        }}
+                    >
+                        {amountPoints}
+                    </span>
+                }
             </Col>
             <Col span={12}>
                 <CVATTooltip title='Change current label'>

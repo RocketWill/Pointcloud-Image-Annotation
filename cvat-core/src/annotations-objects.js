@@ -528,6 +528,7 @@
             this.contextIndex = data.context_index >= 0 ? data.context_index: -1;
             this.modified2d = false;
             this.clientProjID = clientID;
+            this.amountPoints = data.amount_points;
         }
 
         // Method is used to export data to the server
@@ -555,6 +556,7 @@
                 context_index: this.contextIndex,
                 modified_2d: this.modified2d,
                 client_proj_id: this.clientProjID,
+                amount_points: this.amountPoints,
             };
         }
 
@@ -588,6 +590,7 @@
                 contextIndex: this.contextIndex,
                 modified2d: this.modified2d,
                 clientProjID: this.clientProjID,
+                amountPoints: this.amountPoints,
             };
         }
 
@@ -674,7 +677,36 @@
             this.zOrder = zOrder;
         }
 
+        _saveAmountPoints(amountPoints, frame) {
+            const undoAmountPoints = this.amountPoints;
+            const redoAmountPoints = amountPoints;
+            const undoSource = this.source;
+            const redoSource = Source.MANUAL;
+
+            this.history.do(
+                HistoryActions.CHANGED_AMOUNTPOINTS,
+                () => {
+                    this.amountPoints = undoAmountPoints;
+                    this.source = undoSource;
+                    this.updated = Date.now();
+                },
+                () => {
+                    this.amountPoints = redoAmountPoints;
+                    this.source = redoSource;
+                    this.updated = Date.now();
+                },
+                [this.clientID],
+                frame,
+            );
+
+            this.source = Source.MANUAL;
+            this.amountPoints = amountPoints;
+        }
+
         save(frame, data, height_, width_) {
+            if (data.contextIndex < 0) {
+                console.log("🚀 ~ file: annotations-objects.js ~ line 707 ~ Shape ~ save ~ data", data)
+            }
             if (frame !== this.frame) {
                 throw new ScriptingError('Got frame is not equal to the frame of the shape');
             }
@@ -726,6 +758,10 @@
 
             if (updated.hidden) {
                 this._saveHidden(data.hidden, frame);
+            }
+
+            if (updated.amountPoints) {
+                this._saveAmountPoints(data.amountPoints, frame);
             }
 
             this.updateTimestamp(updated);

@@ -19,7 +19,7 @@ import {
     propagateObject as propagateObjectAction,
 } from 'actions/annotation-actions';
 import {
-    ActiveControl, CombinedState, ColorBy, ShapeType,
+    ActiveControl, CombinedState, ColorBy, ShapeType, DimensionType,
 } from 'reducers/interfaces';
 import ObjectStateItemComponent from 'components/annotation-page/standard-workspace/objects-side-bar/object-item';
 import { shift } from 'utils/math';
@@ -340,6 +340,7 @@ class ObjectItemContainer extends React.PureComponent<Props> {
             normalizedKeyMap,
             readonly,
             jobInstance,
+            canvasInstance,
         } = this.props;
 
         let stateColor = '';
@@ -360,6 +361,8 @@ class ObjectItemContainer extends React.PureComponent<Props> {
                 shapeType={objectState.shapeType}
                 clientID={objectState.clientID}
                 serverID={objectState.serverID}
+                amountPoints={objectState.amountPoints}
+                dimension={canvasInstance instanceof Canvas ? DimensionType.DIM_2D : DimensionType.DIM_3D}
                 locked={objectState.lock}
                 attrValues={{ ...objectState.attributes }}
                 labelID={objectState.label.id}

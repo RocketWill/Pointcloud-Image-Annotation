@@ -284,8 +284,9 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     const onCanvasEditDone = (event: any): void => {
         const { onEditShape, onUpdateAnnotations } = props;
         onEditShape(false);
-        const { state, points } = event.detail;
+        const { state, points, amountPoints } = event.detail;
         state.points = points;
+        state.amountPoints = amountPoints;
         onUpdateAnnotations([state]);
     };
 

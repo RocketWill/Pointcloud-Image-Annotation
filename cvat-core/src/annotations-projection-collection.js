@@ -362,6 +362,7 @@
                             context_index: state.contextIndex,
                             modified_2d: false,
                             client_proj_id: state.clientProjID,
+                            amount_points: state.amountPoints || -1,
                             group: 0,
                             label_id: state.label.id,
                             occluded: state.occluded || false,
