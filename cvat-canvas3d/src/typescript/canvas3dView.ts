@@ -1157,6 +1157,15 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         // const helperFront = new THREE.CameraHelper( this.views.front.camera );
         // this.views.perspective.scene.add(helperFront)
 
+        // Add 50m, 100m, and 150m circle
+        for (let i=1; i <= 3; i++) {
+            let points = new THREE.Path().absarc(0, 0, i * 50, 0, Math.PI * 2).getPoints(90);
+            let meterCircleGeometry = new THREE.BufferGeometry().setFromPoints(points);
+            let meterCircleMaterial = new THREE.LineBasicMaterial( { color: 0xffee00, transparent: true, opacity: 0.3 } );
+            let meterCircleLine = new THREE.Line(meterCircleGeometry, meterCircleMaterial);
+            this.views.perspective.scene.add(meterCircleLine);
+        }
+
         this.addColor(points)
         // eslint-disable-next-line no-param-reassign
         const coloredPoints = this.addColor(points);
