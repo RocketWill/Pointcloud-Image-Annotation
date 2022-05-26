@@ -100,7 +100,20 @@ function ItemTopComponent(props: Props): JSX.Element {
     return (
         <Row align='middle'>
             <Col span={10}>
-                <Text style={{ fontSize: 12 }}>{clientID}</Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <Text style={{ fontSize: 12 }}>{clientID}</Text>
+                    {dimension === DimensionType.DIM_3D &&
+                        <span
+                            style={{
+                                fontSize: 10,
+                                color: 'rgba(0, 0, 0, 0.3)',
+                                marginRight: 10
+                            }}
+                        >
+                            {amountPoints}
+                        </span>
+                    }
+                </div>
 
                 <br />
                 <Text
@@ -110,22 +123,8 @@ function ItemTopComponent(props: Props): JSX.Element {
                 >
                     {type}
                 </Text>
-                <br />
-                {dimension === DimensionType.DIM_3D &&
-                    <span
-                        style={{
-                            fontSize: 10,
-                            color: 'rgba(0, 0, 0, 0.5)',
-                            display: 'inline-block',
-                            marginTop: 4,
-                            padding: 3,
-                            border: '1px solid rgba(0, 0, 0, 0.5)',
-                            borderRadius: 4
-                        }}
-                    >
-                        {amountPoints}
-                    </span>
-                }
+                {/* <br /> */}
+
             </Col>
             <Col span={12}>
                 <CVATTooltip title='Change current label'>
