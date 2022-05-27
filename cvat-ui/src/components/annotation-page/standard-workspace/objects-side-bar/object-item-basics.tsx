@@ -7,6 +7,7 @@ import { Row, Col } from 'antd/lib/grid';
 import { MoreOutlined } from '@ant-design/icons';
 import Dropdown from 'antd/lib/dropdown';
 import Text from 'antd/lib/typography/Text';
+import Badge from 'antd/lib/badge';
 
 import { ObjectType, ShapeType, ColorBy, DimensionType } from 'reducers/interfaces';
 import CVATTooltip from 'components/common/cvat-tooltip';
@@ -100,18 +101,19 @@ function ItemTopComponent(props: Props): JSX.Element {
     return (
         <Row align='middle'>
             <Col span={10}>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: -10 }}>
                     <Text style={{ fontSize: 12 }}>{clientID}</Text>
                     {dimension === DimensionType.DIM_3D &&
-                        <span
+                        <Badge
+                            size="small"
+                            count={amountPoints}
+                            overflowCount={100000}
+                            showZero={true}
                             style={{
-                                fontSize: 10,
-                                color: 'rgba(0, 0, 0, 0.3)',
+                                backgroundColor: 'rgba(0, 0, 0, 0.2)',
                                 marginRight: 10
                             }}
-                        >
-                            {amountPoints}
-                        </span>
+                        />
                     }
                 </div>
 
@@ -123,8 +125,6 @@ function ItemTopComponent(props: Props): JSX.Element {
                 >
                     {type}
                 </Text>
-                {/* <br /> */}
-
             </Col>
             <Col span={12}>
                 <CVATTooltip title='Change current label'>
