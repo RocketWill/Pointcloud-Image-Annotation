@@ -108,8 +108,8 @@ interface Props {
     onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onGroupAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onSplitAnnotations(sessionInstance: any, frame: number, state: any): void;
-    onActivateObject(activatedStateID: number | null): void;
-    onUpdateContextMenu(visible: boolean, left: number, top: number, type: ContextMenuType, pointID?: number): void;
+    onActivateObject(activatedStateID: number | null, contextIndex: number): void;
+    onUpdateContextMenu(visible: boolean, left: number, top: number, type: ContextMenuType, contextIndex: number, pointID?: number): void;
     onAddZLayer(): void;
     onSwitchZLayer(cur: number): void;
     onChangeBrightnessLevel(level: number): void;
@@ -134,6 +134,8 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     const projAnnosRef = useRef([] as any[]);
     const lastestAnnoRef = useRef();
     const cameraParamRef = useRef();
+    const activatedStateRef = useRef(undefined as number | undefined);
+
     const {
         opacity,
         outlined,
@@ -223,7 +225,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         return annotationState;
     }
 
-    const calCreateProjectionCuboidAnno = (box: number | null, annotation: any, cameraParam: any): any => {
+    const calCreateProjectionCuboidAnno = (box: number | null, annotation: any): any => {
         if (box === null) {
             return null;
         }
@@ -261,14 +263,14 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         const { workspace, activatedStateID, onActivateObject } = props;
         if ((e.target as HTMLElement).tagName === 'svg' && e.button !== 2) {
             if (activatedStateID !== null && workspace !== Workspace.ATTRIBUTE_ANNOTATION) {
-                onActivateObject(null);
+                onActivateObject(null, contextIndex);
             }
         }
     };
 
     const onCanvasClicked = (): void => {
         const { onUpdateContextMenu } = props;
-        onUpdateContextMenu(false, 0, 0, ContextMenuType.CANVAS_SHAPE);
+        onUpdateContextMenu(false, 0, 0, ContextMenuType.CANVAS_SHAPE, contextIndex);
         if (!canvasInstance.html().contains(document.activeElement) && document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
         }
@@ -276,15 +278,16 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
     const onCanvasContextMenu = (e: MouseEvent): void => {
         const { activatedStateID, onUpdateContextMenu } = props;
-
+        // not sure why activatedStateID is always null
+        // so use ref for current solution
         if (e.target && !(e.target as HTMLElement).classList.contains('svg_select_points')) {
-            onUpdateContextMenu(activatedStateID !== null, e.clientX, e.clientY, ContextMenuType.CANVAS_SHAPE);
+            onUpdateContextMenu(activatedStateRef.current !== null, e.clientX, e.clientY, ContextMenuType.CANVAS_SHAPE, contextIndex);
         }
     };
 
     const onCanvasEditStart = (): void => {
         const { onActivateObject, onEditShape } = props;
-        onActivateObject(null);
+        onActivateObject(null, contextIndex);
         onEditShape(true);
     };
 
@@ -346,9 +349,9 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     };
 
     const onCanvasPointContextMenu = (e: any): void => {
-        const { activatedStateID, onUpdateContextMenu, annotations } = props;
+        const { activatedStateID, onUpdateContextMenu, projectionAnnotations } = props;
 
-        const [state] = annotations.filter((el: any) => el.clientID === activatedStateID);
+        const [state] = projectionAnnotations.filter((el: any) => el.clientID === activatedStateID && el.contextIndex === contextIndex && el.shapeType === showShapeType);
         if (![ShapeType.CUBOID, ShapeType.RECTANGLE].includes(state.shapeType)) {
             onUpdateContextMenu(
                 activatedStateID !== null,
@@ -509,7 +512,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     const createProjectionAnnotations = (state3D: any) => {
         const { jobInstance, frame, contextIndex, onCreateProjectionAnnotations } = props;
         const box = calProjectionCuboid(state3D.points, cameraParam);
-        const stateToCreateCuboid = calCreateProjectionCuboidAnno(box, state3D, cameraParamRef.current);
+        const stateToCreateCuboid = calCreateProjectionCuboidAnno(box, state3D);
         const stateToCreateRectangle = calProjectionRectAnno(box, state3D, imageData['size'][0], imageData['size'][1]);
         if (stateToCreateCuboid !== null && stateToCreateRectangle !== null) {
             const cuboidState = new cvat.classes.ObjectState(stateToCreateCuboid);
@@ -525,10 +528,14 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
     const onCanvas3DEditDone = (e: any): void => {
         const { points, state } = e.detail;
+        // to prevent updating when points dont change
+        if (state.points.join(",") === points.join(",")) {
+            return;
+        }
         const { jobInstance, frame, contextIndex, onUpdateProjectionAnnotations, onCreateProjectionAnnotations, removeObject } = props;
         const box = calProjectionCuboid(points, cameraParamRef.current);
         const rect = calProjectionRect(box, imageData['size'][0], imageData['size'][1])
-        const prevStates = projAnnosRef.current.filter((projState: any) => projState.clientID === state.clientID && contextIndex === projState.contextIndex)
+        const prevStates = projAnnosRef.current.filter((projState: any) => projState.clientID === state.clientID && contextIndex === projState.contextIndex);
         for (const prevState of prevStates) {
             prevState.label = state.label;
             prevState.color = state.color;
@@ -605,7 +612,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         // and triggers this event
         // in this case we do not need to update our state
         if (state.clientID === activatedStateID) {
-            onActivateObject(null);
+            onActivateObject(null, contextIndex);
         }
     };
 
@@ -627,7 +634,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             }
 
             if (activatedStateID !== result.state.clientID) {
-                onActivateObject(result.state.clientID);
+                onActivateObject(result.state.clientID, contextIndex);
             }
         }
     };
@@ -827,7 +834,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     const updateShowingShapeType = (invisible: Boolean = false) => {
         const { onActivateObject } = props;
         canvasInstance.activate(null);  // to advoid text positional problem
-        onActivateObject(null);
+        onActivateObject(null, contextIndex);
         const containerClassName = `canvas-context-container-${imageData['name']}`;
         const cuboidEls = window.document.getElementsByClassName(containerClassName)[0]
             .getElementsByClassName('cvat_canvas_shape_cuboid');
@@ -853,9 +860,10 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     const handleCreateRectReplica = () => {
         const { jobInstance, frame, onCreateProjectionAnnotations, onUpdateProjectionAnnotations } = props;
         // validate object is null
+        const shapeName = showShapeType === 'cuboid' ? '2D 立体框' : '矩形';
         if (replicaID === null) {
             notification.error({
-                message: '无法创建矩形分身',
+                message: `无法创建${shapeName}分身`,
                 description: '请选择目标 ID',
             });
             return;
@@ -864,35 +872,49 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         const height = imageData['size'][0];  // image height
         const width = imageData['size'][1];  // image width
         const centerPoint = [width / 2, height / 2];
-        const rectSize = [width / 10, height / 10];  // set default rect size to 10% of image
-        const rect = [
-            centerPoint[0] - rectSize[0],
-            centerPoint[1] - rectSize[1],
-            centerPoint[0] + rectSize[0],
-            centerPoint[1] + rectSize[1],
-        ];
-        const rectIDs = projectionAnnotations
-            .filter((projAnno: any) => projAnno.shapeType === 'rectangle' && projAnno.contextIndex === contextIndex)
+        let points;
+        if (showShapeType === 'cuboid') {
+            const edge = width / 10;
+            const pt1 = [centerPoint[0] - edge / 2, centerPoint[1] + edge / 2];
+            const pt2 = [pt1[0], pt1[1] + edge];
+            const pt3 = [pt1[0] + edge, pt1[1]];
+            const pt4 = [pt1[0] + edge, pt1[1] + edge];
+            const pt5 = [pt3[0] + edge / 2, pt3[1] - edge / 2];
+            const pt6 = [pt5[0], pt5[1] + edge];
+            const pt7 = [pt5[0] - edge, pt5[1]];
+            const pt8 = [pt5[0] - edge, pt5[1] + edge];
+            points = pt1.concat(pt2).concat(pt3).concat(pt4).concat(pt5).concat(pt6).concat(pt7).concat(pt8);
+        } else if (showShapeType === 'rectangle') {
+            const rectSize = [width / 10, height / 10];  // set default rect size to 10% of image
+            points = [
+                centerPoint[0] - rectSize[0],
+                centerPoint[1] - rectSize[1],
+                centerPoint[0] + rectSize[0],
+                centerPoint[1] + rectSize[1],
+            ];
+        }
+        const shapeIDs = projectionAnnotations
+            .filter((projAnno: any) => projAnno.shapeType === showShapeType && projAnno.contextIndex === contextIndex)
             .map((projAnno: any) => projAnno.clientID)
-        if (rectIDs.includes(replicaID)) {
+        if (shapeIDs.includes(replicaID)) {
             notification.info({
-                message: `ID ${replicaID} 已存在矩形映射框`,
+                message: `ID ${replicaID} 已存在${shapeName}映射`,
                 description: '将自动更新原映射目标信息',
             });
             const statesToUpdate = projectionAnnotations
                 .filter((projAnno: any) =>
                     projAnno.clientID === replicaID
-                    && projAnno.shapeType === 'rectangle'
+                    && projAnno.shapeType === showShapeType
                     && projAnno.contextIndex === contextIndex);
             for (const stateToUpdate of statesToUpdate) {
-                stateToUpdate.points = rect;
+                stateToUpdate.points = points;
                 onUpdateProjectionAnnotations([stateToUpdate], height, width);
             }
         }
         else {
             const state3D = annotations.filter((anno: any) => anno.clientID === replicaID)[0];
-            const stateToCreate = createAnnotationState(state3D, 'rectangle');
-            stateToCreate.points = rect;
+            const stateToCreate = createAnnotationState(state3D, showShapeType);
+            stateToCreate.points = points;
             onCreateProjectionAnnotations(jobInstance, frame, [new cvat.classes.ObjectState(stateToCreate)], contextIndex);
         }
         updateShowingShapeType();
@@ -906,10 +928,11 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         const statesToRemove = projectionAnnotations.filter((projAnno: any) =>
             projAnno.clientID === activatedStateID
             && projAnno.contextIndex === contextIndex
-            && projAnno.shapeType === 'rectangle');
+            && projAnno.shapeType === showShapeType);
         for (const stateToRemove of statesToRemove) {
             removeObject(jobInstance, stateToRemove);
         }
+        updateShowingShapeType();
     }
 
     const objectReplicaContent = () => {
@@ -1057,6 +1080,10 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         updateProjAttribs();
     }, [annotations])
 
+    useEffect(() => {
+        activatedStateRef.current = activatedStateID;
+    }, [activatedStateID])
+
     return (
         <div className='cvat-canvas-context-wrapper' >
             <div className='cvat-canvas-context-wrapper-tools' >
@@ -1100,7 +1127,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                         <MdOutlineFilterCenterFocus />
                     </Tag>
                 </CVATTooltip>
-                <CVATTooltip title='创建矩形分身' placement='topLeft'>
+                <CVATTooltip title={showShapeType === 'cuboid' ? `创建 2D 立体框分身` : `创建矩形分身`} placement='topLeft'>
                     <Popover
                         placement="rightTop"
                         title={<span style={{ display: 'flex', alignItems: 'center' }}><BsBoundingBoxCircles style={{ marginRight: 5 }} /> 创建矩形分身</span>}
@@ -1114,7 +1141,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                         </Tag>
                     </Popover>
                 </CVATTooltip>
-                <CVATTooltip title='删除矩形分身' placement='topLeft'>
+                <CVATTooltip title={showShapeType === 'cuboid' ? `删除 2D 立体框分身` : `删除矩形分身`}  placement='topLeft'>
                     <Tag
                         color={isolatedMode ? 'blue' : ''}
                         className='cvat-canvas-context-wrapper-tools-item'

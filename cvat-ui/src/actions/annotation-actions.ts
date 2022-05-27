@@ -209,6 +209,7 @@ export enum AnnotationActionTypes {
     SAVE_PROJECTION_ANNOTATIONS_FAILED = 'SAVE_PROJECTION_ANNOTATIONS_FAILED',
     REMOVE_PROJECTION_OBJECT_SUCCESS = 'REMOVE_PROJECTION_OBJECT_SUCCESS',
     REMOVE_PROJECTION_OBJECT_FAILED = 'REMOVE_PROJECTION_OBJECT_FAILED',
+    UPDATE_CANVAS_CONTEXT_CONTEXT_MENU = 'UPDATE_CANVAS_CONTEXT_CONTEXT_MENU',
 }
 
 export function saveLogsAsync(): ThunkAction {
@@ -317,6 +318,27 @@ export function updateCanvasContextMenu(
             left,
             top,
             type,
+            pointID,
+        },
+    };
+}
+
+export function updateCanvasContextContextMenu(
+    visible: boolean,
+    left: number,
+    top: number,
+    contextIndex: number,
+    pointID: number | null = null,
+    type?: ContextMenuType,
+): AnyAction {
+    return {
+        type: AnnotationActionTypes.UPDATE_CANVAS_CONTEXT_CONTEXT_MENU,
+        payload: {
+            visible,
+            left,
+            top,
+            type,
+            contextIndex,
             pointID,
         },
     };

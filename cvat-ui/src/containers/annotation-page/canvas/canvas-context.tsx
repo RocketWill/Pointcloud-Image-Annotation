@@ -27,7 +27,7 @@ import {
     groupAnnotationsAsync,
     splitAnnotationsAsync,
     activateObject,
-    updateCanvasContextMenu,
+    updateCanvasContextContextMenu,
     addZLayer,
     switchZLayer,
     fetchAnnotationsAsync,
@@ -135,8 +135,8 @@ interface DispatchToProps {
     onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onGroupAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onSplitAnnotations(sessionInstance: any, frame: number, state: any): void;
-    onActivateObject: (activatedStateID: number | null) => void;
-    onUpdateContextMenu(visible: boolean, left: number, top: number, type: ContextMenuType, pointID?: number): void;
+    onActivateObject: (activatedStateID: number | null, contextIndex: number) => void;
+    onUpdateContextMenu(visible: boolean, left: number, top: number, type: ContextMenuType, contextIndex: number, pointID?: number): void;
     onAddZLayer(): void;
     onSwitchZLayer(cur: number): void;
     onChangeBrightnessLevel(level: number): void;
@@ -319,9 +319,9 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         onSplitAnnotations(sessionInstance: any, frame: number, state: any): void {
             dispatch(splitAnnotationsAsync(sessionInstance, frame, state));
         },
-        onActivateObject(activatedStateID: number | null): void {
+        onActivateObject(activatedStateID: number | null, contextIndex: number): void {
             if (activatedStateID === null) {
-                dispatch(updateCanvasContextMenu(false, 0, 0));
+                dispatch(updateCanvasContextContextMenu(false, 0, 0, contextIndex));
             }
 
             dispatch(activateObject(activatedStateID, null));
@@ -331,9 +331,10 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
             left: number,
             top: number,
             type: ContextMenuType,
+            contextIndex: number,
             pointID?: number,
         ): void {
-            dispatch(updateCanvasContextMenu(visible, left, top, pointID, type));
+            dispatch(updateCanvasContextContextMenu(visible, left, top, contextIndex, pointID, type));
         },
         onAddZLayer(): void {
             dispatch(addZLayer());
