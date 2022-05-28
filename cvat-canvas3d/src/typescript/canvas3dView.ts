@@ -1155,6 +1155,21 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         // return [mesh, new Float32Array(flattenPoints)];
     }
 
+    private addRangeCircle() {
+        const distance = [30, 50, 100]
+        for (let i = 0; i < distance.length; i++) {
+            let points = new THREE.Path().absarc(0, 0, distance[i], 0, Math.PI * 2, false).getPoints(90);
+            let pointsWithZ = [];
+            for (let i = 0; i < points.length; i++) {
+                pointsWithZ.push(new THREE.Vector3(points[i].x, points[i].y, -3))  // let the point lower
+            }
+            let meterCircleGeometry = new THREE.BufferGeometry().setFromPoints(pointsWithZ);
+            let meterCircleMaterial = new THREE.LineBasicMaterial( { color: 0xffee00, transparent: true, opacity: 0.3 } );
+            let meterCircleLine = new THREE.Line(meterCircleGeometry, meterCircleMaterial);
+            this.views.perspective.scene.add(meterCircleLine);
+        }
+    }
+
     // 渲染点云数据
     private addScene(points: any): void {
         // [CY] Camera Helper
@@ -1167,14 +1182,9 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         // const helperFront = new THREE.CameraHelper( this.views.front.camera );
         // this.views.perspective.scene.add(helperFront)
 
-        // Add 50m, 100m, and 150m circle
-        for (let i=1; i <= 3; i++) {
-            let points = new THREE.Path().absarc(0, 0, i * 50, 0, Math.PI * 2).getPoints(90);
-            let meterCircleGeometry = new THREE.BufferGeometry().setFromPoints(points);
-            let meterCircleMaterial = new THREE.LineBasicMaterial( { color: 0xffee00, transparent: true, opacity: 0.3 } );
-            let meterCircleLine = new THREE.Line(meterCircleGeometry, meterCircleMaterial);
-            this.views.perspective.scene.add(meterCircleLine);
-        }
+        // Add 30m, 50m, and 100m circle
+        this.addRangeCircle();
+
 
         this.addColor(points)
         // eslint-disable-next-line no-param-reassign

@@ -1143,7 +1143,6 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                 </CVATTooltip>
                 <CVATTooltip title={showShapeType === 'cuboid' ? `删除 2D 立体框分身` : `删除矩形分身`}  placement='topLeft'>
                     <Tag
-                        color={isolatedMode ? 'blue' : ''}
                         className='cvat-canvas-context-wrapper-tools-item'
                         onClick={handleDeleteReplica}
                     >
