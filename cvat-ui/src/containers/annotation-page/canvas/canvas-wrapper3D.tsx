@@ -96,6 +96,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
             canvas: {
                 activeControl,
                 instance: canvasInstance,
+                instanceSelection: canvasInstanceSelection,
                 contextMenu: { visible: contextMenuVisibility },
             },
             drawing: { activeLabelID, activeObjectType },
@@ -138,6 +139,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
 
     return {
         canvasInstance,
+        canvasInstanceSelection,
         jobInstance,
         frameData,
         curZLayer,
