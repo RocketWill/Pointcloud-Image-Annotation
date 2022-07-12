@@ -19,6 +19,9 @@ import {
 } from './cuboid';
 import { matmul, euler_angle_to_rotate_matrix, transpose, getPointInBetweenByLen } from "./utils/util"
 
+import { SelectModel, ScreenSize } from './select';
+import { ShapeType } from '../../../cvat-ui/src/reducers/interfaces';
+
 export interface Canvas3dView {
     html(): ViewsDOM;
     render(): void;
@@ -93,6 +96,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
     private control: TransformControls;
     private points: THREE.Points;
     private colormapName: string;
+    private orbiting: Boolean;  // for 3D segmentation
 
     private set mode(value: Mode) {
         // 目前看到有 idle
@@ -113,6 +117,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         this.model = model; // data 和 listener
         this.pointsIndexGridSize = 1;
         this.colormapName = 'default';
+        this.orbiting = false;
 
         this.globalHelpers = {
             perspective: {
@@ -537,6 +542,26 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         });
 
         model.subscribe(this);
+
+        // add orbit control listener
+        // Reference: https://github.com/yomotsu/camera-controls/blob/dev/src/types.ts
+        this.views.perspective.controls.addEventListener('controlstart', this.orbiterStart.bind(this));
+        this.views.perspective.controls.addEventListener('control', this.orbiterChange.bind(this));
+        this.views.perspective.controls.addEventListener('controlend', this.orbiterEnd.bind(this));
+    }
+
+    private orbiterStart(): void {
+        this.orbiting = true;
+        // 需要清除画布上的多边形
+    }
+
+    private orbiterChange(): void {
+        this.orbiting = true;
+    }
+
+    private orbiterEnd(): void {
+        this.orbiting = false;
+        // this.setupObjects();  // 需要绘制画布上的多边形
     }
 
     private setDefaultZoom(): void {
@@ -770,6 +795,30 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         return pointIndices;
     }
 
+    private createAnnotationState(annotation: any, shapeType: ShapeType.CUBOID | ShapeType.POLYGON, points: number[]) {
+        return ({
+            points,
+            color: annotation.label.color,
+            clientID: annotation.clientID,
+            zOrder: annotation.zOrder,
+            hidden: annotation.hidden,
+            outside: annotation.outside,
+            occluded: annotation.occluded,
+            shapeType,
+            pinned: annotation.pinned,
+            descriptions: annotation.descriptions,
+            frame: annotation.frame,
+            label: annotation.label,
+            lock: annotation.lock,
+            source: annotation.source,
+            updated: annotation.updated,
+            attributes: annotation.attributes,
+            contextIndex: -1,
+            modified2d: false,
+            clientProjID: annotation.clientID,
+        });
+    }
+
     private setupObject(object: any, addToScene: boolean): CuboidModel {
         // object: 标注目标信息（类似标注结果）
         const {
@@ -869,18 +918,57 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         return cuboid;
     }
 
+    private setupPolygon(object: any, addToScene: Boolean = true) {
+        // add color to points
+        // object: 标注目标信息（类似标注结果）
+        const {
+            opacity, outlined, outlineColor, selectedOpacity, colorBy,
+        } = this.model.data.shapeProperties;  // colorBy, opacity, outlineColor, outlined, selectedOpacity
+        const { points: indices, label } = object;
+        const clientID = String(object.clientID);  // 框的编号
+
+        const segmentSelect = new SelectModel(this.points, label?.color);
+        segmentSelect.loadAnno(indices);
+        segmentSelect.setName(clientID);
+        const screenSize: ScreenSize = {
+            clientWidth: this.html().perspective.clientWidth,
+            clientHeight:  this.html().perspective.clientHeight
+        }
+        const polygonProjectionPoints = segmentSelect.getConvexHull(this.views.perspective.camera, screenSize, true);
+        const object2d = this.createAnnotationState(object, ShapeType.POLYGON, polygonProjectionPoints);
+
+        const pp = segmentSelect.getConvexHull(this.views.perspective.camera, screenSize, false);
+        // this.drawPolyline(pp, 'yellow');
+        return object2d;
+    }
+
     private setupObjects(): void {
         if (this.views.perspective.scene.children[0]) {
             this.clearSceneObjects();
             this.setHelperVisibility(false);
-            const originalColormap = this.getColormap(
+            const colormap = this.getColormap(
                 this.colormapName,
-                this.points.geometry.attributes.position.array.length / 3
             );
-            this.points.geometry.setAttribute('color', new THREE.BufferAttribute(originalColormap, 3));
+            colormap.minV = 0;
+            colormap.maxV = 16 / 4;
+            const colorArray = [];
+            const objects2d = [];
+            for (let i = 0; i < this.points.geometry.attributes.position.array.length / 3; i++) {
+                const color = colormap.getColor(this.points.geometry.attributes.position.array[i * 3 + 2]);
+                colorArray.push(color.r, color.g, color.b);
+            }
+            this.points.geometry.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colorArray), 3));
             for (let i = 0; i < this.model.data.objects.length; i++) {
-                const object = this.model.data.objects[i];
-                this.setupObject(object, true);
+                // 只更新cuboid，polygon的shape是2D呈现
+                if ([this.model.data.objects[i].shapeType].includes(ShapeType.CUBOID)) {
+                    const object = this.model.data.objects[i];
+                    this.setupObject(object, true);
+                }
+                else if ([this.model.data.objects[i].shapeType].includes(ShapeType.POLYGON)) {
+                    const object = this.model.data.objects[i];
+                    const object2d = this.setupPolygon(object, true);
+                    objects2d.push(object2d);
+                }
             }
             this.action.loading = false;
         }
@@ -1116,43 +1204,33 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
     }
 
     // 获取 colormap
-    private getColormap(colormapName: string, length: number): Float32Array {
+    private getColormap(colormapName: string): Lut {
         // rainbow, cooltowarm, blackbody, grayscale
-        const lutColor = [];
-        const lut = new Lut(colormapName, length);
-        for (const l of lut.lut) {
-            lutColor.push(l.r, l.g, l.b);
-        }
-        return new Float32Array(lutColor);
+        const lut = new Lut(colormapName, 512);
+        return lut;
     }
 
     // 【CY】更改点云颜色
     private addColor(points: any): any {
-        const posPoints = [];
-        const flattenPoints = [];
-        let index = 1;
-        let temp = [];
         const colorLength = points.geometry.attributes.position.array.length / 3;
-        const colormap = this.getColormap(this.colormapName, colorLength);
-        for (let i = 0; i < points.geometry.attributes.position.array.length; i++) {
-            temp.push(points.geometry.attributes.position.array[i])
-            if (index % 3 == 0) {
-                posPoints.push(temp);
-                temp = [];
-            }
-            index += 1;
+
+        const colormap = this.getColormap(this.colormapName);
+        colormap.minV = 0;
+        colormap.maxV = 16 / 4;
+
+        const colorArray = [];
+        for (let i = 0; i < colorLength; i++) {
+            const color = colormap.getColor(points.geometry.attributes.position.array[i * 3 + 2]);
+            colorArray.push(color.r, color.g, color.b);
         }
-        posPoints.sort((a, b) => a[2] - b[2]);  // 根据z坐标排序
-        for (let i = 0; i < posPoints.length; i++) {
-            flattenPoints.push(posPoints[i][0], posPoints[i][1], posPoints[i][2]);
-        }
+        // 需要确保点的顺序不变
         const newPoints = new THREE.BufferGeometry();
-        newPoints.setAttribute('position', new THREE.BufferAttribute(new Float32Array(flattenPoints), 3));
-        newPoints.setAttribute('color', new THREE.BufferAttribute(colormap, 3));
-        const materials = new THREE.PointsMaterial({ color: 0x888888, vertexColors: true, size: 0.1, depthWrite: false });
+        newPoints.setAttribute('position', new THREE.BufferAttribute(new Float32Array(points.geometry.attributes.position.array), 3));
+        newPoints.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colorArray), 3));
+        // 设置点的大小
+        const materials = new THREE.PointsMaterial({ color: 0x888888, vertexColors: true, size: 0.15, depthWrite: false });
         const mesh = new THREE.Points(newPoints, materials);
         return mesh;
-        // return [mesh, new Float32Array(flattenPoints)];
     }
 
     private addRangeCircle() {
@@ -1164,7 +1242,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 pointsWithZ.push(new THREE.Vector3(points[i].x, points[i].y, -3))  // let the point lower
             }
             let meterCircleGeometry = new THREE.BufferGeometry().setFromPoints(pointsWithZ);
-            let meterCircleMaterial = new THREE.LineBasicMaterial( { color: 0xffee00, transparent: true, opacity: 0.3 } );
+            let meterCircleMaterial = new THREE.LineBasicMaterial({ color: 0xffee00, transparent: true, opacity: 0.3 });
             let meterCircleLine = new THREE.Line(meterCircleGeometry, meterCircleMaterial);
             this.views.perspective.scene.add(meterCircleLine);
         }
@@ -1184,7 +1262,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
 
         // Add 30m, 50m, and 100m circle
         this.addRangeCircle();
-
+        this.setupAxes();
 
         this.addColor(points)
         // eslint-disable-next-line no-param-reassign
@@ -2367,6 +2445,35 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         }
     }
 
+    private setupAxes(): void {
+        const axes = new THREE.AxesHelper(2);
+        this.views.perspective.scene.add(axes);
+    }
+
+    // 点云分割outline清除
+    private clearCanvasSelection(): void {
+        const contextSelection = this.html().perspective.getContext("2d");
+        console.log("🚀 ~ file: canvas3dView.ts ~ line 2498 ~ Canvas3dViewImpl ~ clearCanvasSelection ~ this.html().perspective", this.html().perspective)
+        if (contextSelection === null) return;
+        contextSelection.clearRect(0, 0, this.html().perspective.clientWidth, this.html().perspective.clientHeight);
+    }
+
+    // 点云分割outline绘制
+    private drawPolyline(points: number[][], color: string, xField: number = 0, yField: number = 1, close: Boolean = true): void {
+        this.clearCanvasSelection();
+        const context = this.html().perspective.getContext("2d");
+        if (context === null) return;
+        context.beginPath();
+        context.lineWidth = 1;
+        context.strokeStyle = color;
+        for (let i = 1; i < points.length; i++) {
+            context.lineTo(points[i][xField], points[i][yField]);
+        }
+        if (close)
+            context.lineTo(points[0][xField], points[0][yField]);
+        context.stroke();
+    }
+
     public keyControls(key: any): void {
         const { controls } = this.views.perspective;
         if (!controls) return;
@@ -2462,5 +2569,41 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             side: this.views.side.renderer.domElement,
             front: this.views.front.renderer.domElement,
         };
+    }
+
+    public createConvexHull(state: any) {
+        const { points: polygon, label } = state;
+        const getMousePosition = (offsetX: number, offsetY: number) => {
+            return [offsetX / this.html().perspective.clientWidth * 2 - 1, - offsetY / this.html().perspective.clientHeight * 2 + 1];
+        }
+
+        const polyFormat = [];
+        for (let i = 0; i < polygon.length / 2; i++) {
+            // polyFormat.push([parseInt(polygon[i * 2].toFixed()), parseInt(polygon[i * 2 + 1].toFixed())]);
+            polyFormat.push(getMousePosition(polygon[i * 2], polygon[i * 2 + 1]));
+        }
+        const segmentSelect = new SelectModel(this.points, label?.color);
+        // this.views.perspective.camera.updateMatrixWorld();
+        // this.views.perspective.camera.updateProjectionMatrix();
+        const screenSize: ScreenSize = {
+            clientWidth: this.html().perspective.clientWidth,
+            clientHeight:  this.html().perspective.clientHeight
+        }
+        const { indices, polygon: polygonPoints } = segmentSelect.createAnno(polyFormat, this.views.perspective.camera, screenSize);
+
+        this.dispatchEvent(
+            new CustomEvent('canvas.polyselect', {
+                bubbles: false,
+                cancelable: true,
+                detail: {
+                    clientID: Number(this.controller.focused.clientID),
+                    state: {
+                        ...state,
+                        polygon: polygonPoints,
+                        points: Array.from(indices),
+                    }
+                },
+            }),
+        );
     }
 }
