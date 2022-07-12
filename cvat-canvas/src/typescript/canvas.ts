@@ -21,6 +21,7 @@ import { Master } from './master';
 import { CanvasController, CanvasControllerImpl } from './canvasController';
 import { CanvasView, CanvasViewImpl } from './canvasView';
 import { CanvasViewContextImpl } from './canvasViewContext';
+import { CanvasViewPcoImpl } from './canvasViewPco';
 
 import '../scss/canvas.scss';
 import pjson from '../../package.json';
@@ -68,10 +69,14 @@ class CanvasImpl implements Canvas {
     private controller: CanvasController;
     private view: CanvasView;
 
-    public constructor(isProjection: Boolean = false) {
+    public constructor(isProjection: Boolean = false, isPcoSelection: Boolean = false) {
         this.model = new CanvasModelImpl();
         this.controller = new CanvasControllerImpl(this.model);
-        if (isProjection) this.view = new CanvasViewContextImpl(this.model, this.controller);
+        if (isProjection) {
+            this.view = new CanvasViewContextImpl(this.model, this.controller)
+        } else if (isPcoSelection) {
+            this.view = new CanvasViewPcoImpl(this.model, this.controller);
+        }
         else this.view = new CanvasViewImpl(this.model, this.controller);
     }
 

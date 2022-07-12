@@ -95,6 +95,8 @@ export class DrawHandlerImpl implements DrawHandler {
     private pointsGroup: SVG.G | null;
     private shapeSizeElement: ShapeSizeElement;
 
+    private lastTimestamp: number;
+
     private getFinalEllipseCoordinates(points: number[], fitIntoFrame: boolean): number[] {
         const { offset } = this.geometry;
         const [cx, cy, rightX, topY] = points.map((coord: number) => coord - offset);
@@ -241,7 +243,6 @@ export class DrawHandlerImpl implements DrawHandler {
             box.xbr = Math.max(box.xbr, points[i]);
             box.ybr = Math.max(box.ybr, points[i + 1]);
         }
-
         return {
             points,
             box,
@@ -521,13 +522,22 @@ export class DrawHandlerImpl implements DrawHandler {
     private drawPolyshape(): void {
         let size = this.drawData.shapeType === 'cuboid' ? 4 : this.drawData.numberOfPoints;
 
-        const sizeDecrement = (): void => {
+        const sizeDecrement = (e: any): void => {
             if (--size === 0) {
                 // we need additional settimeout because we cannot invoke draw('done')
                 // from event listener for drawstart event
                 // because of implementation of svg.js
                 setTimeout((): void => this.drawInstance.draw('done'));
             }
+            const currentTimestamp = e.timeStamp;
+            if (this.lastTimestamp < 0) {
+                this.lastTimestamp = currentTimestamp;
+                return;
+            }
+            if (currentTimestamp - this.lastTimestamp < 250) {  // 模拟双击
+                this.release();
+            }
+            this.lastTimestamp = currentTimestamp;
         };
 
         this.drawInstance.on('drawstart', sizeDecrement);
@@ -587,8 +597,10 @@ export class DrawHandlerImpl implements DrawHandler {
             const targetPoints = readPointsFromShape((e.target as any as { instance: SVG.Shape }).instance);
             const { shapeType, redraw: clientID } = this.drawData;
             const { points, box } = shapeType === 'cuboid' ?
-                this.getFinalCuboidCoordinates(targetPoints) :
-                this.getFinalPolyshapeCoordinates(targetPoints, true);
+            this.getFinalCuboidCoordinates(targetPoints) :
+            // 限制是否可以画到画布外
+            // this.getFinalPolyshapeCoordinates(targetPoints, true);  // 不行
+            this.getFinalPolyshapeCoordinates(targetPoints, false);  // 可以
             this.release();
 
             if (this.canceled) return;
@@ -614,6 +626,10 @@ export class DrawHandlerImpl implements DrawHandler {
                 'stroke-width': consts.BASE_STROKE_WIDTH / this.geometry.scale,
                 'fill-opacity': this.configuration.creationOpacity,
             });
+        // 增加自定义css class name
+        if (this.drawData.customClassName) {
+            this.drawInstance.addClass(this.drawData.customClassName);
+        }
 
         this.drawPolyshape();
         if (this.autobordersEnabled) {
@@ -1020,6 +1036,8 @@ export class DrawHandlerImpl implements DrawHandler {
                 this.crosshair.move(x, y);
             }
         });
+
+        this.lastTimestamp = -1;
     }
 
     public configurate(configuration: Configuration): void {
@@ -1077,6 +1095,7 @@ export class DrawHandlerImpl implements DrawHandler {
 
             const paintHandler = this.drawInstance.remember('_paintHandler');
 
+            if (!paintHandler) return;
             for (const point of (paintHandler as any).set.members) {
                 point.attr('stroke-width', `${consts.POINTS_STROKE_WIDTH / geometry.scale}`);
                 point.attr('r', `${consts.BASE_POINT_SIZE / geometry.scale}`);

@@ -76,6 +76,7 @@ export interface DrawData {
     initialState?: any;
     crosshair?: boolean;
     redraw?: number;
+    customClassName?: string | undefined;
 }
 
 export interface InteractionData {
@@ -587,6 +588,10 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
             if (drawData.shapeType === 'cuboid') {
                 this.data.drawData.cuboidDrawingMethod = drawData.cuboidDrawingMethod || CuboidDrawingMethod.CLASSIC;
             }
+        }
+
+        if (drawData.customClassName) {
+            this.data.drawData.customClassName = drawData.customClassName;
         }
 
         this.notify(UpdateReasons.DRAW);

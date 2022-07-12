@@ -123,6 +123,13 @@ polyline.cvat_canvas_shape_splitting {
     stroke: black;
 }
 
+.cvat_canvas_shape_drawing_3d_select {
+    @extend .cvat_shape_drawing_opacity;
+
+    fill: rgb(42, 187, 255);
+    stroke: rgb(42, 187, 255);
+}
+
 .cvat_canvas_zoom_selection {
     @extend .cvat_shape_action_dasharray;
 
