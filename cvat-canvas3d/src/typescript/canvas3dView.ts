@@ -19,7 +19,7 @@ import {
 } from './cuboid';
 import { matmul, euler_angle_to_rotate_matrix, transpose, getPointInBetweenByLen } from "./utils/util"
 
-import { SelectModel, ScreenSize } from './select';
+import { SelectModel, ScreenSize, MousePosition } from './select';
 import { ShapeType } from '../../../cvat-ui/src/reducers/interfaces';
 
 export interface Canvas3dView {
@@ -318,6 +318,37 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         canvasPerspectiveView.addEventListener('click', (e: MouseEvent): void => {
             e.preventDefault();
             if (e.detail !== 1) return;
+            if (this.orbiting) return;
+            const mousePosition = this.getMousePosition(e.offsetX, e.offsetY);
+            const segmentObjects = this.model.data.objects.filter((object: any) => object.shapeType === ShapeType.POLYGON);
+
+            for (let i = 0; i < segmentObjects.length; i++) {
+                const object = segmentObjects[i];
+                const segmentSelect = new SelectModel(this.points, object.label.color);
+                segmentSelect.loadAnno(object.points);
+                segmentSelect.updateConvexHull(this.views.perspective.camera);
+                const mp = {x: mousePosition[0], y: mousePosition[1]};
+                const isSelect = segmentSelect.isSelect(mp);
+                if (isSelect) {
+                    const screenSize: ScreenSize = {
+                        clientWidth: this.html().perspective.clientWidth,
+                        clientHeight:  this.html().perspective.clientHeight
+                    }
+                    const polygon = segmentSelect.getConvexHull(this.views.perspective.camera, screenSize, true);
+                    this.dispatchEvent(
+                        new CustomEvent('canvas.polygonselect', {
+                            bubbles: false,
+                            cancelable: true,
+                            detail: {
+                                clientID: object.clientID,
+                                points: polygon,
+                            },
+                        }),
+                    );
+                    return;
+                }
+            }
+
             const intersects = this.views.perspective.rayCaster.renderer.intersectObjects(
                 this.views.perspective.scene.children[0].children,  // 被选中的目标
                 false,
@@ -574,13 +605,17 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 }
             });
         } else {
+            // 分割几何不需要显示在全景中
+            if (this.model.data.selected instanceof SelectModel) {
+                return;
+            }
             const canvasTop = this.views.top.renderer.domElement;
             const bboxtop = new THREE.Box3().setFromObject(this.model.data.selected.top);
             const x1 = Math.min(
                 canvasTop.offsetWidth / (bboxtop.max.x - bboxtop.min.x),
                 canvasTop.offsetHeight / (bboxtop.max.y - bboxtop.min.y),
             ) * 0.4;
-            this.views.top.camera.zoom = x1 / 100;
+            // this.views.top.camera.zoom = x1 / 100;
             this.views.top.camera.updateProjectionMatrix();
             this.views.top.camera.updateMatrix();
             this.setHelperSize(ViewType.TOP);
@@ -591,7 +626,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 canvasFront.offsetWidth / (bboxfront.max.y - bboxfront.min.y),
                 canvasFront.offsetHeight / (bboxfront.max.z - bboxfront.min.z),
             ) * 0.4;
-            this.views.front.camera.zoom = x2 / 100;
+            // this.views.front.camera.zoom = x2 / 100;
             this.views.front.camera.updateProjectionMatrix();
             this.views.front.camera.updateMatrix();
             this.setHelperSize(ViewType.FRONT);
@@ -602,7 +637,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 canvasSide.offsetWidth / (bboxside.max.x - bboxside.min.x),
                 canvasSide.offsetHeight / (bboxside.max.z - bboxside.min.z),
             ) * 0.4;
-            this.views.side.camera.zoom = x3 / 100;
+            // this.views.side.camera.zoom = x3 / 100;
             this.views.side.camera.updateProjectionMatrix();
             this.views.side.camera.updateMatrix();
             this.setHelperSize(ViewType.SIDE);
@@ -623,6 +658,11 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         mouseVector.y = -(diffY / canvas.clientHeight) * 2 + 1;
         this.action.rotation.screenInit = { x: diffX, y: diffY };
         this.action.rotation.screenMove = { x: diffX, y: diffY };
+
+        if (this.model.data.selected instanceof SelectModel) {
+            return;
+        }
+
         if (
             this.model.data.selected &&
             !this.model.data.selected.perspective.userData.lock &&
@@ -937,8 +977,12 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         const polygonProjectionPoints = segmentSelect.getConvexHull(this.views.perspective.camera, screenSize, true);
         const object2d = this.createAnnotationState(object, ShapeType.POLYGON, polygonProjectionPoints);
 
-        const pp = segmentSelect.getConvexHull(this.views.perspective.camera, screenSize, false);
-        // this.drawPolyline(pp, 'yellow');
+        if (
+            this.model.data.activeElement.clientID === clientID &&
+            ![Mode.DRAG_CANVAS, Mode.GROUP].includes(this.mode)
+        ) {
+            this.model.data.selected = segmentSelect;
+        }
         return object2d;
     }
 
@@ -2450,30 +2494,6 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         this.views.perspective.scene.add(axes);
     }
 
-    // 点云分割outline清除
-    private clearCanvasSelection(): void {
-        const contextSelection = this.html().perspective.getContext("2d");
-        console.log("🚀 ~ file: canvas3dView.ts ~ line 2498 ~ Canvas3dViewImpl ~ clearCanvasSelection ~ this.html().perspective", this.html().perspective)
-        if (contextSelection === null) return;
-        contextSelection.clearRect(0, 0, this.html().perspective.clientWidth, this.html().perspective.clientHeight);
-    }
-
-    // 点云分割outline绘制
-    private drawPolyline(points: number[][], color: string, xField: number = 0, yField: number = 1, close: Boolean = true): void {
-        this.clearCanvasSelection();
-        const context = this.html().perspective.getContext("2d");
-        if (context === null) return;
-        context.beginPath();
-        context.lineWidth = 1;
-        context.strokeStyle = color;
-        for (let i = 1; i < points.length; i++) {
-            context.lineTo(points[i][xField], points[i][yField]);
-        }
-        if (close)
-            context.lineTo(points[0][xField], points[0][yField]);
-        context.stroke();
-    }
-
     public keyControls(key: any): void {
         const { controls } = this.views.perspective;
         if (!controls) return;
@@ -2571,16 +2591,20 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         };
     }
 
+    private getMousePosition (offsetX: number, offsetY: number): number[] {
+        return [
+            offsetX / this.html().perspective.clientWidth * 2 - 1,
+            - offsetY / this.html().perspective.clientHeight * 2 + 1
+        ];
+    }
+
     public createConvexHull(state: any) {
         const { points: polygon, label } = state;
-        const getMousePosition = (offsetX: number, offsetY: number) => {
-            return [offsetX / this.html().perspective.clientWidth * 2 - 1, - offsetY / this.html().perspective.clientHeight * 2 + 1];
-        }
 
         const polyFormat = [];
         for (let i = 0; i < polygon.length / 2; i++) {
             // polyFormat.push([parseInt(polygon[i * 2].toFixed()), parseInt(polygon[i * 2 + 1].toFixed())]);
-            polyFormat.push(getMousePosition(polygon[i * 2], polygon[i * 2 + 1]));
+            polyFormat.push(this.getMousePosition(polygon[i * 2], polygon[i * 2 + 1]));
         }
         const segmentSelect = new SelectModel(this.points, label?.color);
         // this.views.perspective.camera.updateMatrixWorld();

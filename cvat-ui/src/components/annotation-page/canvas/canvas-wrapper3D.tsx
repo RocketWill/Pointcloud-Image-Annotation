@@ -28,7 +28,6 @@ import getCore from 'cvat-core-wrapper';
 import { RectDrawingMethod } from 'cvat-canvas-wrapper';
 
 const cvat = getCore();
-const { Header, Content, Sider } = Layout;
 
 interface Props {
     opacity: number;
@@ -307,9 +306,20 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
 
     const onCanvasShapeSelected = (event: any): void => {
         const { onActivateObject } = props;
-        const { clientID } = event.detail;
+        const { clientID, points } = event.detail;
         onActivateObject(clientID);
         canvasInstance.activate(clientID);
+
+        if (points) {
+            const canvasInstance2DDOM = canvasInstanceSelection.html();
+            canvasInstance2DDOM.style.display = 'inherit'
+            const s = {
+                label: {color: 'yellow'},
+                clientID: 100,
+                zOrder: 0
+            }
+            canvasInstanceSelection.add2DPolygon(points, s)
+        }
     };
 
     const onCanvasEditDone = (event: any): void => {
@@ -372,6 +382,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         canvas2d.style.backgroundColor = 'rgba(0, 0, 0, 0)';
         canvas2d.style.position = 'absolute';
         canvas2d.style.top = 0;
+
         // canvas2d.style.display = 'none'
         (canvasInstanceSelection as Canvas).configure({
             creationOpacity: 0.2,
@@ -400,6 +411,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     };
 
     const onContextMenu = (event: any): void => {
+    console.log("🚀 ~ file: canvas-wrapper3D.tsx ~ line 404 ~ onContextMenu ~ event", event)
         const { onUpdateContextMenu, onActivateObject } = props;
         onActivateObject(event.detail.clientID);
         onUpdateContextMenu(
@@ -441,6 +453,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         canvasInstanceDOM.perspective.addEventListener('canvas.fit', onResize);
         canvasInstanceDOM.perspective.addEventListener('canvas.groupped', onCanvasObjectsGroupped);
         canvasInstanceDOM.perspective.addEventListener('canvas.polyselect', onPolygonSelect);
+        canvasInstanceDOM.perspective.addEventListener('canvas.polygonselect', onCanvasShapeSelected);
         canvasInstance2DDOM.addEventListener('canvas.drawn', onSelectShapeDrawn);
         window.addEventListener('resize', onResize);
 
@@ -453,6 +466,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
             canvasInstanceDOM.perspective.removeEventListener('canvas.fit', onResize);
             canvasInstanceDOM.perspective.removeEventListener('canvas.groupped', onCanvasObjectsGroupped);
             canvasInstanceDOM.perspective.removeEventListener('canvas.polyselect', onPolygonSelect);
+            canvasInstanceDOM.perspective.removeEventListener('canvas.polygonselect', onCanvasShapeSelected);
             canvasInstance2DDOM.removeEventListener('canvas.drawn', onSelectShapeDrawn);
             window.removeEventListener('resize', onResize);
         };
