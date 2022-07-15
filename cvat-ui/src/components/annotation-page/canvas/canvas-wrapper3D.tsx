@@ -317,6 +317,10 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         }
     };
 
+    const onCanvasSetupObjects = (event: any): void => {
+        canvasInstanceSelection.clearScene();
+    }
+
     const onCanvasEditDone = (event: any): void => {
         const { onEditShape, onUpdateAnnotations } = props;
         onEditShape(false);
@@ -451,6 +455,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         canvasInstanceDOM.perspective.addEventListener('canvas.groupped', onCanvasObjectsGroupped);
         canvasInstanceDOM.perspective.addEventListener('canvas.polyselect', onPolygonSelect);
         canvasInstanceDOM.perspective.addEventListener('canvas.polygonselect', onCanvasShapeSelected);
+        canvasInstanceDOM.perspective.addEventListener('canvas.setupobjects', onCanvasSetupObjects);
         canvasInstance2DDOM.addEventListener('canvas.drawn', onSelectShapeDrawn);
         window.addEventListener('resize', onResize);
 
@@ -465,6 +470,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
             canvasInstanceDOM.perspective.removeEventListener('canvas.groupped', onCanvasObjectsGroupped);
             canvasInstanceDOM.perspective.removeEventListener('canvas.polyselect', onPolygonSelect);
             canvasInstanceDOM.perspective.removeEventListener('canvas.polygonselect', onCanvasShapeSelected);
+            canvasInstanceDOM.perspective.removeEventListener('canvas.setupobjects', onCanvasSetupObjects);
             canvasInstance2DDOM.removeEventListener('canvas.drawn', onSelectShapeDrawn);
             window.removeEventListener('resize', onResize);
         };

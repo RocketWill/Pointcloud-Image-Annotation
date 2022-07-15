@@ -986,11 +986,30 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             ![Mode.DRAG_CANVAS, Mode.GROUP].includes(this.mode)
         ) {
             this.model.data.selected = segmentSelect;
+            this.dispatchEvent(
+                new CustomEvent('canvas.polygonselect', {
+                    bubbles: false,
+                    cancelable: true,
+                    detail: {
+                        clientID: clientID,
+                        points: polygonProjectionPoints,
+                        state: object
+                    },
+                }),
+            );
         }
         return object2d;
     }
 
     private setupObjects(): void {
+
+        this.dispatchEvent(
+            new CustomEvent('canvas.setupobjects', {
+                bubbles: false,
+                cancelable: true,
+            }),
+        );
+
         if (this.views.perspective.scene.children[0]) {
             this.clearSceneObjects();
             this.setHelperVisibility(false);
