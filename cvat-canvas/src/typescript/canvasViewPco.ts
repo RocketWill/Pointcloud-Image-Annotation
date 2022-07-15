@@ -1538,19 +1538,34 @@ export class CanvasViewPcoImpl implements CanvasView, Listener {
         return this.canvas;
     }
 
+    public clearScene(): void {
+        const keys: string[] = Object.keys(this.svgShapes);
+        for (let i = 0; i < keys.length; i++) {
+            this.svgShapes[Number(keys[i])].remove();
+            delete this.svgShapes[Number(keys[i])];
+        }
+    }
+
     public add2DPolygon(points: number[], state: any): void {
         const translatedPoints: number[] = this.translateToCanvas(points);
+        const stateID = state.clientID || -1;
+
+        // 清除前一个状态，当前画面只保留一个
+        if (this.svgShapes[stateID]) {
+            this.svgShapes[stateID].remove();
+            delete this.svgShapes[stateID];
+        }
         const polygon = this.adoptedContent
             .polygon(translatedPoints)
             .attr({
-                clientID: state.clientID,
+                clientID: stateID,
                 'color-rendering': 'optimizeQuality',
-                id: `cvat_canvas_shape_${state.clientID}`,
-                fill: state?.label.color,
+                id: `cvat_canvas_shape_${stateID}`,
+                fill: state?.label.color || 'yellow',
                 'shape-rendering': 'geometricprecision',
-                stroke: state?.label.color,
+                stroke: state?.label.color || 'yellow',
                 'stroke-width': consts.BASE_STROKE_WIDTH / this.geometry.scale,
-                'data-z-order': state.zOrder,
+                'data-z-order': state.zOrder || 0,
                 'fill-opacity': 0.03
             })
             .addClass('cvat_canvas_shape');
@@ -1561,7 +1576,7 @@ export class CanvasViewPcoImpl implements CanvasView, Listener {
         if (state.hidden || state.outside || this.isInnerHidden(state.clientID)) {
             polygon.addClass('cvat_canvas_hidden');
         }
-        this.svgShapes[state.clientID] = polygon;
+        this.svgShapes[stateID] = polygon;
     }
 
     public setActivatedShapeType(shapeType: 'cuboid' | 'rectangle' | null): void {

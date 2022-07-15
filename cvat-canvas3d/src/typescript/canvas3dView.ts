@@ -317,6 +317,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
 
         canvasPerspectiveView.addEventListener('click', (e: MouseEvent): void => {
             e.preventDefault();
+            if (this.mode === Mode.DRAG_CANVAS) return;
             if (e.detail !== 1) return;
             if (this.orbiting) return;
             const mousePosition = this.getMousePosition(e.offsetX, e.offsetY);
@@ -342,6 +343,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                             detail: {
                                 clientID: object.clientID,
                                 points: polygon,
+                                state: object
                             },
                         }),
                     );
@@ -660,10 +662,12 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         this.action.rotation.screenMove = { x: diffX, y: diffY };
 
         if (this.model.data.selected instanceof SelectModel) {
-            return;
+            this.action.scan = view;
+            this.model.mode = Mode.EDIT;
+            this.action.selectable = false;
         }
 
-        if (
+        else if (
             this.model.data.selected &&
             !this.model.data.selected.perspective.userData.lock &&
             !this.model.data.selected.perspective.userData.hidden
@@ -1699,7 +1703,9 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                         // this.control.detach();
                         // this.views.perspective.scene.remove(this.control);
                     }
+                    this.resetActions();
                 }
+
                 // 不能加，会导致三视图无法调整
                 // else {
                 //     this.resetActions();
@@ -2392,6 +2398,11 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
 
     // [CY]
     private initiateActionPerspective(view: string, viewType: any): void {
+
+        if (this.model.data.selected instanceof SelectModel) {
+            return;
+        }
+
         const intersectsBox = viewType.rayCaster.renderer.intersectObjects([this.model.data.selected[view]], false);
         const { clientID } = this.model.data.activeElement;
         if (clientID === null) return;

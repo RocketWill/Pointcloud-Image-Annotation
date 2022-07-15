@@ -214,8 +214,8 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
 
     const onPolygonSelect = (event: any): void => {
         const { state, state: { points, polygon } } = event.detail;
-        console.log("🚀 ~ file: canvas-wrapper3D.tsx ~ line 221 ~ onPolygonSelect ~ points", points)
         canvasInstanceSelection.add2DPolygon(polygon, state);
+        const canvasInstance2DDOM = canvasInstanceSelection.html();
         state.amountPoints = points.length || 0;
         state.objectType = state.objectType || activeObjectType;
         state.label = state.label || jobInstance.labels.filter((label: any) => label.id === activeLabelID)[0];
@@ -225,6 +225,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         const objectState = new cvat.classes.ObjectState(state);
         onCreateAnnotations(jobInstance, frame, [objectState]);
         onShapeDrawn();  // add this to end drawing
+        canvasInstance2DDOM.style.pointerEvents = 'none';
         // canvasInstanceSelection.fitCanvas();
     }
 
@@ -305,20 +306,14 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     };
 
     const onCanvasShapeSelected = (event: any): void => {
+        canvasInstanceSelection.clearScene();
         const { onActivateObject } = props;
-        const { clientID, points } = event.detail;
+        const { clientID, state, points } = event.detail;
         onActivateObject(clientID);
         canvasInstance.activate(clientID);
 
-        if (points) {
-            const canvasInstance2DDOM = canvasInstanceSelection.html();
-            canvasInstance2DDOM.style.display = 'inherit'
-            const s = {
-                label: {color: 'yellow'},
-                clientID: 100,
-                zOrder: 0
-            }
-            canvasInstanceSelection.add2DPolygon(points, s)
+        if (state && points) {
+            canvasInstanceSelection.add2DPolygon(points, state)
         }
     };
 
@@ -381,7 +376,9 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         const canvas2d = canvasInstanceSelection.html();
         canvas2d.style.backgroundColor = 'rgba(0, 0, 0, 0)';
         canvas2d.style.position = 'absolute';
-        canvas2d.style.top = 0;
+        canvas2d.style.top = '0';
+        canvas2d.style.pointerEvents = 'none';
+        canvas2d.style.margin = '5px 0px 0px';
 
         // canvas2d.style.display = 'none'
         (canvasInstanceSelection as Canvas).configure({
@@ -411,7 +408,6 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     };
 
     const onContextMenu = (event: any): void => {
-    console.log("🚀 ~ file: canvas-wrapper3D.tsx ~ line 404 ~ onContextMenu ~ event", event)
         const { onUpdateContextMenu, onActivateObject } = props;
         onActivateObject(event.detail.clientID);
         onUpdateContextMenu(
@@ -444,6 +440,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     useEffect(() => {
         const canvasInstanceDOM = canvasInstance.html() as ViewsDOM;
         const canvasInstance2DDOM = canvasInstanceSelection.html();
+        canvasInstanceSelection.clearScene(); // 清除2D画布
         updateCanvas();
         canvasInstanceDOM.perspective.addEventListener('canvas.drawn', onCanvasShapeDrawn);
         canvasInstanceDOM.perspective.addEventListener('canvas.selected', onCanvasShapeSelected);
@@ -456,6 +453,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         canvasInstanceDOM.perspective.addEventListener('canvas.polygonselect', onCanvasShapeSelected);
         canvasInstance2DDOM.addEventListener('canvas.drawn', onSelectShapeDrawn);
         window.addEventListener('resize', onResize);
+
 
         return () => {
             canvasInstanceDOM.perspective.removeEventListener('canvas.drawn', onCanvasShapeDrawn);

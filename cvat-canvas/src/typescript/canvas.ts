@@ -31,6 +31,7 @@ const CanvasVersion = pjson.version;
 interface Canvas {
     html(): HTMLDivElement;
     add2DPolygon(points: number[], state: any): void;
+    clearScene(): void;
     setupObjectsUnite(states: any[]): void;
     setActivatedShapeType(shapeType: 'cuboid' | 'rectangle' | null): void;
     setup(frameData: any, objectStates: any[], zLayer?: number): void;
@@ -86,6 +87,10 @@ class CanvasImpl implements Canvas {
 
     public add2DPolygon(points: number[], state: any): void {
         return this.view.add2DPolygon(points, state);
+    }
+
+    public clearScene(): void {
+        this.view.clearScene();
     }
 
     public setupObjectsUnite(states: any[]): void {
