@@ -20,8 +20,7 @@ export interface Props {
 function MoveControl(props: Props): JSX.Element {
     const { canvasInstance, canvasInstanceSelection, activeControl } = props;
 
-    const selectionDOM = canvasInstanceSelection.html();
-    selectionDOM.style.display = 'none';
+    canvasInstanceSelection.clearScene();
 
     return (
         <CVATTooltip title='Move the image' placement='right'>

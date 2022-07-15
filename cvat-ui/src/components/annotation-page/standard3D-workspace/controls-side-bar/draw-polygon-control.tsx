@@ -24,7 +24,7 @@ function DrawPolygonControl(props: Props): JSX.Element {
     const { canvasInstance, isDrawing, disabled } = props;
     // 显示点云分割投影多边形
     const selectionDOM = canvasInstance.html();
-    selectionDOM.style.display = 'inherit';
+    selectionDOM.style.pointerEvents = 'inherit';
 
     const dynamicPopoverProps = isDrawing ? {
         overlayStyle: {
