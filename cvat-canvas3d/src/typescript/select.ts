@@ -64,6 +64,10 @@ export class SelectModel {
         return this.name;
     }
 
+    public setSelectMode(mode: SelectionMode) {
+        this.selectMode = mode;
+    }
+
     public setColor(color: string): void {
         this.pointColor = new THREE.Color(color);
     }
@@ -146,8 +150,6 @@ export class SelectModel {
         if (inside.size > 0) {
             inside.forEach((idx: number) => this.processSelection(idx));
         }
-        this.updatePointIndicesRegion(inside, outside);
-        return [inside, outside];
     }
 
     private flattenArray(arr: number[][]): number[] {
@@ -156,15 +158,17 @@ export class SelectModel {
         return flattened;
     }
 
-    public loadAnno(indices: number[]) {
+    public loadAnno(indices: number[], renderColor: Boolean = true) {
         this.selection = new Set<number>(indices);
         // 绘制框内的颜色
         const colorArray: number[] = this.scenePointMesh.geometry.getAttribute("color").array as number[];
-        this.selection.forEach((i: number) => {
-            colorArray[i * 3] = this.pointColor.r;
-            colorArray[i * 3 + 1] = this.pointColor.g;
-            colorArray[i * 3 + 2] = this.pointColor.b;
-        })
+        if (renderColor) {
+            this.selection.forEach((i: number) => {
+                colorArray[i * 3] = this.pointColor.r;
+                colorArray[i * 3 + 1] = this.pointColor.g;
+                colorArray[i * 3 + 2] = this.pointColor.b;
+            })
+        }
     }
 
     public updateConvexHull(camera: any): void {
@@ -188,7 +192,7 @@ export class SelectModel {
     }
 
     public createAnno(polygon: number[][], camera: any, screenSize: ScreenSize) {
-        const _ = this.selectByPolygon(polygon, camera);
+        this.selectByPolygon(polygon, camera);
         const colorArray: number[] = this.scenePointMesh.geometry.getAttribute("color").array as number[];
         // 绘制框内的颜色
         this.selection.forEach((i: number) => {

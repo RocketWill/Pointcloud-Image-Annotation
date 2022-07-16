@@ -2628,7 +2628,39 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         ];
     }
 
-    public createConvexHull(state: any) {
+    public updateSegmentAnnotation(state: any): void {
+        const { points: polygon, clientID, selectMode } = state;
+        const [segmentObject] = this.model.data.objects.filter((object: any) =>
+            object.clientID === clientID && [ShapeType.POLYGON].includes(object.shapeType));
+        if (!segmentObject) return;
+        const polyFormat = [];
+        for (let i = 0; i < polygon.length / 2; i++) {
+            polyFormat.push(this.getMousePosition(polygon[i * 2], polygon[i * 2 + 1]));
+        }
+        const segmentSelect = new SelectModel(this.points, segmentObject.label.color);
+        segmentSelect.setSelectMode(selectMode);
+        segmentSelect.loadAnno(segmentObject.points, true);
+        const screenSize: ScreenSize = {
+            clientWidth: this.html().perspective.clientWidth,
+            clientHeight:  this.html().perspective.clientHeight
+        }
+        const { indices, polygon: polygonPoints } = segmentSelect.createAnno(polyFormat, this.views.perspective.camera, screenSize);
+        this.mode = Mode.IDLE;
+
+        this.dispatchEvent(
+            new CustomEvent('canvas.polyselect', {
+                bubbles: false,
+                cancelable: true,
+                detail: {
+                    state: segmentObject,
+                    polygon: polygonPoints,
+                    points: Array.from(indices),
+                },
+            }),
+        );
+    }
+
+    public createConvexHull(state: any): void {
         const { points: polygon, label } = state;
 
         const polyFormat = [];
@@ -2644,18 +2676,18 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             clientHeight:  this.html().perspective.clientHeight
         }
         const { indices, polygon: polygonPoints } = segmentSelect.createAnno(polyFormat, this.views.perspective.camera, screenSize);
+        this.mode = Mode.IDLE;
 
         this.dispatchEvent(
             new CustomEvent('canvas.polyselect', {
                 bubbles: false,
                 cancelable: true,
                 detail: {
-                    clientID: Number(this.controller.focused.clientID),
                     state: {
                         ...state,
-                        polygon: polygonPoints,
-                        points: Array.from(indices),
-                    }
+                    },
+                    polygon: polygonPoints,
+                    points: Array.from(indices)
                 },
             }),
         );

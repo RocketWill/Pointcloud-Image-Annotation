@@ -1313,7 +1313,7 @@ export function splitTrack(enabled: boolean): AnyAction {
     };
 }
 
-export function updateAnnotationsAsync(statesToUpdate: any[]): ThunkAction {
+export function updateAnnotationsAsync(statesToUpdate: any[], fitPoints: Boolean = true): ThunkAction {
     return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
         const {
             jobInstance, filters, frame, showAllInterpolationTracks,
@@ -1325,7 +1325,7 @@ export function updateAnnotationsAsync(statesToUpdate: any[]): ThunkAction {
                 dispatch(activateObject(null, null));
             }
 
-            const promises = statesToUpdate.map((objectState: any): Promise<any> => objectState.save());
+            const promises = statesToUpdate.map((objectState: any): Promise<any> => objectState.save(null, null, fitPoints));
             const states = await Promise.all(promises);
             const history = await jobInstance.actions.get();
             const [minZ, maxZ] = computeZRange(states);

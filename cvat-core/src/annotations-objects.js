@@ -703,7 +703,7 @@
             this.amountPoints = amountPoints;
         }
 
-        save(frame, data, height_, width_) {
+        save(frame, data, height_, width_, fitPoints) {
             if (data.contextIndex < 0) {
                 console.log("🚀 ~ file: annotations-objects.js ~ line 707 ~ Shape ~ save ~ data", data)
             }
@@ -716,7 +716,10 @@
             }
 
             const updated = data.updateFlags;
-            const fittedPoints = this._validateStateBeforeSave(frame, data, updated, height_, width_);
+
+            let fittedPoints = data.points;
+            if (fitPoints) fittedPoints = this._validateStateBeforeSave(frame, data, updated, height_, width_);
+
             const { rotation } = data;
 
             // Now when all fields are validated, we can apply them

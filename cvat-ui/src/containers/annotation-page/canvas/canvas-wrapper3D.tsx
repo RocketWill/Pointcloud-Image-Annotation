@@ -82,7 +82,7 @@ interface DispatchToProps {
     onGroupObjects: (enabled: boolean) => void;
     onResetCanvas(): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
-    onUpdateAnnotations(states: any[]): void;
+    onUpdateAnnotations(states: any[], fitPoints: Boolean): void;
     onGroupAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onActivateObject: (activatedStateID: number | null) => void;
     onShapeDrawn: () => void;
@@ -219,8 +219,8 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         onEditShape(enabled: boolean): void {
             dispatch(editShape(enabled));
         },
-        onUpdateAnnotations(states: any[]): void {
-            dispatch(updateAnnotationsAsync(states));
+        onUpdateAnnotations(states: any[], fitPoints: Boolean): void {
+            dispatch(updateAnnotationsAsync(states, fitPoints));
         },
         onUpdateContextMenu(
             visible: boolean,

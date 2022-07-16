@@ -122,8 +122,12 @@ class Canvas3dImpl implements Canvas3d {
         this.model.destroy();
     }
 
-    public createConvexHull(polygon: number[]): void {
-        this.view.createConvexHull(polygon);
+    public createConvexHull(state: any): void {
+        this.view.createConvexHull(state);
+    }
+
+    public updateSegmentAnnotation(state: any): void {
+        this.view.updateSegmentAnnotation(state);
     }
 
 }
