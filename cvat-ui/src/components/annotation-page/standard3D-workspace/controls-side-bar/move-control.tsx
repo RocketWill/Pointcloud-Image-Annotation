@@ -20,8 +20,6 @@ export interface Props {
 function MoveControl(props: Props): JSX.Element {
     const { canvasInstance, canvasInstanceSelection, activeControl } = props;
 
-    canvasInstanceSelection.clearScene();
-
     return (
         <CVATTooltip title='Move the image' placement='right'>
             <Icon
@@ -36,8 +34,11 @@ function MoveControl(props: Props): JSX.Element {
                         canvasInstance.dragCanvas(false);
                     } else {
                         canvasInstance.cancel();
+                        canvasInstanceSelection.cancel();
+                        canvasInstanceSelection.html().style.pointerEvents = 'none';
                         canvasInstance.dragCanvas(true);
                     }
+                    canvasInstanceSelection.clearScene();
                 }}
             />
         </CVATTooltip>

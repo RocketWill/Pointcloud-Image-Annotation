@@ -7,11 +7,12 @@ import Popover from 'antd/lib/popover';
 import Icon from '@ant-design/icons';
 
 import { Canvas } from 'cvat-canvas-wrapper';
-import { Canvas3d } from 'cvat-canvas3d/src/typescript/canvas3d';
-import { PolygonIcon } from 'icons';
+import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import { ShapeType } from 'reducers/interfaces';
 
-import DrawShapePopoverContainer from 'containers/annotation-page/standard3D-workspace/controls-side-bar/draw-shape-popover';
+import { CubeIcon } from 'icons';
+
+import DrawShapePopoverContainer from 'containers/annotation-page/standard-workspace/controls-side-bar/draw-shape-popover';
 import withVisibilityHandling from './handle-popover-visibility';
 
 export interface Props {
@@ -21,10 +22,10 @@ export interface Props {
     disabled?: boolean;
 }
 
-const CustomPopover = withVisibilityHandling(Popover, 'draw-polygon');
+const CustomPopover = withVisibilityHandling(Popover, 'draw-cuboid');
 function DrawPolygonControl(props: Props): JSX.Element {
     const { canvasInstance, canvasInstanceSelection, isDrawing, disabled } = props;
-    // 显示点云分割投影多边形
+
     const dynamicPopoverProps = isDrawing ? {
         overlayStyle: {
             display: 'none',
@@ -32,24 +33,24 @@ function DrawPolygonControl(props: Props): JSX.Element {
     } : {};
 
     const dynamicIconProps = isDrawing ? {
-        className: 'cvat-draw-polygon-control cvat-active-canvas-control',
+        className: 'cvat-draw-cuboid-control cvat-active-canvas-control',
         onClick: (): void => {
-            canvasInstanceSelection.draw({ enabled: false });
+            canvasInstance.draw({ enabled: false });
         },
     } : {
-        className: 'cvat-draw-polygon-control',
+        className: 'cvat-draw-cuboid-control',
     };
 
     return disabled ? (
-        <Icon className='cvat-draw-polygon-control cvat-disabled-canvas-control' component={PolygonIcon} />
+        <Icon className='cvat-draw-cuboid-control cvat-disabled-canvas-control' component={CubeIcon} />
     ) : (
         <CustomPopover
             {...dynamicPopoverProps}
             overlayClassName='cvat-draw-shape-popover'
             placement='right'
-            content={<DrawShapePopoverContainer shapeType={ShapeType.POLYGON} />}
+            content={<DrawShapePopoverContainer shapeType={ShapeType.CUBOID} />}
         >
-            <Icon {...dynamicIconProps} component={PolygonIcon} />
+            <Icon {...dynamicIconProps} component={CubeIcon} />
         </CustomPopover>
     );
 }

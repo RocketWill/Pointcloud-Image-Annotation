@@ -15,7 +15,7 @@ import CursorControl, {
 } from './cursor-control';
 import DrawCuboidControl, {
     Props as DrawCuboidControlProps,
-} from 'components/annotation-page/standard-workspace/controls-side-bar/draw-cuboid-control';
+} from './draw-cuboid-control';
 import GroupControl, {
     Props as GroupControlProps,
 } from 'components/annotation-page/standard-workspace/controls-side-bar/group-control';
@@ -62,6 +62,7 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
         jobInstance,
     } = props;
 
+    const selectionDOM = canvasInstanceSelection.html();
     const preventDefault = (event: KeyboardEvent | undefined): void => {
         if (event) {
             event.preventDefault();
@@ -92,10 +93,11 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
             },
             SWITCH_DRAW_MODE: (event: KeyboardEvent | undefined) => {
                 preventDefault(event);
-                const drawing = [ActiveControl.DRAW_CUBOID].includes(activeControl);
+                const drawing = [ActiveControl.DRAW_CUBOID, ActiveControl.DRAW_POLYGON].includes(activeControl);
 
                 if (!drawing) {
                     canvasInstance.cancel();
+                    canvasInstanceSelection.cancel();
                     if (event && event.shiftKey) {
                         redrawShape();
                     } else {
@@ -103,6 +105,7 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
                     }
                 } else {
                     canvasInstance.draw({ enabled: false });
+                    canvasInstanceSelection.draw({ enabled: false });
                 }
             },
             SWITCH_GROUP_MODE: (event: KeyboardEvent | undefined) => {
@@ -150,11 +153,13 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
             />
             <ObservedDrawCuboidControl
                 canvasInstance={canvasInstance}
+                canvasInstanceSelection={canvasInstanceSelection}
                 isDrawing={activeControl === ActiveControl.DRAW_CUBOID}
                 disabled={!labels.length}
             />
             <ObservedDrawPolygonControl
-                canvasInstance={canvasInstanceSelection}
+                canvasInstance={canvasInstance}
+                canvasInstanceSelection={canvasInstanceSelection}
                 isDrawing={activeControl === ActiveControl.DRAW_POLYGON}
                 disabled={!labels.length}
             />

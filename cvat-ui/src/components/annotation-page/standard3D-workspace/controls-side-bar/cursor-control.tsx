@@ -20,7 +20,10 @@ export interface Props {
 
 function CursorControl(props: Props): JSX.Element {
     const { canvasInstance, canvasInstanceSelection, activeControl, cursorShortkey } = props;
-    // 显示点云分割投影多边形
+    const cancelInstances = (): void => {
+        canvasInstance.cancel();
+        canvasInstanceSelection.cancel();
+    }
 
     return (
         <CVATTooltip title={`Cursor ${cursorShortkey}`} placement='right'>
@@ -31,7 +34,7 @@ function CursorControl(props: Props): JSX.Element {
                         'cvat-active-canvas-control cvat-cursor-control' :
                         'cvat-cursor-control'
                 }
-                onClick={activeControl !== ActiveControl.CURSOR ? (): void => canvasInstance.cancel() : undefined}
+                onClick={activeControl !== ActiveControl.CURSOR ? () => cancelInstances() : undefined}
             />
         </CVATTooltip>
     );

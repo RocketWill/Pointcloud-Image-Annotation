@@ -9,6 +9,7 @@ import { RadioChangeEvent } from 'antd/lib/radio';
 import { CombinedState, ShapeType, ObjectType } from 'reducers/interfaces';
 import { rememberObject } from 'actions/annotation-actions';
 import { Canvas, RectDrawingMethod, CuboidDrawingMethod } from 'cvat-canvas-wrapper';
+import { Canvas3d } from 'cvat-canvas3d/src/typescript/canvas3d';
 import DrawShapePopoverComponent from 'components/annotation-page/standard3D-workspace/controls-side-bar/draw-shape-popover';
 
 interface OwnProps {
@@ -28,7 +29,8 @@ interface DispatchToProps {
 
 interface StateToProps {
     normalizedKeyMap: Record<string, string>;
-    canvasInstance: Canvas;
+    canvasInstance: Canvas3d | Canvas;
+    canvasInstanceSelection: Canvas,
     shapeType: ShapeType;
     labels: any[];
     jobInstance: any;
@@ -69,7 +71,8 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
 
     return {
         ...own,
-        canvasInstance: canvasInstanceSelection as Canvas,  // for 3d segmentation, draw on 2d canvas first
+        canvasInstance: canvasInstance as Canvas3d,
+        canvasInstanceSelection: canvasInstanceSelection as Canvas, // for 3d segmentation, draw on 2d canvas first
         labels,
         normalizedKeyMap,
         jobInstance,
@@ -111,14 +114,16 @@ class DrawShapePopoverContainer extends React.PureComponent<Props, State> {
     }
 
     private onDraw(objectType: ObjectType): void {
-        const { canvasInstance, shapeType, onDrawStart } = this.props;
+        const { canvasInstance, canvasInstanceSelection, shapeType, onDrawStart } = this.props;
 
         const {
             rectDrawingMethod, cuboidDrawingMethod, numberOfPoints, selectedLabelID,
         } = this.state;
 
+        canvasInstanceSelection.html().style.pointerEvents = 'inherit';
         canvasInstance.cancel();
-        canvasInstance.draw({
+        canvasInstanceSelection.cancel();
+        canvasInstanceSelection.draw({
             enabled: true,
             rectDrawingMethod,
             cuboidDrawingMethod,
