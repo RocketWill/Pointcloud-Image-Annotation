@@ -7,6 +7,7 @@ import { connect } from 'react-redux';
 import CanvasWrapperComponent from 'components/annotation-page/canvas/canvas-wrapper3D';
 import {
     activateObject,
+    rememberObject,
     confirmCanvasReady,
     createAnnotationsAsync,
     dragCanvas,
@@ -26,12 +27,14 @@ import {
     ContextMenuType,
     GridColor,
     ObjectType,
+    ShapeType,
     Workspace,
 } from 'reducers/interfaces';
 
 import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import { Canvas } from 'cvat-canvas-wrapper';
 import { KeyMap } from '../../../utils/mousetrap-react';
+import { CuboidDrawingMethod, RectDrawingMethod } from 'cvat-canvas/src/typescript/canvasModel';
 
 interface StateToProps {
     canvasInstance: Canvas3d | Canvas;
@@ -88,6 +91,14 @@ interface DispatchToProps {
     onShapeDrawn: () => void;
     onEditShape: (enabled: boolean) => void;
     onUpdateContextMenu(visible: boolean, left: number, top: number, type: ContextMenuType, pointID?: number): void;
+    onDrawStart(
+        shapeType: ShapeType,
+        labelID: number,
+        objectType: ObjectType,
+        points?: number,
+        rectDrawingMethod?: RectDrawingMethod,
+        cuboidDrawingMethod?: CuboidDrawingMethod,
+    ): void;
 }
 
 function mapStateToProps(state: CombinedState): StateToProps {
@@ -230,6 +241,25 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
             pointID?: number,
         ): void {
             dispatch(updateCanvasContextMenu(visible, left, top, pointID, type));
+        },
+        onDrawStart(
+            shapeType: ShapeType.POLYGON,
+            labelID: number,
+            objectType: ObjectType,
+            points?: number,
+            rectDrawingMethod?: RectDrawingMethod,
+            cuboidDrawingMethod?: CuboidDrawingMethod,
+        ): void {
+            dispatch(
+                rememberObject({
+                    activeObjectType: objectType,
+                    activeShapeType: shapeType,
+                    activeLabelID: labelID,
+                    activeNumOfPoints: points,
+                    activeRectDrawingMethod: rectDrawingMethod,
+                    activeCuboidDrawingMethod: cuboidDrawingMethod,
+                }),
+            );
         },
     };
 }

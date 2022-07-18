@@ -534,7 +534,7 @@ export class DrawHandlerImpl implements DrawHandler {
                 this.lastTimestamp = currentTimestamp;
                 return;
             }
-            if (currentTimestamp - this.lastTimestamp < 250) {  // 模拟双击
+            if (currentTimestamp - this.lastTimestamp < 150) {  // 模拟双击
                 this.release();
             }
             this.lastTimestamp = currentTimestamp;

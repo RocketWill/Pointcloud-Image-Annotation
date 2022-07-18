@@ -59,6 +59,14 @@ interface Props {
     onEditShape: (enabled: boolean) => void;
     onDragCanvas: (enabled: boolean) => void;
     onShapeDrawn: () => void;
+    onDrawStart: (
+        shapeType: ShapeType.POLYGON,
+        labelID: number,
+        objectType: ObjectType,
+        points?: number,
+        rectDrawingMethod?: RectDrawingMethod,
+        cuboidDrawingMethod?: CuboidDrawingMethod
+    ) => void;
     workspace: Workspace;
     automaticBordering: boolean;
     showObjectsTextAlways: boolean;
@@ -489,6 +497,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     }, [activatedStateID])
 
     useEffect(() => {
+        const { onDrawStart } = props;
         selectionModeRef.current = selectionMode;
         if (showSelectionModeButton === false ||
             selectionMode === null ||
@@ -513,6 +522,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
             crosshair: true,
             customClassName: 'cvat_canvas_shape_drawing_3d_select',
         });
+        // onDrawStart(ShapeType.POLYGON, 0, ObjectType.SHAPE);
 
     }, [selectionMode])
 
