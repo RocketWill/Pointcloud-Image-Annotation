@@ -1295,7 +1295,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         newPoints.setAttribute('position', new THREE.BufferAttribute(new Float32Array(points.geometry.attributes.position.array), 3));
         newPoints.setAttribute('color', new THREE.BufferAttribute(new Float32Array(colorArray), 3));
         // 设置点的大小
-        const materials = new THREE.PointsMaterial({ color: 0x888888, vertexColors: true, size: 0.15, depthWrite: false });
+        const materials = new THREE.PointsMaterial({ color: 0x888888, vertexColors: true, size: 0.3, depthWrite: false });
         const mesh = new THREE.Points(newPoints, materials);
         return mesh;
     }
@@ -1341,10 +1341,10 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         this.buildPointsIndex(coloredPoints);  // add points index field
         // this.buildPointsIndex(mesh);
         // 设置points
+        coloredPoints.material.size = 0.3;
+        coloredPoints.material.color.set(new THREE.Color(0xffffff));
         this.points = coloredPoints;
-        points.material.size = 0.05;
-        points.material.color.set(new THREE.Color(0xffffff));
-        const material = points.material.clone();
+        const material = coloredPoints.material.clone();
         const sphereCenter = points.geometry.boundingSphere.center;
         const { radius } = points.geometry.boundingSphere;
         if (!this.views.perspective.camera) return;
@@ -1406,7 +1406,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         (topScenePlane as any).verticesNeedUpdate = true;
         // eslint-disable-next-line no-param-reassign
         points.material = material;
-        material.size = 0.5;
+        // material.size = 0.5;
         this.views.top.scene.add(coloredPoints.clone());
         this.views.top.scene.add(topScenePlane);
         const topRotationHelper = Canvas3dViewImpl.setupRotationHelper();
@@ -2173,18 +2173,18 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             default: {
                 // sideCamera.position.setFromSpherical(sphericalside);
                 const sideDistanceToCenter = coordSide.distanceTo(objectSideView.position);
-                const sideCamPosition = getPointInBetweenByLen(coordSide, objectSideView.position, sideDistanceToCenter - objectSideView.scale.y / 2)
+                const sideCamPosition = getPointInBetweenByLen(coordSide, objectSideView.position, sideDistanceToCenter - objectSideView.scale.y / 2 - 0.5)
                 sideCamera.position.set(sideCamPosition.x, sideCamPosition.y, sideCamPosition.z)
                 sideCamera.lookAt(objectSideView.position.x, objectSideView.position.y, objectSideView.position.z);
                 // 可能会造成上下颠倒
-                // sideCamera.rotation.z = this.views.side.scene.getObjectByName(Planes.SIDE).rotation.z;
+                sideCamera.rotation.z = this.views.side.scene.getObjectByName(Planes.SIDE).rotation.z;
                 sideCamera.scale.set(1, 1, 1);
                 sideCamera.top = expCameraHeightSide / 2;
                 sideCamera.bottom = expCameraHeightSide / -2;
                 sideCamera.right = expCameraWidthSide / 2;
                 sideCamera.left = expCameraWidthSide / -2;
-                sideCamera.near = expCameraClipSide / -2;
-                sideCamera.far = expCameraClipSide / 2;
+                sideCamera.near = expCameraClipSide / -1;
+                sideCamera.far = expCameraClipSide / 1;
 
                 // 改为绝对位置坐标
                 const topDistanceToCenter = coordTop.distanceTo(objectTopView.position);
@@ -2199,8 +2199,10 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 topCamera.bottom = expCameraHeightTop / -2;
                 topCamera.right = expCameraWidthTop / 2;
                 topCamera.left = expCameraWidthTop / -2;
-                topCamera.near = expCameraClipTop / -2;
-                topCamera.far = expCameraClipTop / 2;
+                topCamera.near = expCameraClipTop / -1;
+                // topCamera.far = expCameraClipTop / 2;
+                // topCamera.near = -50;
+                topCamera.far = 50;
                 // topCamera.updateProjectionMatrix()
 
                 const camFrontRotate = objectFrontView
@@ -2218,8 +2220,9 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 frontCamera.bottom = expCameraHeightTop / -2;
                 frontCamera.right = expCameraWidthTop / 2;
                 frontCamera.left = expCameraWidthTop / -2;
-                frontCamera.near = expCameraClipTop / -2;
+                frontCamera.near = expCameraClipTop / -1;
                 frontCamera.far = expCameraClipTop / 1;
+                // frontCamera.far = 50;
             }
         }
     }
@@ -2484,11 +2487,13 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             this.action.resize.resizeVector = new THREE.Vector3(0, 0, 0);
             return;
         }
+
         const intersectsHelperRotation = viewType.rayCaster.renderer.intersectObjects(
             this.globalHelpers[view].rotation,
             false,
         );
         if (intersectsHelperRotation.length !== 0) {
+        // if (true) {
             this.action.rotation.helper = viewType.rayCaster.mouseVector.clone();
             this.action.rotation.status = true;
             this.action.detected = true;
