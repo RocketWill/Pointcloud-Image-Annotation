@@ -6,6 +6,8 @@
     const serverProxy = require('./server-proxy');
     const Collection = require('./annotations-collection');
     const AnnotationsSaver = require('./annotations-saver');
+    const ProjectionCollection = require('./annotations-projection-collection');  // for 3d projection
+    const AnnotationsProjectionSaver = require('./annotations-projection-saver');
     const AnnotationsHistory = require('./annotations-history');
     const { checkObjectType } = require('./common');
     const { Project } = require('./project');
@@ -34,6 +36,7 @@
 
         if (!cache.has(session)) {
             const rawAnnotations = await serverProxy.annotations.getAnnotations(sessionType, session.id);
+            const rawProjectionAnnotation = await serverProxy.annotations.getProjectionAnnotations(sessionType, session.id);
 
             // Get meta information about frames
             const startFrame = sessionType === 'job' ? session.startFrame : 0;
@@ -56,9 +59,29 @@
 
             const saver = new AnnotationsSaver(rawAnnotations.version, collection, session);
 
+            const projectionCollection = session.dimension === '3d'
+                ? new ProjectionCollection({
+                    labels: session.labels || session.task.labels,
+                    history,
+                    startFrame,
+                    stopFrame,
+                    frameMeta,
+                })
+                : null
+            // TODO: import projection collection from server
+            if (projectionCollection !== null) {
+                projectionCollection.import(rawProjectionAnnotation);
+            }
+
+            const projectionSaver = session.dimension === '3d'
+                ? new AnnotationsProjectionSaver(rawProjectionAnnotation.version, projectionCollection, session)
+                : null
+
             cache.set(session, {
                 collection,
+                projectionCollection,
                 saver,
+                projectionSaver,
                 history,
             });
         }
@@ -365,6 +388,116 @@
         );
     }
 
+    async function getProjctionAnnotations(session, frame, filters) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            const { projectionCollection } = cache.get(session);
+            if (projectionCollection !== null) {
+                return projectionCollection.get(frame, filters);
+            }
+            return [];
+        }
+
+        await getAnnotationsFromServer(session);
+        const { projectionCollection } = cache.get(session);
+        if (projectionCollection !== null) {
+            return projectionCollection.get(frame, filters);
+        }
+        return [];
+    }
+
+    function putProjectionAnnotations(session, objectStates) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            const { projectionCollection } = cache.get(session);
+            if (projectionCollection !== null) {
+                return projectionCollection.put(objectStates);
+            }
+            return [];
+        }
+        throw new DataError(
+            'Projection collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
+        );
+    }
+
+    async function saveProjectionAnnotations(session, onUpdate) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            if (cache.get(session).projectionSaver !== null) {
+                await cache.get(session).projectionSaver.save(onUpdate);
+            }
+        }
+    }
+
+    function annotationsProjectionStatistics(session) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            const { projectionCollection } = cache.get(session);
+            if (projectionCollection !== null) {
+                return projectionCollection.statistics();
+            }
+        }
+
+        throw new DataError(
+            'Collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
+        );
+    }
+
+    function importProjectionAnnotations(session, data) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            // eslint-disable-next-line no-unsanitized/method
+            const { projectionCollection } = cache.get(session);
+            if (projectionCollection !== null) {
+                return projectionCollection.import(data);
+            }
+        }
+
+        throw new DataError(
+            'Projection collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
+        );
+    }
+
+    function exportProjectionAnnotations(session) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            const { projectionCollection } = cache.get(session);
+            if (projectionCollection !== null) {
+                return projectionCollection.export();
+            }
+        }
+
+        throw new DataError(
+            'Projection collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
+        );
+    }
+
+    function selectProjectionObject(session, objectStates, x, y) {
+        const sessionType = session instanceof Task ? 'task' : 'job';
+        const cache = getCache(sessionType);
+
+        if (cache.has(session)) {
+            if (cache.get(session).projectionCollection !== null) {
+                return cache.get(session).projectionCollection.select(objectStates, x, y);
+            }
+        }
+        throw new DataError(
+            'Collection has not been initialized yet. Call annotations.get() or annotations.clear(true) before',
+        );
+    }
+
     module.exports = {
         getAnnotations,
         putAnnotations,
@@ -389,5 +522,13 @@
         clearActions,
         getActions,
         closeSession,
+        // for 3d projection
+        getProjctionAnnotations,
+        putProjectionAnnotations,
+        saveProjectionAnnotations,
+        annotationsProjectionStatistics,
+        importProjectionAnnotations,
+        exportProjectionAnnotations,
+        selectProjectionObject,
     };
 })();

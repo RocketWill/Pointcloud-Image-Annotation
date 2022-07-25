@@ -39,7 +39,17 @@ const defaultState: AnnotationState = {
             pointID: null,
             clientID: null,
         },
+        contextContextMenu: {
+            visible: false,
+            left: 0,
+            top: 0,
+            type: ContextMenuType.CANVAS_SHAPE,
+            contextIndex: -1,
+            pointID: null,
+            clientID: null,
+        },
         instance: null,
+        instanceSelection: null,
         ready: false,
         activeControl: ActiveControl.CURSOR,
     },
@@ -70,6 +80,10 @@ const defaultState: AnnotationState = {
             data: null,
             hidden: false,
         },
+        cameraParam : {
+            fetching: false,
+            data: null,
+        },
     },
     drawing: {
         activeShapeType: ShapeType.RECTANGLE,
@@ -79,6 +93,8 @@ const defaultState: AnnotationState = {
     annotations: {
         activatedStateID: null,
         activatedAttributeID: null,
+        latestState: null,
+        removedState: null,
         saving: {
             forceExit: false,
             uploading: false,
@@ -87,6 +103,7 @@ const defaultState: AnnotationState = {
         collapsed: {},
         collapsedAll: true,
         states: [],
+        projectionStates: [],
         filters: [],
         resetGroupFlag: false,
         history: {
@@ -145,6 +162,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
             const {
                 job,
                 states,
+                projectionStates,
                 openTime,
                 frameNumber: number,
                 frameFilename: filename,
@@ -186,6 +204,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 annotations: {
                     ...state.annotations,
                     states,
+                    projectionStates,
                     filters,
                     zLayer: {
                         min: minZ,
@@ -213,6 +232,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 canvas: {
                     ...state.canvas,
                     instance: job.dimension === DimensionType.DIM_2D ? new Canvas() : new Canvas3d(),
+                    instanceSelection: new Canvas(false, true),  // 3D 点云分割，多边形选取
                 },
                 colors,
                 workspace: isReview ? Workspace.REVIEW_WORKSPACE : workspaceSelected,
@@ -250,6 +270,12 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                         fetching: true,
                     },
                 },
+                // clear latest annotation to avoid
+                // creating duplicated projection annotation
+                annotations: {
+                    ...state.annotations,
+                    latestState: null,
+                },
                 canvas: {
                     ...state.canvas,
                     ready: false,
@@ -264,6 +290,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 filename,
                 hasRelatedContext,
                 states,
+                projectionStates,
                 minZ,
                 maxZ,
                 curZ,
@@ -293,6 +320,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     ...state.annotations,
                     activatedStateID: updateActivatedStateID(states, activatedStateID),
                     states,
+                    projectionStates,
                     zLayer: {
                         min: minZ,
                         max: maxZ,
@@ -384,6 +412,51 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 },
             };
         }
+
+        case AnnotationActionTypes.SAVE_UPDATE_PROJECTION_ANNOTATIONS_STATUS: {
+            const { status } = action.payload;
+
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    saving: {
+                        ...state.annotations.saving,
+                        statuses: [...state.annotations.saving.statuses, status],
+                    },
+                },
+            };
+        }
+
+        case AnnotationActionTypes.SAVE_PROJECTION_ANNOTATIONS_SUCCESS: {
+            const { projectionStates } = action.payload;
+            // does not update activatedStateID
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    projectionStates,
+                    saving: {
+                        ...state.annotations.saving,
+                        uploading: false,
+                    },
+                },
+            };
+        }
+
+        case AnnotationActionTypes.SAVE_PROJECTION_ANNOTATIONS_FAILED: {
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    saving: {
+                        ...state.annotations.saving,
+                        uploading: false,
+                    },
+                },
+            };
+        }
+
         case AnnotationActionTypes.SWITCH_PLAY: {
             const { playing } = action.payload;
 
@@ -635,11 +708,13 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
         }
         case AnnotationActionTypes.CREATE_ANNOTATIONS_SUCCESS: {
             const { states, history } = action.payload;
+            const latestState = states.at(-1);
 
             return {
                 ...state,
                 annotations: {
                     ...state.annotations,
+                    latestState,
                     states,
                     history,
                 },
@@ -730,8 +805,36 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     ...state.annotations,
                     history,
                     activatedStateID: null,
+                    removedState: objectState,
                     states: state.annotations.states.filter(
                         (_objectState: any) => _objectState.clientID !== objectState.clientID,
+                    ),
+                },
+                canvas: {
+                    ...state.canvas,
+                    contextMenu: {
+                        ...state.canvas.contextMenu,
+                        clientID: objectState.clientID === contextMenuClientID ? null : contextMenuClientID,
+                        visible: objectState.clientID === contextMenuClientID ? false : contextMenuVisible,
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.REMOVE_PROJECTION_OBJECT_SUCCESS: {
+            const { objectState, history } = action.payload;
+            const contextMenuClientID = state.canvas.contextMenu.clientID;
+            const contextMenuVisible = state.canvas.contextMenu.visible;
+
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    history,
+                    activatedStateID: null,
+                    projectionStates: state.annotations.projectionStates.filter(
+                        (_objectState: any) => _objectState.clientID !== objectState.clientID
+                        || _objectState.contextIndex !== objectState.contextIndex
+                        || _objectState.shapeType !== objectState.shapeType,
                     ),
                 },
                 canvas: {
@@ -950,6 +1053,33 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                         left,
                         top,
                         type,
+                        pointID,
+                        clientID: state.annotations.activatedStateID,
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.UPDATE_CANVAS_CONTEXT_CONTEXT_MENU: {
+            const {
+                visible,
+                left,
+                top,
+                type,
+                contextIndex,
+                pointID,
+            } = action.payload;
+
+            return {
+                ...state,
+                canvas: {
+                    ...state.canvas,
+                    contextContextMenu: {
+                        ...state.canvas.contextContextMenu,
+                        visible,
+                        left,
+                        top,
+                        type,
+                        contextIndex,
                         pointID,
                         clientID: state.annotations.activatedStateID,
                     },
@@ -1234,6 +1364,68 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                         ...state.player.cameraParam,
                         fetching: false,
                     },
+                },
+            };
+        }
+        case AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_SUCCESS: {
+            const { projectionStates, history } = action.payload;
+
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    projectionStates,
+                    history,
+                },
+            };
+        }
+        case AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_SUCCESS: {
+            const {
+                history, projectionStates: updatedStates, minZ, maxZ,
+            } = action.payload;
+            const { projectionStates: prevStates } = state.annotations;
+            const nextStates = [...prevStates];
+
+            const clientIDContextIndexes = prevStates.map((prevState: any): any => {
+                return { clientID: prevState.clientID, contextIndex: prevState.contextIndex, shapeType: prevState.shapeType }
+            });
+            for (const updatedState of updatedStates) {
+                // const index = clientIDs.indexOf(updatedState.clientID);
+                // consider shape
+                const index = clientIDContextIndexes.findIndex((object: any) => {
+                    return object.clientID === updatedState.clientID &&
+                        object.contextIndex === updatedState.contextIndex &&
+                        object.shapeType === updatedState.shapeType;
+                });
+                if (index !== -1) {
+                    nextStates[index] = updatedState;
+                }
+            }
+
+            const maxZLayer = Math.max(state.annotations.zLayer.max, maxZ);
+            const minZLayer = Math.min(state.annotations.zLayer.min, minZ);
+
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    zLayer: {
+                        min: minZLayer,
+                        max: maxZLayer,
+                        cur: maxZLayer,
+                    },
+                    projectionStates: nextStates,
+                    history,
+                },
+            };
+        }
+        case AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_FAILED: {
+            const { projectionStates } = state.annotations;
+            return {
+                ...state,
+                annotations: {
+                    ...state.annotations,
+                    projectionStates,
                 },
             };
         }

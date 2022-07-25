@@ -3,7 +3,7 @@
 // SPDX-License-Identifier: MIT
 
 import React, {
-    ReactElement, SyntheticEvent, useEffect, useReducer, useRef,
+    ReactElement, SyntheticEvent, useEffect, useReducer, useRef, useState
 } from 'react';
 // import Layout from 'antd/lib/layout/layout';
 import {
@@ -14,19 +14,22 @@ import {
 import { Layout, Row, Col, Button, Radio, Space } from 'antd';
 import { ResizableBox } from 'react-resizable';
 import {
-    ColorBy, ContextMenuType, ObjectType, Workspace,
+    ColorBy, ContextMenuType, ObjectType, ShapeType, Workspace,
 } from 'reducers/interfaces';
 import {
     CameraAction, Canvas3d, ViewType, ViewsDOM,
 } from 'cvat-canvas3d-wrapper';
-import { Canvas } from 'cvat-canvas-wrapper';
+import { Canvas, RectDrawingMethod } from 'cvat-canvas-wrapper';
 import ContextImage from 'components/annotation-page/standard-workspace/context-image/context-image-3d';
 import CVATTooltip from 'components/common/cvat-tooltip';
 import { LogType } from 'cvat-logger';
 import getCore from 'cvat-core-wrapper';
 
+import { IoAdd, IoRemove } from 'react-icons/io5';
+import { TbLayersIntersect2 } from 'react-icons/tb';
+import { CuboidDrawingMethod } from 'cvat-canvas/src/typescript/canvasModel';
+
 const cvat = getCore();
-const { Header, Content, Sider } = Layout;
 
 interface Props {
     opacity: number;
@@ -36,6 +39,7 @@ interface Props {
     colorBy: ColorBy;
     frameFetching: boolean;
     canvasInstance: Canvas3d | Canvas;
+    canvasInstanceSelection: Canvas;
     jobInstance: any;
     frameData: any;
     curZLayer: number;
@@ -49,12 +53,20 @@ interface Props {
     onResetCanvas(): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onActivateObject(activatedStateID: number | null): void;
-    onUpdateAnnotations(states: any[]): void;
+    onUpdateAnnotations(states: any[], fitPoints: Boolean): void;
     onUpdateContextMenu(visible: boolean, left: number, top: number, type: ContextMenuType, pointID?: number): void;
     onGroupAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onEditShape: (enabled: boolean) => void;
     onDragCanvas: (enabled: boolean) => void;
     onShapeDrawn: () => void;
+    onDrawStart: (
+        shapeType: ShapeType.POLYGON,
+        labelID: number,
+        objectType: ObjectType,
+        points?: number,
+        rectDrawingMethod?: RectDrawingMethod,
+        cuboidDrawingMethod?: CuboidDrawingMethod
+    ) => void;
     workspace: Workspace;
     automaticBordering: boolean;
     showObjectsTextAlways: boolean;
@@ -161,6 +173,12 @@ function viewSizeReducer(
 
 const CanvasWrapperComponent = (props: Props): ReactElement => {
     const animateId = useRef(0);
+    const [showSelectionModeButton, setShowSelectionModeButton] = useState(false);
+    const [selectionMode, setSelectionMode] = useState(null);
+    const annotationsRef = useRef([] as any[]);
+    const selectionModeRef = useRef(null);
+    const activatedStateIDRef: any = useRef(null);
+
     const [viewSize, setViewSize] = useReducer(viewSizeReducer, {
         fullHeight: 0,
         fullWidth: 0,
@@ -188,16 +206,66 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         frame,
         jobInstance,
         activeLabelID,
+        activatedStateID,
         activeObjectType,
         onShapeDrawn,
         onCreateAnnotations,
         frameFetching,
     } = props;
     const { canvasInstance } = props as { canvasInstance: Canvas3d };
+    const { canvasInstanceSelection } = props as { canvasInstanceSelection: Canvas };
 
     const onCanvasSetup = (): void => {
         onSetupCanvas();
     };
+
+    // 检测到2d polygon有新的多边形
+    const onSelectShapeDrawn = (event: any) => {
+        const { state, duration } = event.detail;
+        const canvasInstance2DDOM = canvasInstanceSelection.html();
+        if (selectionModeRef.current !== null) {
+            state.clientID = Number(activatedStateIDRef.current);
+            state.selectMode = selectionModeRef.current;
+            canvasInstance.updateSegmentAnnotation(state);
+            setSelectionMode(null);
+            canvasInstance2DDOM.style.pointerEvents = 'none';
+            return
+        }
+        state.objectType = state.objectType || activeObjectType;
+        state.label = state.label || jobInstance.labels.filter((label: any) => label.id === activeLabelID)[0];
+        state.occluded = state.occluded || false;
+        state.frame = frame;
+        canvasInstance.createConvexHull(state);
+        canvasInstance2DDOM.style.pointerEvents = 'none';
+    }
+
+    // 3d 画布返回新的标注
+    const onPolygonSelect = (event: any): void => {
+        const { onUpdateAnnotations } = props;
+        const { state, points, polygon } = event.detail;
+        // canvasInstanceSelection.add2DPolygon(polygon, state);
+        const canvasInstance2DDOM = canvasInstanceSelection.html();
+        if (state.clientID) {  // update
+            state.points = points;
+            state.amountPoints = points.length;
+            onUpdateAnnotations([state], false);
+        } else { // create
+            state.points = points;
+            state.amountPoints = points.length || 0;
+            state.objectType = state.objectType || activeObjectType;
+            state.label = state.label || jobInstance.labels.filter((label: any) => label.id === activeLabelID)[0];
+            state.occluded = state.occluded || false;
+            state.frame = frame;
+            state.zOrder = 0;
+            const objectState = new cvat.classes.ObjectState(state);
+            onCreateAnnotations(jobInstance, frame, [objectState]);
+            canvasInstance2DDOM.style.pointerEvents = 'none';
+            onShapeDrawn();
+        }
+          // add this to end drawing
+
+        // canvasInstanceSelection.fitCanvas();
+    }
 
     const onCanvasDragStart = (): void => {
         const { onDragCanvas } = props;
@@ -240,6 +308,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
             jobInstance.logger.log(LogType.pasteObject, { count: 1, duration });
         }
 
+        state.amountPoints = state.amountPoints || 0;
         state.objectType = state.objectType || activeObjectType;
         state.label = state.label || jobInstance.labels.filter((label: any) => label.id === activeLabelID)[0];
         state.occluded = state.occluded || false;
@@ -275,22 +344,37 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     };
 
     const onCanvasShapeSelected = (event: any): void => {
+        canvasInstanceSelection.clearScene();
         const { onActivateObject } = props;
-        const { clientID } = event.detail;
+        const { clientID, state, points } = event.detail;
         onActivateObject(clientID);
         canvasInstance.activate(clientID);
+
+        if (state && points) {
+            canvasInstanceSelection.add2DPolygon(points, state)
+        }
     };
+
+    const onCanvasSetupObjects = (event: any): void => {
+        canvasInstanceSelection.clearScene();
+    }
 
     const onCanvasEditDone = (event: any): void => {
         const { onEditShape, onUpdateAnnotations } = props;
         onEditShape(false);
-        const { state, points } = event.detail;
+        const { state, points, amountPoints } = event.detail;
+        // to prevent updating when nothing change
+        if (state.points.join(",") === points.join(",")) {
+            return;
+        }
         state.points = points;
-        onUpdateAnnotations([state]);
+        state.amountPoints = amountPoints;
+        onUpdateAnnotations([state], false);
     };
 
     useEffect(() => {
         const canvasInstanceDOM = canvasInstance.html();
+        const canvasInstance2DDOM = canvasInstanceSelection.html();
         if (
             perspectiveView &&
             perspectiveView.current &&
@@ -302,6 +386,8 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
             frontView.current
         ) {
             perspectiveView.current.appendChild(canvasInstanceDOM.perspective);
+            perspectiveView.current.appendChild(canvasInstance2DDOM);
+
             topView.current.appendChild(canvasInstanceDOM.top);
             sideView.current.appendChild(canvasInstanceDOM.side);
             frontView.current.appendChild(canvasInstanceDOM.front);
@@ -328,6 +414,19 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         initialSetup();
         updateCanvas();
         animateCanvas();
+
+        const canvas2d = canvasInstanceSelection.html();
+        canvas2d.style.backgroundColor = 'rgba(0, 0, 0, 0)';
+        canvas2d.style.position = 'absolute';
+        canvas2d.style.top = '0';
+        canvas2d.style.pointerEvents = 'none';
+        canvas2d.style.margin = '5px 0px 0px';
+
+        // canvas2d.style.display = 'none'
+        (canvasInstanceSelection as Canvas).configure({
+            creationOpacity: 0.2,
+        });
+        canvasInstanceSelection.fitCanvas();
 
         return () => {
             canvasInstanceDOM.perspective.removeEventListener('canvas.setup', onCanvasSetup);
@@ -381,7 +480,61 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     }, [opacity, outlined, outlineColor, selectedOpacity, colorBy]);
 
     useEffect(() => {
+        if (activatedStateID === null) {
+            setShowSelectionModeButton(false);
+            return;
+        }
+        const clientID = Number(activatedStateID);
+        const [state] = annotations.filter((annotation: any) => annotation.clientID === clientID);
+        if (!state) return;
+        if ([ShapeType.POLYGON].includes(state.shapeType)) {
+            setShowSelectionModeButton(true);
+            setSelectionMode(null);
+        } else {
+            setShowSelectionModeButton(false);
+        }
+
+    }, [activatedStateID])
+
+    useEffect(() => {
+        const { onDrawStart } = props;
+        selectionModeRef.current = selectionMode;
+        if (showSelectionModeButton === false ||
+            selectionMode === null ||
+            activatedStateID === null
+        ) {
+            return;
+        }
+
+        const clientID = Number(activatedStateID);
+        const [state] = annotations.filter((annotation: any) => annotation.clientID === clientID);
+        if (!state) return;
+
+        canvasInstanceSelection.html().style.pointerEvents = 'inherit';
+        canvasInstanceSelection.draw({
+            enabled: false
+        })
+        canvasInstanceSelection.draw({
+            enabled: true,
+            rectDrawingMethod: RectDrawingMethod.CLASSIC,
+            cuboidDrawingMethod: CuboidDrawingMethod.CLASSIC,
+            shapeType: ShapeType.POLYGON,
+            crosshair: true,
+            customClassName: 'cvat_canvas_shape_drawing_3d_select',
+        });
+        // onDrawStart(ShapeType.POLYGON, 0, ObjectType.SHAPE);
+
+    }, [selectionMode])
+
+    useEffect(() => {
+        annotationsRef.current = annotations;
+        activatedStateIDRef.current = activatedStateID;
+    }, [annotations, activatedStateID])
+
+    useEffect(() => {
         const canvasInstanceDOM = canvasInstance.html() as ViewsDOM;
+        const canvasInstance2DDOM = canvasInstanceSelection.html();
+        canvasInstanceSelection.clearScene(); // 清除2D画布
         updateCanvas();
         canvasInstanceDOM.perspective.addEventListener('canvas.drawn', onCanvasShapeDrawn);
         canvasInstanceDOM.perspective.addEventListener('canvas.selected', onCanvasShapeSelected);
@@ -390,7 +543,12 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         canvasInstanceDOM.perspective.addEventListener('click', onCanvasClick);
         canvasInstanceDOM.perspective.addEventListener('canvas.fit', onResize);
         canvasInstanceDOM.perspective.addEventListener('canvas.groupped', onCanvasObjectsGroupped);
+        canvasInstanceDOM.perspective.addEventListener('canvas.polyselect', onPolygonSelect);
+        canvasInstanceDOM.perspective.addEventListener('canvas.polygonselect', onCanvasShapeSelected);
+        canvasInstanceDOM.perspective.addEventListener('canvas.setupobjects', onCanvasSetupObjects);
+        canvasInstance2DDOM.addEventListener('canvas.drawn', onSelectShapeDrawn);
         window.addEventListener('resize', onResize);
+
 
         return () => {
             canvasInstanceDOM.perspective.removeEventListener('canvas.drawn', onCanvasShapeDrawn);
@@ -400,6 +558,10 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
             canvasInstanceDOM.perspective.removeEventListener('click', onCanvasClick);
             canvasInstanceDOM.perspective.removeEventListener('canvas.fit', onResize);
             canvasInstanceDOM.perspective.removeEventListener('canvas.groupped', onCanvasObjectsGroupped);
+            canvasInstanceDOM.perspective.removeEventListener('canvas.polyselect', onPolygonSelect);
+            canvasInstanceDOM.perspective.removeEventListener('canvas.polygonselect', onCanvasShapeSelected);
+            canvasInstanceDOM.perspective.removeEventListener('canvas.setupobjects', onCanvasSetupObjects);
+            canvasInstance2DDOM.removeEventListener('canvas.drawn', onSelectShapeDrawn);
             window.removeEventListener('resize', onResize);
         };
     }, [frameData, annotations, activeLabelID, contextMenuVisibility]);
@@ -407,6 +569,16 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     const screenKeyControl = (code: CameraAction, altKey: boolean, shiftKey: boolean): void => {
         canvasInstance.keyControls(new KeyboardEvent('keydown', { code, altKey, shiftKey }));
     };
+
+    const SelectionModeGroup = (): ReactElement => (
+        <span className='cvat-canvas3d-perspective-selection-mode'>
+            <Radio.Group size='small' value={selectionMode} onChange={e => setSelectionMode(e.target.value)}>
+                <Radio.Button value="add"><IoAdd /></Radio.Button>
+                <Radio.Button value="toggle"><TbLayersIntersect2 /></Radio.Button>
+                <Radio.Button value="remove"><IoRemove /></Radio.Button>
+            </Radio.Group>
+        </span>
+    )
 
     const ArrowGroup = (): ReactElement => (
         <span className='cvat-canvas3d-perspective-arrow-directions'>
@@ -624,7 +796,14 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
 
     return (
         <Row style={{ width: '100%', height: '100%' }}>
-            <Col span={6} style={{ height: '100%', overflow: 'scroll' }}>
+            <div id='select-box' style={{
+                display: 'none',
+                position: 'absolute',
+                border: '1px solid #55aaff',
+                backgroundColor: 'rgba(75, 160, 255, 0.3)',
+                zIndex: 1,
+            }} />
+            <Col span={6} style={{ height: '100%' }}>
                 {/* <ResizableBox
                     className='cvat-resizable'
                     height={viewSize.fullHeight}
@@ -632,7 +811,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
                     axis='x'
                     handle={<span className='cvat-resizable-handle-vertical-side' />}
                 > */}
-                    <ContextImage />
+                <ContextImage />
                 {/* </ResizableBox> */}
             </Col>
             <Col span={18} >
@@ -657,6 +836,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
                             <ThemeGroup />
                             <TransformControl />
                             <ControlGroup />
+                            {showSelectionModeButton && <SelectionModeGroup />}
                         </div>
                     </ResizableBox>
                     <div

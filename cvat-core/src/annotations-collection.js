@@ -138,7 +138,6 @@
             };
 
             for (const tag of data.tags) {
-                const clientID = ++this.count;
                 const color = colors[clientID % colors.length];
                 const tagModel = new Tag(tag, clientID, color, this.injection);
                 this.tags[tagModel.frame] = this.tags[tagModel.frame] || [];
@@ -149,7 +148,15 @@
             }
 
             for (const shape of data.shapes) {
-                const clientID = ++this.count;
+                let clientID;
+                if (shape.client_proj_id) {
+                    clientID = shape.client_proj_id;
+                    this.count = Math.max(shape.client_proj_id, this.count)
+                }
+                else {
+                    clientID = ++this.count;
+                }
+                // const clientID = ++this.count;
                 const shapeModel = shapeFactory(shape, clientID, this.injection);
                 this.shapes[shapeModel.frame] = this.shapes[shapeModel.frame] || [];
                 this.shapes[shapeModel.frame].push(shapeModel);
@@ -192,7 +199,6 @@
                     .filter((tag) => !tag.removed)
                     .map((tag) => tag.toJSON()),
             };
-
             return data;
         }
 
@@ -794,6 +800,7 @@
                             type: state.shapeType,
                             z_order: state.zOrder,
                             source: state.source,
+                            amount_points: state.amountPoints,
                         });
                     } else if (state.objectType === 'track') {
                         constructed.tracks.push({

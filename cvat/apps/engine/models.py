@@ -227,6 +227,14 @@ class Image(models.Model):
     class Meta:
         default_permissions = ()
 
+class CameraParam(models.Model):
+    data = models.ForeignKey(Data, on_delete=models.CASCADE, related_name="camera_param", null=True)
+    path = models.CharField(max_length=1024, default='')
+    frame = models.PositiveIntegerField()
+
+    class Meta:
+        default_permissions = ()
+
 class Project(models.Model):
 
     name = SafeCharField(max_length=256)
@@ -357,7 +365,18 @@ class RelatedFile(models.Model):
     data = models.ForeignKey(Data, on_delete=models.CASCADE, related_name="related_files", default=1, null=True)
     path = models.FileField(upload_to=upload_path_handler,
                             max_length=1024, storage=MyFileSystemStorage())
+    order = models.IntegerField(default=-1)
     primary_image = models.ForeignKey(Image, on_delete=models.CASCADE, related_name="related_files", null=True)
+
+    class Meta:
+        default_permissions = ()
+        unique_together = ("data", "path")
+
+class RelatedCameraParamFile(models.Model):
+    data = models.ForeignKey(Data, on_delete=models.CASCADE, related_name="related_camera_files", default=1, null=True)
+    path = models.FileField(upload_to=upload_path_handler,
+                            max_length=1024, storage=MyFileSystemStorage())
+    primary_camera_param = models.ForeignKey(CameraParam, on_delete=models.CASCADE, related_name="related_camera_files", null=True)
 
     class Meta:
         default_permissions = ()
@@ -549,6 +568,10 @@ class Shape(models.Model):
     z_order = models.IntegerField(default=0)
     points = FloatArrayField()
     rotation = FloatField(default=0)
+    context_index = models.IntegerField(default=-1)
+    modified_2d = models.BooleanField(default=False)
+    client_proj_id = models.IntegerField(default=-1)
+    amount_points = models.IntegerField(default=-1)
 
     class Meta:
         abstract = True

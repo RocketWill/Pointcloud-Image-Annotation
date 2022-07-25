@@ -29,7 +29,7 @@ from cvat.apps.engine.media_extractors import (MEDIA_TYPES, Mpeg4ChunkWriter, Mp
 from cvat.apps.engine.utils import av_scan_paths
 from utils.dataset_manifest import ImageManifestManager, VideoManifestManager, is_manifest
 from utils.dataset_manifest.core import VideoManifestValidator
-from utils.dataset_manifest.utils import detect_related_images
+from utils.dataset_manifest.utils import detect_related_images, detect_camera_params
 from .cloud_provider import get_cloud_storage_instance, Credentials
 
 ############################# Low Level server API
@@ -345,6 +345,7 @@ def _create_thread(db_task, data, isBackupRestore=False, isDatasetImport=False):
     job.save_meta()
 
     db_images = []
+    db_camera_params = []
     extractor = None
     manifest_index = _get_manifest_frame_indexer()
 
@@ -422,9 +423,11 @@ def _create_thread(db_task, data, isBackupRestore=False, isDatasetImport=False):
         )
 
     related_images = {}
+    camera_params = {}
     if isinstance(extractor, MEDIA_TYPES['image']['extractor']):
         extractor.filter(lambda x: not re.search(r'(^|{0})related_images{0}'.format(os.sep), x))
         related_images = detect_related_images(extractor.absolute_source_paths, upload_dir)
+        camera_params = detect_camera_params(extractor.absolute_source_paths, upload_dir)
 
     if isBackupRestore and not isinstance(extractor, MEDIA_TYPES['video']['extractor']) and db_data.storage_method == models.StorageMethodChoice.CACHE and \
             db_data.sorting_method in {models.SortingMethod.RANDOM, models.SortingMethod.PREDEFINED} and validate_dimension.dimension != models.DimensionType.DIM_3D:
@@ -572,9 +575,11 @@ def _create_thread(db_task, data, isBackupRestore=False, isDatasetImport=False):
                 db_data.size = len(extractor)
                 manifest = ImageManifestManager(db_data.get_manifest_path())
                 if not manifest_file:
+                    meta = { r: {'related_images': related_images[r], 'camera_params': camera_params[c] } \
+                         for r, c in zip(related_images, camera_params) }
                     manifest.link(
                         sources=extractor.absolute_source_paths,
-                        meta={ k: {'related_images': related_images[k] } for k in related_images },
+                        meta=meta,
                         data_dir=upload_dir,
                         DIM_3D=(db_task.dimension == models.DimensionType.DIM_3D),
                     )
@@ -605,11 +610,20 @@ def _create_thread(db_task, data, isBackupRestore=False, isDatasetImport=False):
                         for (path, frame), (w, h) in zip(chunk_paths, img_sizes)
                     ])
 
+                    db_camera_params.extend([
+                        models.CameraParam(
+                            data=db_data,
+                            path=os.path.relpath(path, upload_dir),
+                            frame=frame)
+                        for (path, frame) in chunk_paths
+                    ])
+
     if db_data.storage_method == models.StorageMethodChoice.FILE_SYSTEM or not settings.USE_CACHE:
         counter = itertools.count()
         generator = itertools.groupby(extractor, lambda x: next(counter) // db_data.chunk_size)
         for chunk_idx, chunk_data in generator:
             chunk_data = list(chunk_data)
+            chunk_data.sort()
             original_chunk_path = db_data.get_original_chunk_path(chunk_idx)
             original_chunk_writer.save_as_chunk(chunk_data, original_chunk_path)
 
@@ -624,9 +638,15 @@ def _create_thread(db_task, data, isBackupRestore=False, isDatasetImport=False):
                         frame=data[2],
                         width=size[0],
                         height=size[1])
-
                     for data, size in zip(chunk_data, img_sizes)
                 ])
+                db_camera_params.extend([
+                        models.CameraParam(
+                            data=db_data,
+                            path=os.path.relpath(path, upload_dir),
+                            frame=frame)
+                        for (path, frame) in chunk_paths
+                    ])
             else:
                 video_size = img_sizes[0]
                 video_path = chunk_data[0][1]
@@ -638,13 +658,23 @@ def _create_thread(db_task, data, isBackupRestore=False, isDatasetImport=False):
     if db_task.mode == 'annotation':
         models.Image.objects.bulk_create(db_images)
         created_images = models.Image.objects.filter(data_id=db_data.id)
+        models.CameraParam.objects.bulk_create(db_camera_params)
+        created_camera_params = models.CameraParam.objects.filter(data_id=db_data.id)
+        for key in related_images.keys():
+            related_images[key] = sorted(related_images[key])
 
         db_related_files = [
-            models.RelatedFile(data=image.data, primary_image=image, path=os.path.join(upload_dir, related_file_path))
-            for image in created_images
-            for related_file_path in related_images.get(image.path, [])
+            models.RelatedFile(data=image.data, primary_image=image, path=os.path.join(upload_dir, related_file_path), order=j)
+            for i, image in enumerate(created_images)
+            for j, related_file_path in enumerate(related_images.get(image.path, []))
+        ]
+        db_camera_params = [
+            models.RelatedCameraParamFile(data=cam_param.data, primary_camera_param=cam_param, path=os.path.join(upload_dir, related_file_path))
+            for cam_param in created_camera_params
+            for related_file_path in camera_params.get(cam_param.path, [])
         ]
         models.RelatedFile.objects.bulk_create(db_related_files)
+        models.RelatedCameraParamFile.objects.bulk_create(db_camera_params)
         db_images = []
     else:
         models.Video.objects.create(

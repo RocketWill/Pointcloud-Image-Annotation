@@ -76,6 +76,7 @@ export interface DrawData {
     initialState?: any;
     crosshair?: boolean;
     redraw?: number;
+    customClassName?: string | undefined;
 }
 
 export interface InteractionData {
@@ -195,6 +196,7 @@ export interface CanvasModel {
     setup(frameData: any, objectStates: any[], zLayer: number): void;
     setupIssueRegions(issueRegions: Record<number, { hidden: boolean; points: number[] }>): void;
     activate(clientID: number | null, attributeID: number | null): void;
+    setActivatedShapeType(shapeType: 'cuboid' | 'rectangle' | null): void;
     rotate(rotationAngle: number): void;
     focus(clientID: number, padding: number): void;
     fit(): void;
@@ -220,6 +222,7 @@ export interface CanvasModel {
 }
 
 export class CanvasModelImpl extends MasterImpl implements CanvasModel {
+    private activatedShapeType: 'cuboid' | 'rectangle' | null;
     private data: {
         activeElement: ActiveElement;
         angle: number;
@@ -250,7 +253,7 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
 
     public constructor() {
         super();
-
+        this.activatedShapeType = null;
         this.data = {
             activeElement: {
                 clientID: null,
@@ -311,6 +314,10 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
             mode: Mode.IDLE,
             exception: null,
         };
+    }
+
+    public setActivatedShapeType(shapeType: 'cuboid' | 'rectangle' | null): void {
+        this.activatedShapeType = shapeType;
     }
 
     public zoom(x: number, y: number, direction: number): void {
@@ -461,7 +468,14 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
         }
 
         if (typeof clientID === 'number') {
-            const [state] = this.objects.filter((_state: any): boolean => _state.clientID === clientID);
+            let [state] = this.objects.filter((_state: any): boolean => _state.clientID === clientID);
+            if (this.activatedShapeType !== null) {
+                [state] = this.objects.filter(
+                    (_state: any): boolean =>
+                        _state.clientID === clientID &&
+                        _state.shapeType === this.activatedShapeType
+                );
+            }
             if (!state || state.objectType === 'tag') {
                 return;
             }
@@ -545,8 +559,14 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
 
         if (typeof drawData.redraw === 'number') {
             const clientID = drawData.redraw;
-            const [state] = this.data.objects.filter((_state: any): boolean => _state.clientID === clientID);
-
+            let [state] = this.data.objects.filter((_state: any): boolean => _state.clientID === clientID);
+            if (this.activatedShapeType !== null) {
+                [state] = this.data.objects.filter(
+                    (_state: any): boolean =>
+                        _state.clientID === clientID &&
+                        _state.shapeType === this.activatedShapeType
+                );
+            }
             if (state) {
                 this.data.drawData = { ...drawData };
                 this.data.drawData.shapeType = state.shapeType;
@@ -568,6 +588,10 @@ export class CanvasModelImpl extends MasterImpl implements CanvasModel {
             if (drawData.shapeType === 'cuboid') {
                 this.data.drawData.cuboidDrawingMethod = drawData.cuboidDrawingMethod || CuboidDrawingMethod.CLASSIC;
             }
+        }
+
+        if (drawData.customClassName) {
+            this.data.drawData.customClassName = drawData.customClassName;
         }
 
         this.notify(UpdateReasons.DRAW);

@@ -29,6 +29,7 @@ interface DispatchToProps {
 interface StateToProps {
     normalizedKeyMap: Record<string, string>;
     canvasInstance: Canvas;
+    canvasInstanceSelection: Canvas;
     shapeType: ShapeType;
     labels: any[];
     jobInstance: any;
@@ -61,7 +62,7 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
 function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
     const {
         annotation: {
-            canvas: { instance: canvasInstance },
+            canvas: { instance: canvasInstance, instanceSelection: canvasInstanceSelection },
             job: { labels, instance: jobInstance },
         },
         shortcuts: { normalizedKeyMap },
@@ -70,6 +71,7 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
     return {
         ...own,
         canvasInstance: canvasInstance as Canvas,
+        canvasInstanceSelection: canvasInstanceSelection as Canvas,
         labels,
         normalizedKeyMap,
         jobInstance,
@@ -111,12 +113,14 @@ class DrawShapePopoverContainer extends React.PureComponent<Props, State> {
     }
 
     private onDraw(objectType: ObjectType): void {
-        const { canvasInstance, shapeType, onDrawStart } = this.props;
+        const { canvasInstance, canvasInstanceSelection, shapeType, onDrawStart } = this.props;
 
         const {
             rectDrawingMethod, cuboidDrawingMethod, numberOfPoints, selectedLabelID,
         } = this.state;
 
+        canvasInstanceSelection.cancel();
+        canvasInstanceSelection.html().style.pointerEvents = 'none';
         canvasInstance.cancel();
         canvasInstance.draw({
             enabled: true,

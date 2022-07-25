@@ -6,11 +6,17 @@ ARG no_proxy="nuclio,${no_proxy}"
 ARG socks_proxy
 ARG DJANGO_CONFIGURATION="production"
 
+
+RUN  sed -i s@/archive.ubuntu.com/@/mirrors.aliyun.com/@g /etc/apt/sources.list
+RUN  apt-get clean
+RUN apt-get update
+
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends install -yq \
         apache2-dev \
         build-essential \
         curl \
+        libgeos-dev \
         libldap2-dev \
         libsasl2-dev \
         nasm \
@@ -18,7 +24,9 @@ RUN apt-get update && \
         pkg-config \
         python3-dev \
         python3-pip \
-        python3-venv && \
+        python3-venv \
+        libglib2.0-0 \
+        libusb-1.0-0 && \
     rm -rf /var/lib/apt/lists/*
 
 # Compile Openh264 and FFmpeg
@@ -34,7 +42,8 @@ RUN curl -sL https://github.com/cisco/openh264/archive/v${OPENH264_VERSION}.tar.
     make -j5 && make install PREFIX=${PREFIX} && make clean
 
 WORKDIR /tmp/ffmpeg
-RUN curl -sL https://ffmpeg.org/releases/ffmpeg-${FFMPEG_VERSION}.tar.bz2 --output - | \
+# COPY ffmpeg-4.3.1.tar.bz2 /tmp/ffmpeg
+RUN curl -sL http://8.210.82.152/static/ffmpeg-4.3.1.tar.bz2 --output - | \
     tar -jx --strip-components=1 && \
     ./configure --disable-nonfree --disable-gpl --enable-libopenh264 --enable-shared --disable-static --prefix="${PREFIX}" && \
     # make clean keeps the configuration files that let to know how the original sources were used to create the binary
@@ -46,7 +55,7 @@ RUN python3 -m venv /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}"
 RUN python3 -m pip install --no-cache-dir -U pip==22.0.2 setuptools==60.6.0 wheel==0.37.1
 COPY cvat/requirements/ /tmp/requirements/
-RUN DATUMARO_HEADLESS=1 python3 -m pip install --no-cache-dir -r /tmp/requirements/${DJANGO_CONFIGURATION}.txt
+RUN DATUMARO_HEADLESS=1 python3 -m pip install --no-cache-dir -r /tmp/requirements/${DJANGO_CONFIGURATION}.txt -i https://pypi.douban.com/simple/
 
 
 FROM ubuntu:20.04
@@ -70,12 +79,17 @@ ARG USER="django"
 ARG DJANGO_CONFIGURATION="production"
 ENV DJANGO_CONFIGURATION=${DJANGO_CONFIGURATION}
 
+RUN  sed -i s@/archive.ubuntu.com/@/mirrors.aliyun.com/@g /etc/apt/sources.list
+RUN  apt-get clean
+RUN apt-get update
+
 # Install necessary apt packages
 RUN apt-get update && \
     DEBIAN_FRONTEND=noninteractive apt-get --no-install-recommends install -yq \
         apache2 \
         ca-certificates \
         libapache2-mod-xsendfile \
+        libgeos-dev \
         libgomp1 \
         libgl1 \
         supervisor \
@@ -89,6 +103,8 @@ RUN apt-get update && \
         git-lfs \
         poppler-utils \
         ssh \
+        libglib2.0-0 \
+        libusb-1.0-0 \
         curl && \
     ln -fs /usr/share/zoneinfo/${TZ} /etc/localtime && \
     dpkg-reconfigure -f noninteractive tzdata && \

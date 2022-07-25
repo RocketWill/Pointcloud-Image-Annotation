@@ -188,9 +188,18 @@ export function createRotationHelper(instance: THREE.Mesh, viewType: ViewType): 
             instance.userData = { ...instance.userData, rotationHelpers: rotationHelper.clone() };
             break;
         case ViewType.SIDE:
-        case ViewType.FRONT:
             rotationHelper.position.set(
                 instance.position.x,
+                instance.position.y + instance.scale.y / 2 - 0.2,
+                (instance.geometry as THREE.BoxGeometry).parameters.depth / 2 + constants.ROTATION_HELPER_OFFSET + 0.1,
+            );
+            instance.add(rotationHelper.clone());
+            // eslint-disable-next-line no-param-reassign
+            instance.userData = { ...instance.userData, rotationHelpers: rotationHelper.clone() };
+            break;
+        case ViewType.FRONT:
+            rotationHelper.position.set(
+                instance.position.x + instance.scale.x / 2,
                 instance.position.y,
                 (instance.geometry as THREE.BoxGeometry).parameters.depth / 2 + constants.ROTATION_HELPER_OFFSET,
             );

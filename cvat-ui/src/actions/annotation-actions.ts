@@ -200,6 +200,16 @@ export enum AnnotationActionTypes {
     GET_CAMERA_PARAM = 'GET_CAMERA_PARAM',
     GET_CAMERA_PARAM_SUCCESS = 'GET_CAMERA_PARAM_SUCCESS',
     GET_CAMERA_PARAM_FAILED = 'GET_CAMERA_PARAM_FAILED',
+    CREATE_PROJECTION_ANNOTATIONS_SUCCESS = 'CREATE_PROJECTION_ANNOTATIONS_SUCCESS',
+    CREATE_PROJECTION_ANNOTATIONS_FAILED = 'CREATE_PROJECTION_ANNOTATIONS_FAILED',
+    UPDATE_PROJECTION_ANNOTATIONS_SUCCESS = 'UPDATE_PROJECTION_ANNOTATIONS_SUCCESS',
+    UPDATE_PROJECTION_ANNOTATIONS_FAILED = 'UPDATE_PROJECTION_ANNOTATIONS_FAILED',
+    SAVE_UPDATE_PROJECTION_ANNOTATIONS_STATUS = 'SAVE_UPDATE_PROJECTION_ANNOTATIONS_STATUS',
+    SAVE_PROJECTION_ANNOTATIONS_SUCCESS = 'SAVE_PROJECTION_ANNOTATIONS_SUCCESS',
+    SAVE_PROJECTION_ANNOTATIONS_FAILED = 'SAVE_PROJECTION_ANNOTATIONS_FAILED',
+    REMOVE_PROJECTION_OBJECT_SUCCESS = 'REMOVE_PROJECTION_OBJECT_SUCCESS',
+    REMOVE_PROJECTION_OBJECT_FAILED = 'REMOVE_PROJECTION_OBJECT_FAILED',
+    UPDATE_CANVAS_CONTEXT_CONTEXT_MENU = 'UPDATE_CANVAS_CONTEXT_CONTEXT_MENU',
 }
 
 export function saveLogsAsync(): ThunkAction {
@@ -262,6 +272,7 @@ export function fetchAnnotationsAsync(): ThunkAction {
                 filters, frame, showAllInterpolationTracks, jobInstance,
             } = receiveAnnotationsParameters();
             const states = await jobInstance.annotations.get(frame, showAllInterpolationTracks, filters);
+            const projectionStates = await jobInstance.annotations.getProjection(frame, filters);
             const history = await jobInstance.actions.get();
             const [minZ, maxZ] = computeZRange(states);
 
@@ -269,6 +280,7 @@ export function fetchAnnotationsAsync(): ThunkAction {
                 type: AnnotationActionTypes.FETCH_ANNOTATIONS_SUCCESS,
                 payload: {
                     states,
+                    projectionStates,
                     history,
                     minZ,
                     maxZ,
@@ -306,6 +318,27 @@ export function updateCanvasContextMenu(
             left,
             top,
             type,
+            pointID,
+        },
+    };
+}
+
+export function updateCanvasContextContextMenu(
+    visible: boolean,
+    left: number,
+    top: number,
+    contextIndex: number,
+    pointID: number | null = null,
+    type?: ContextMenuType,
+): AnyAction {
+    return {
+        type: AnnotationActionTypes.UPDATE_CANVAS_CONTEXT_CONTEXT_MENU,
+        payload: {
+            visible,
+            left,
+            top,
+            type,
+            contextIndex,
             pointID,
         },
     };
@@ -547,6 +580,37 @@ export function removeObjectAsync(sessionInstance: any, objectState: any, force:
     };
 }
 
+export function removeProjectionObjectAsync(sessionInstance: any, objectState: any, force: boolean): ThunkAction {
+    return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
+        try {
+            await sessionInstance.logger.log(LogType.deleteObject, { count: 1 });
+            const { frame } = receiveAnnotationsParameters();
+
+            const removed = await objectState.delete(frame, force);
+            const history = await sessionInstance.actions.get();
+
+            if (removed) {
+                dispatch({
+                    type: AnnotationActionTypes.REMOVE_PROJECTION_OBJECT_SUCCESS,
+                    payload: {
+                        objectState,
+                        history,
+                    },
+                });
+            } else {
+                throw new Error('Could not remove the locked object');
+            }
+        } catch (error) {
+            dispatch({
+                type: AnnotationActionTypes.REMOVE_PROJECTION_OBJECT_FAILED,
+                payload: {
+                    error,
+                },
+            });
+        }
+    };
+}
+
 export function editShape(enabled: boolean): AnyAction {
     return {
         type: AnnotationActionTypes.EDIT_SHAPE,
@@ -719,6 +783,7 @@ export function changeFrameAsync(
                         delay: currentState.annotation.player.frame.delay,
                         changeTime: currentState.annotation.player.frame.changeTime,
                         states: currentState.annotation.annotations.states,
+                        projectionStates: currentState.annotation.annotations.projectionStates,
                         minZ: currentState.annotation.annotations.zLayer.min,
                         maxZ: currentState.annotation.annotations.zLayer.max,
                         curZ: currentState.annotation.annotations.zLayer.cur,
@@ -738,6 +803,7 @@ export function changeFrameAsync(
 
             const data = await job.frames.get(toFrame, fillBuffer, frameStep);
             const states = await job.annotations.get(toFrame, showAllInterpolationTracks, filters);
+            const projectionStates = await job.annotations.getProjection(toFrame, filters);
 
             if (!isAbleToChangeFrame()) {
                 // while doing async actions above, canvas can become used by a user in another way
@@ -782,6 +848,7 @@ export function changeFrameAsync(
                     filename: data.filename,
                     hasRelatedContext: data.hasRelatedContext,
                     states,
+                    projectionStates,
                     minZ,
                     maxZ,
                     curZ: maxZ,
@@ -825,6 +892,7 @@ export function undoActionAsync(sessionInstance: any, frame: number): ThunkActio
             await sessionInstance.actions.undo();
             const history = await sessionInstance.actions.get();
             const states = await sessionInstance.annotations.get(frame, showAllInterpolationTracks, filters);
+            const projectionStates = await sessionInstance.annotations.getProjection(frame, filters);
             const [minZ, maxZ] = computeZRange(states);
             await undoLog.close();
 
@@ -833,6 +901,7 @@ export function undoActionAsync(sessionInstance: any, frame: number): ThunkActio
                 payload: {
                     history,
                     states,
+                    projectionStates,
                     minZ,
                     maxZ,
                 },
@@ -874,6 +943,7 @@ export function redoActionAsync(sessionInstance: any, frame: number): ThunkActio
             await sessionInstance.actions.redo();
             const history = await sessionInstance.actions.get();
             const states = await sessionInstance.annotations.get(frame, showAllInterpolationTracks, filters);
+            const projectionStates = await sessionInstance.annotations.getProjection(frame, filters);
             const [minZ, maxZ] = computeZRange(states);
             await redoLog.close();
 
@@ -882,6 +952,7 @@ export function redoActionAsync(sessionInstance: any, frame: number): ThunkActio
                 payload: {
                     history,
                     states,
+                    projectionStates,
                     minZ,
                     maxZ,
                 },
@@ -1035,6 +1106,7 @@ export function getJobAsync(tid: number, jid: number, initialFrame: number, init
                 });
             }
             const states = await job.annotations.get(frameNumber, showAllInterpolationTracks, filters);
+            const projectionStates = await job.annotations.getProjection(frameNumber, filters);
             const issues = await job.issues();
             const [minZ, maxZ] = computeZRange(states);
             const colors = [...cvat.enums.colors];
@@ -1049,6 +1121,7 @@ export function getJobAsync(tid: number, jid: number, initialFrame: number, init
                     job,
                     issues,
                     states,
+                    projectionStates,
                     frameNumber,
                     frameFilename: frameData.filename,
                     frameHasRelatedContext: frameData.hasRelatedContext,
@@ -1126,12 +1199,24 @@ export function saveAnnotationsAsync(sessionInstance: any, afterSave?: () => voi
                     },
                 });
             });
+            // for 3d annotation, save projections
+            await sessionInstance.annotations.saveProjection((status: string) => {
+                dispatch({
+                    type: AnnotationActionTypes.SAVE_UPDATE_PROJECTION_ANNOTATIONS_STATUS,
+                    payload: {
+                        status,
+                    },
+                });
+            });
+
             await saveJobEvent.close();
             await sessionInstance.logger.log(LogType.sendTaskInfo, await jobInfoGenerator(sessionInstance));
             dispatch(saveLogsAsync());
 
             const { frame } = receiveAnnotationsParameters();
             const states = await sessionInstance.annotations.get(frame, showAllInterpolationTracks, filters);
+            const projectionStates = await sessionInstance.annotations.getProjection(frame, filters);
+
             if (typeof afterSave === 'function') {
                 afterSave();
             }
@@ -1147,9 +1232,21 @@ export function saveAnnotationsAsync(sessionInstance: any, afterSave?: () => voi
                     states,
                 },
             });
+            dispatch({
+                type: AnnotationActionTypes.SAVE_PROJECTION_ANNOTATIONS_SUCCESS,
+                payload: {
+                    projectionStates,
+                },
+            });
         } catch (error) {
             dispatch({
                 type: AnnotationActionTypes.SAVE_ANNOTATIONS_FAILED,
+                payload: {
+                    error,
+                },
+            });
+            dispatch({
+                type: AnnotationActionTypes.SAVE_PROJECTION_ANNOTATIONS_FAILED,
                 payload: {
                     error,
                 },
@@ -1216,7 +1313,7 @@ export function splitTrack(enabled: boolean): AnyAction {
     };
 }
 
-export function updateAnnotationsAsync(statesToUpdate: any[]): ThunkAction {
+export function updateAnnotationsAsync(statesToUpdate: any[], fitPoints: Boolean = true): ThunkAction {
     return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
         const {
             jobInstance, filters, frame, showAllInterpolationTracks,
@@ -1228,7 +1325,7 @@ export function updateAnnotationsAsync(statesToUpdate: any[]): ThunkAction {
                 dispatch(activateObject(null, null));
             }
 
-            const promises = statesToUpdate.map((objectState: any): Promise<any> => objectState.save());
+            const promises = statesToUpdate.map((objectState: any): Promise<any> => objectState.save(null, null, fitPoints));
             const states = await Promise.all(promises);
             const history = await jobInstance.actions.get();
             const [minZ, maxZ] = computeZRange(states);
@@ -1698,5 +1795,71 @@ export function switchNavigationBlocked(navigationBlocked: boolean): AnyAction {
         payload: {
             navigationBlocked,
         },
+    };
+}
+
+// [CY] 3d to 2d
+export function createProjectionAnnotationsAsync(sessionInstance: any, frame: number, statesToCreate: any[], contextIndex: number): ThunkAction {
+    return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
+        try {
+            const { filters, showAllInterpolationTracks } = receiveAnnotationsParameters();
+            await sessionInstance.annotations.putProjection(statesToCreate, contextIndex);
+            const projectionStates = await sessionInstance.annotations.getProjection(frame, filters);
+            const history = await sessionInstance.actions.get();
+
+            dispatch({
+                type: AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_SUCCESS,
+                payload: {
+                    projectionStates,
+                    history,
+                },
+            });
+        } catch (error) {
+            dispatch({
+                type: AnnotationActionTypes.CREATE_PROJECTION_ANNOTATIONS_FAILED,
+                payload: {
+                    error,
+                },
+            });
+        }
+    };
+}
+
+export function updateProjectionAnnotationsAsync(statesToUpdate: any[], height_: number | null = null, width_: number | null = null): ThunkAction {
+    return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
+        const {
+            jobInstance, filters, frame, showAllInterpolationTracks,
+        } = receiveAnnotationsParameters();
+
+        try {
+            if (statesToUpdate.some((state: any): boolean => state.updateFlags.zOrder)) {
+                // deactivate object to visualize changes immediately (UX)
+                dispatch(activateObject(null, null));
+            }
+
+            const promises = statesToUpdate.map((objectState: any): Promise<any> => objectState.save(height_, width_));
+            const projectionStates = await Promise.all(promises);
+            const history = await jobInstance.actions.get();
+            const [minZ, maxZ] = computeZRange(projectionStates);
+
+            dispatch({
+                type: AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_SUCCESS,
+                payload: {
+                    projectionStates,
+                    history,
+                    minZ,
+                    maxZ,
+                },
+            });
+        } catch (error) {
+            const projectionStates = await jobInstance.annotations.getProjection(frame, filters);
+            dispatch({
+                type: AnnotationActionTypes.UPDATE_PROJECTION_ANNOTATIONS_FAILED,
+                payload: {
+                    error,
+                    projectionStates,
+                },
+            });
+        }
     };
 }

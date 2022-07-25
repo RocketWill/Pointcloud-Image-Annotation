@@ -12,6 +12,7 @@ import ObjectSideBarComponent from 'components/annotation-page/standard-workspac
 import ObjectsListContainer from 'containers/annotation-page/standard-workspace/objects-side-bar/objects-list';
 import PropagateConfirmContainer from 'containers/annotation-page/standard-workspace/propagate-confirm';
 import CanvasContextMenuContainer from 'containers/annotation-page/canvas/canvas-context-menu';
+import CanvasContextContextMenuContainer from 'containers/annotation-page/canvas/canvas-context-context-menu';
 import CanvasPointContextMenuComponent from 'components/annotation-page/canvas/canvas-point-context-menu';
 
 export default function StandardWorkspace3DComponent(): JSX.Element {
@@ -22,6 +23,7 @@ export default function StandardWorkspace3DComponent(): JSX.Element {
             <ObjectSideBarComponent objectsList={<ObjectsListContainer />} />
             <PropagateConfirmContainer />
             <CanvasContextMenuContainer />
+            <CanvasContextContextMenuContainer />
             <CanvasPointContextMenuComponent />
         </Layout>
     );

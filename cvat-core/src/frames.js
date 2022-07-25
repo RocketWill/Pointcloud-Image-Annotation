@@ -641,7 +641,7 @@
         });
     }
 
-    async function getCameraParam(jobID, frame) {
+    async function getParamCaram(jobID, frame) {
         return new Promise((resolve, reject) => {
             serverProxy.frames
                 .getCameraParam(jobID, frame)
@@ -676,7 +676,7 @@
         //     // TODO
         //     return frameDataCache[taskID].frameBuffer.getCameraParam(frame);
         // }
-        const response = getCameraParam(jobID, frame);
+        const response = getParamCaram(jobID, frame);
         frameDataCache[taskID].frameBuffer.addCameraParam(frame, response);
         return frameDataCache[taskID].frameBuffer.getCameraParam(frame);
     }
@@ -704,30 +704,30 @@
         });
     }
 
-    async function getCameraParam(taskID = null, jobID = null) {
-        return new Promise((resolve, reject) => {
-            // Just go to server and get preview (no any cache)
-            serverProxy.frames
-                .getCameraParam(taskID, jobID)
-                .then((result) => {
-                    if (isNode) {
-                        // eslint-disable-next-line no-undef
-                        resolve(global.Buffer.from(result, 'binary').toString('base64'));
-                    } else if (isBrowser) {
-                        // const reader = new FileReader();
-                        // reader.onload = () => {
-                        //     resolve(reader.result);
-                        // };
-                        // reader.readAsDataURL(result);
-                        resolve(result)
-                        console.log("🤡 ~ file: frames.js ~ line 673 ~ .then ~ result", result)
-                    }
-                })
-                .catch((error) => {
-                    reject(error);
-                });
-        });
-    }
+    // async function getCameraParam(jobID, frame) {
+    //     return new Promise((resolve, reject) => {
+    //         // Just go to server and get preview (no any cache)
+    //         serverProxy.frames
+    //             .getCameraParam(jobID, frame)
+    //             .then((result) => {
+    //                 if (isNode) {
+    //                     // eslint-disable-next-line no-undef
+    //                     resolve(global.Buffer.from(result, 'binary').toString('base64'));
+    //                 } else if (isBrowser) {
+    //                     // const reader = new FileReader();
+    //                     // reader.onload = () => {
+    //                     //     resolve(reader.result);
+    //                     // };
+    //                     // reader.readAsDataURL(result);
+    //                     resolve(result)
+    //                     console.log("🤡 ~ file: frames.js ~ line 673 ~ .then ~ result", result)
+    //                 }
+    //             })
+    //             .catch((error) => {
+    //                 reject(error);
+    //             });
+    //     });
+    // }
 
     async function getFrame(
         taskID,

@@ -550,7 +550,18 @@ export interface AnnotationState {
             pointID: number | null;
             clientID: number | null;
         };
+        // for 3d annotation
+        contextContextMenu: {
+            visible: boolean;
+            top: number;
+            left: number;
+            type: ContextMenuType;
+            contextIndex: number;
+            pointID: number | null;
+            clientID: number | null;
+        };
         instance: Canvas | Canvas3d | null;
+        instanceSelection: Canvas | null; // for 3D segmentation
         ready: boolean;
         activeControl: ActiveControl;
     };
@@ -578,7 +589,8 @@ export interface AnnotationState {
         frameAngles: number[];
         contextImage: {
             fetching: boolean;
-            data: string | string[] | null;
+            // data: string | string[] | {} | null;
+            data: any;
             hidden: boolean;
         };
         cameraParam: {
@@ -599,9 +611,12 @@ export interface AnnotationState {
     annotations: {
         activatedStateID: number | null;
         activatedAttributeID: number | null;
+        latestState: any;  // used for 3d projection
+        removedState: any;
         collapsed: Record<number, boolean>;
         collapsedAll: boolean;
         states: any[];
+        projectionStates: any;
         filters: any[];
         resetGroupFlag: boolean;
         history: {
