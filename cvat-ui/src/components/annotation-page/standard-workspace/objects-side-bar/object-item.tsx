@@ -5,7 +5,7 @@
 import React from 'react';
 
 import ObjectButtonsContainer from 'containers/annotation-page/standard-workspace/objects-side-bar/object-buttons';
-import { ObjectType, ShapeType, ColorBy } from 'reducers/interfaces';
+import { ObjectType, ShapeType, ColorBy, DimensionType } from 'reducers/interfaces';
 import ItemDetails, { attrValuesAreEqual } from './object-item-details';
 import ItemBasics from './object-item-basics';
 
@@ -17,6 +17,8 @@ interface Props {
     shapeType: ShapeType;
     clientID: number;
     serverID: number | undefined;
+    amountPoints: number;
+    dimension: DimensionType.DIM_2D | DimensionType.DIM_3D;
     labelID: number;
     locked: boolean;
     attrValues: Record<number, string>;
@@ -50,6 +52,7 @@ function objectItemsAreEqual(prevProps: Props, nextProps: Props): boolean {
         nextProps.color === prevProps.color &&
         nextProps.clientID === prevProps.clientID &&
         nextProps.serverID === prevProps.serverID &&
+        nextProps.amountPoints === prevProps.amountPoints &&
         nextProps.objectType === prevProps.objectType &&
         nextProps.shapeType === prevProps.shapeType &&
         nextProps.collapsed === prevProps.collapsed &&
@@ -69,6 +72,8 @@ function ObjectItemComponent(props: Props): JSX.Element {
         shapeType,
         clientID,
         serverID,
+        amountPoints,
+        dimension,
         locked,
         attrValues,
         labelID,
@@ -117,6 +122,8 @@ function ObjectItemComponent(props: Props): JSX.Element {
                     readonly={readonly}
                     serverID={serverID}
                     clientID={clientID}
+                    amountPoints={amountPoints}
+                    dimension={dimension}
                     labelID={labelID}
                     labels={labels}
                     shapeType={shapeType}

@@ -240,6 +240,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
             jobInstance.logger.log(LogType.pasteObject, { count: 1, duration });
         }
 
+        state.amountPoints = state.amountPoints || 0;
         state.objectType = state.objectType || activeObjectType;
         state.label = state.label || jobInstance.labels.filter((label: any) => label.id === activeLabelID)[0];
         state.occluded = state.occluded || false;
@@ -284,8 +285,13 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     const onCanvasEditDone = (event: any): void => {
         const { onEditShape, onUpdateAnnotations } = props;
         onEditShape(false);
-        const { state, points } = event.detail;
+        const { state, points, amountPoints } = event.detail;
+        // to prevent updating when nothing change
+        if (state.points.join(",") === points.join(",")) {
+            return;
+        }
         state.points = points;
+        state.amountPoints = amountPoints;
         onUpdateAnnotations([state]);
     };
 

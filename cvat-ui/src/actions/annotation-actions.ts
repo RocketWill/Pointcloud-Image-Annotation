@@ -209,6 +209,7 @@ export enum AnnotationActionTypes {
     SAVE_PROJECTION_ANNOTATIONS_FAILED = 'SAVE_PROJECTION_ANNOTATIONS_FAILED',
     REMOVE_PROJECTION_OBJECT_SUCCESS = 'REMOVE_PROJECTION_OBJECT_SUCCESS',
     REMOVE_PROJECTION_OBJECT_FAILED = 'REMOVE_PROJECTION_OBJECT_FAILED',
+    UPDATE_CANVAS_CONTEXT_CONTEXT_MENU = 'UPDATE_CANVAS_CONTEXT_CONTEXT_MENU',
 }
 
 export function saveLogsAsync(): ThunkAction {
@@ -317,6 +318,27 @@ export function updateCanvasContextMenu(
             left,
             top,
             type,
+            pointID,
+        },
+    };
+}
+
+export function updateCanvasContextContextMenu(
+    visible: boolean,
+    left: number,
+    top: number,
+    contextIndex: number,
+    pointID: number | null = null,
+    type?: ContextMenuType,
+): AnyAction {
+    return {
+        type: AnnotationActionTypes.UPDATE_CANVAS_CONTEXT_CONTEXT_MENU,
+        payload: {
+            visible,
+            left,
+            top,
+            type,
+            contextIndex,
             pointID,
         },
     };
@@ -1803,7 +1825,7 @@ export function createProjectionAnnotationsAsync(sessionInstance: any, frame: nu
     };
 }
 
-export function updateProjectionAnnotationsAsync(statesToUpdate: any[]): ThunkAction {
+export function updateProjectionAnnotationsAsync(statesToUpdate: any[], height_: number | null = null, width_: number | null = null): ThunkAction {
     return async (dispatch: ActionCreator<Dispatch>): Promise<void> => {
         const {
             jobInstance, filters, frame, showAllInterpolationTracks,
@@ -1815,7 +1837,7 @@ export function updateProjectionAnnotationsAsync(statesToUpdate: any[]): ThunkAc
                 dispatch(activateObject(null, null));
             }
 
-            const promises = statesToUpdate.map((objectState: any): Promise<any> => objectState.save());
+            const promises = statesToUpdate.map((objectState: any): Promise<any> => objectState.save(height_, width_));
             const projectionStates = await Promise.all(promises);
             const history = await jobInstance.actions.get();
             const [minZ, maxZ] = computeZRange(projectionStates);

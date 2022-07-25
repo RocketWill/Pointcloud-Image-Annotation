@@ -800,6 +800,7 @@
                             type: state.shapeType,
                             z_order: state.zOrder,
                             source: state.source,
+                            amount_points: state.amountPoints,
                         });
                     } else if (state.objectType === 'track') {
                         constructed.tracks.push({

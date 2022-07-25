@@ -55,6 +55,7 @@ const { Source } = require('./enums');
                 contextIndex: serialized.contextIndex >= 0 ? serialized.contextIndex : -1,
                 modified2d: false,
                 clientProjID: serialized.clientProjID,
+                amountPoints: serialized.amountPoints,
             };
 
             // Shows whether any properties updated since last reset() or interpolation
@@ -79,6 +80,7 @@ const { Source } = require('./enums');
                     this.contextIndex = false;
                     this.modified2d = false;
                     this.clientProjID = false;
+                    this.amountPoints = false;
 
                     return reset;
                 },
@@ -452,6 +454,19 @@ const { Source } = require('./enums');
                             data.clientProjID = clientProjID;
                         },
                     },
+                    amountPoints: {
+                        /**
+                         * @name amountPoints
+                         * @type {integer}
+                         * @memberof module:API.cvat.classes.ObjectState
+                         * @instance
+                         */
+                        get: () => data.amountPoints,
+                        set: (amountPoints) => {
+                            data.updateFlags.amountPoints = true;
+                            data.amountPoints = amountPoints;
+                        },
+                    },
                 }),
             );
 
@@ -512,8 +527,8 @@ const { Source } = require('./enums');
          * @throws {module:API.cvat.exceptions.ArgumentError}
          * @returns {module:API.cvat.classes.ObjectState} updated state of an object
          */
-        async save() {
-            const result = await PluginRegistry.apiWrapper.call(this, ObjectState.prototype.save);
+        async save(height_ = null, width_ = null) {
+            const result = await PluginRegistry.apiWrapper.call(this, ObjectState.prototype.save, height_, width_);
             return result;
         }
 
@@ -537,9 +552,9 @@ const { Source } = require('./enums');
     }
 
     // Updates element in collection which contains it
-    ObjectState.prototype.save.implementation = function () {
+    ObjectState.prototype.save.implementation = function (height_, width_) {
         if (this.__internal && this.__internal.save) {
-            return this.__internal.save();
+            return this.__internal.save(height_, width_);
         }
 
         return this;

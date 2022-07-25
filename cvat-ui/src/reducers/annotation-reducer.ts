@@ -39,6 +39,15 @@ const defaultState: AnnotationState = {
             pointID: null,
             clientID: null,
         },
+        contextContextMenu: {
+            visible: false,
+            left: 0,
+            top: 0,
+            type: ContextMenuType.CANVAS_SHAPE,
+            contextIndex: -1,
+            pointID: null,
+            clientID: null,
+        },
         instance: null,
         ready: false,
         activeControl: ActiveControl.CURSOR,
@@ -815,7 +824,9 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                     history,
                     activatedStateID: null,
                     projectionStates: state.annotations.projectionStates.filter(
-                        (_objectState: any) => _objectState.clientID !== objectState.clientID,
+                        (_objectState: any) => _objectState.clientID !== objectState.clientID
+                        || _objectState.contextIndex !== objectState.contextIndex
+                        || _objectState.shapeType !== objectState.shapeType,
                     ),
                 },
                 canvas: {
@@ -1034,6 +1045,33 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                         left,
                         top,
                         type,
+                        pointID,
+                        clientID: state.annotations.activatedStateID,
+                    },
+                },
+            };
+        }
+        case AnnotationActionTypes.UPDATE_CANVAS_CONTEXT_CONTEXT_MENU: {
+            const {
+                visible,
+                left,
+                top,
+                type,
+                contextIndex,
+                pointID,
+            } = action.payload;
+
+            return {
+                ...state,
+                canvas: {
+                    ...state.canvas,
+                    contextContextMenu: {
+                        ...state.canvas.contextContextMenu,
+                        visible,
+                        left,
+                        top,
+                        type,
+                        contextIndex,
                         pointID,
                         clientID: state.annotations.activatedStateID,
                     },
@@ -1341,12 +1379,15 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
             const nextStates = [...prevStates];
 
             const clientIDContextIndexes = prevStates.map((prevState: any): any => {
-                return { clientID: prevState.clientID, contextIndex: prevState.contextIndex }
+                return { clientID: prevState.clientID, contextIndex: prevState.contextIndex, shapeType: prevState.shapeType }
             });
             for (const updatedState of updatedStates) {
                 // const index = clientIDs.indexOf(updatedState.clientID);
+                // consider shape
                 const index = clientIDContextIndexes.findIndex((object: any) => {
-                    return object.clientID === updatedState.clientID && object.contextIndex === updatedState.contextIndex;
+                    return object.clientID === updatedState.clientID &&
+                        object.contextIndex === updatedState.contextIndex &&
+                        object.shapeType === updatedState.shapeType;
                 });
                 if (index !== -1) {
                     nextStates[index] = updatedState;

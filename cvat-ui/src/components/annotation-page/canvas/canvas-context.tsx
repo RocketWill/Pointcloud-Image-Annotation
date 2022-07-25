@@ -4,11 +4,17 @@
  * @LastEditors: Will Cheng
  * @LastEditTime: 2022-04-18 15:10:17
  */
+import './styles.scss';
 import React, {
     ReactElement, useEffect, useRef, useMemo, useState
 } from 'react';
 import { usePrevious } from 'utils/hooks';
 import Typography from 'antd/lib/typography';
+import Tag from 'antd/lib/tag';
+import Popover from 'antd/lib/popover';
+import Select from 'antd/lib/select';
+import Button from 'antd/lib/button';
+import notification from 'antd/lib/notification';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
 import {
     ColorBy, GridColor, ObjectType, ContextMenuType, Workspace, ShapeType,
@@ -19,11 +25,18 @@ import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import getCore from 'cvat-core-wrapper';
 import consts from 'consts';
 import CVATTooltip from 'components/common/cvat-tooltip';
-import { Calib } from '../standard-workspace/context-image/shared'
+import { Calib } from 'utils/box-operations/box-operations'
+
+import { BsBox, BsBoundingBoxCircles } from 'react-icons/bs';
+import { RiEyeCloseLine } from 'react-icons/ri';
+import { MdOutlineFilterCenterFocus } from 'react-icons/md';
+import { BiDuplicate } from 'react-icons/bi';
+import { AiOutlineDelete } from 'react-icons/ai';
 
 const cvat = getCore();
 const MAX_DISTANCE_TO_OPEN_SHAPE = 50;
 const { Paragraph } = Typography;
+const { Option } = Select;
 
 interface Props {
     sidebarCollapsed: boolean;
@@ -89,14 +102,14 @@ interface Props {
     onShapeDrawn: () => void;
     onResetCanvas: () => void;
     onUpdateAnnotations(states: any[]): void;
-    onUpdateProjectionAnnotations(states: any[]): void;
+    onUpdateProjectionAnnotations(states: any[], height_: number | null, width_: number | null): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onCreateProjectionAnnotations(sessionInstance: any, frame: number, projectionIndexStates: any[], contextIndex: number): void;
     onMergeAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onGroupAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onSplitAnnotations(sessionInstance: any, frame: number, state: any): void;
-    onActivateObject(activatedStateID: number | null): void;
-    onUpdateContextMenu(visible: boolean, left: number, top: number, type: ContextMenuType, pointID?: number): void;
+    onActivateObject(activatedStateID: number | null, contextIndex: number): void;
+    onUpdateContextMenu(visible: boolean, left: number, top: number, type: ContextMenuType, contextIndex: number, pointID?: number): void;
     onAddZLayer(): void;
     onSwitchZLayer(cur: number): void;
     onChangeBrightnessLevel(level: number): void;
@@ -114,9 +127,15 @@ interface Props {
 
 const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     const [projFrameData, setProjFrameData] = useState(null as any);
+    const [isolatedMode, setIsolatedMode] = useState(false);
+    const [annosInvisibility, setAnnosInvisibility] = useState(false);
+    const [showShapeType, setShowShapeType] = useState('cuboid' as 'cuboid' | 'rectangle');
+    const [replicaID, serReplicaID] = useState(null as number | null);
     const projAnnosRef = useRef([] as any[]);
     const lastestAnnoRef = useRef();
     const cameraParamRef = useRef();
+    const activatedStateRef = useRef(undefined as number | undefined);
+
     const {
         opacity,
         outlined,
@@ -141,25 +160,26 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         cameraParam: allCameraParam,
         imageData,
         imageName,
+        contextIndex,
         canvasInstance: canvasInstance3D,  // 3d instance
     } = props;
 
     const prevActivatedStateID = usePrevious(activatedStateID);
-    const canvasInstance = useMemo(() => new Canvas(), []);  // 2d instance
+    const canvasInstance = useMemo(() => new Canvas(true), []);  // 2d instance
     const cameraParam = allCameraParam?.data?.[imageName];
 
     const boxTo2DPoints = (points: number[], calib: Calib) => {
         const { psrToXyz, points3dHomoToImage2d } = props;
         const position = [points[0], points[1], points[2]];
         const rotation = [points[3], points[4], points[5]];
-        const scale    = [points[6], points[7], points[8]];
+        const scale = [points[6], points[7], points[8]];
         let box3d = psrToXyz(position, scale, rotation);
         box3d = box3d.slice(0, 8 * 4);
         const box2dPoints = points3dHomoToImage2d(box3d, calib, false, []);
         return box2dPoints;
     }
 
-    const calProjectionAnno = (points: any, cameraParam: any): any => {
+    const calProjectionCuboid = (points: number[] | null, cameraParam: any): any => {
         if (!cameraParam) {
             console.error('Camera params not found!');
             return null;
@@ -171,28 +191,50 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         const susBox = boxTo2DPoints(points, cameraParam);
         if (susBox === null) return null;
         return [
-            susBox[4],  susBox[5],
-            susBox[2],  susBox[3],
-            susBox[6],  susBox[7],
-            susBox[0],  susBox[1],
+            susBox[4], susBox[5],
+            susBox[2], susBox[3],
+            susBox[6], susBox[7],
+            susBox[0], susBox[1],
             susBox[14], susBox[15],
-            susBox[8],  susBox[9],
+            susBox[8], susBox[9],
             susBox[12], susBox[13],
             susBox[10], susBox[11]
         ]
     }
 
-    const calCreateProjectionAnno = (annotation: any, cameraParam: any): any => {
-        const box = calProjectionAnno(annotation.points, cameraParam);
+    const calProjectionRect = (points: number[] | null, imageHeight: number, imageWidth: number) => {
+        if (points === null) return null;
+        const xAxiasPoints = points.filter((_: number, index: number) => index % 2 === 0);
+        const yAxiasPoints = points.filter((_: number, index: number) => index % 2 === 1);
+        let xMin = Math.min(...xAxiasPoints);
+        let xMax = Math.max(...xAxiasPoints);
+        let yMin = Math.min(...yAxiasPoints);
+        let yMax = Math.max(...yAxiasPoints);
+        if (xMin < 0) xMin = 0;
+        if (xMax > imageWidth) xMax = imageWidth;
+        if (yMin < 0) yMin = 0;
+        if (yMax > imageHeight) yMax = imageHeight;
+        return [xMin, yMin, xMax, yMax]
+    }
+
+    const calProjectionRectAnno = (points: number[] | null, annotation: any, imageHeight: number, imageWidth: number) => {
+        const rectangle = calProjectionRect(points, imageHeight, imageWidth);
+        if (rectangle === null) return null;
+        const annotationState = createAnnotationState(annotation, 'rectangle');
+        annotationState.points = rectangle;
+        return annotationState;
+    }
+
+    const calCreateProjectionCuboidAnno = (box: number | null, annotation: any): any => {
         if (box === null) {
             return null;
         }
-        const annotationState = createAnnotationState(annotation);
+        const annotationState = createAnnotationState(annotation, 'cuboid');
         annotationState.points = box;
         return annotationState;
     }
 
-    const createAnnotationState = (annotation: any) => {
+    const createAnnotationState = (annotation: any, shapeType: 'cuboid' | 'rectangle') => {
         const { contextIndex } = props;
         return ({
             points: annotation.points,
@@ -202,7 +244,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             hidden: annotation.hidden,
             outside: annotation.outside,
             occluded: annotation.occluded,
-            shapeType: 'cuboid',
+            shapeType,
             pinned: annotation.pinned,
             descriptions: annotation.descriptions,
             frame: annotation.frame,
@@ -221,14 +263,14 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         const { workspace, activatedStateID, onActivateObject } = props;
         if ((e.target as HTMLElement).tagName === 'svg' && e.button !== 2) {
             if (activatedStateID !== null && workspace !== Workspace.ATTRIBUTE_ANNOTATION) {
-                onActivateObject(null);
+                onActivateObject(null, contextIndex);
             }
         }
     };
 
     const onCanvasClicked = (): void => {
         const { onUpdateContextMenu } = props;
-        onUpdateContextMenu(false, 0, 0, ContextMenuType.CANVAS_SHAPE);
+        onUpdateContextMenu(false, 0, 0, ContextMenuType.CANVAS_SHAPE, contextIndex);
         if (!canvasInstance.html().contains(document.activeElement) && document.activeElement instanceof HTMLElement) {
             document.activeElement.blur();
         }
@@ -236,25 +278,28 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
     const onCanvasContextMenu = (e: MouseEvent): void => {
         const { activatedStateID, onUpdateContextMenu } = props;
-
+        // not sure why activatedStateID is always null
+        // so use ref for current solution
         if (e.target && !(e.target as HTMLElement).classList.contains('svg_select_points')) {
-            onUpdateContextMenu(activatedStateID !== null, e.clientX, e.clientY, ContextMenuType.CANVAS_SHAPE);
+            onUpdateContextMenu(activatedStateRef.current !== null, e.clientX, e.clientY, ContextMenuType.CANVAS_SHAPE, contextIndex);
         }
     };
 
     const onCanvasEditStart = (): void => {
         const { onActivateObject, onEditShape } = props;
-        onActivateObject(null);
+        onActivateObject(null, contextIndex);
         onEditShape(true);
     };
 
     const onCanvasEditDone = (event: any): void => {
         const { onEditShape, onUpdateProjectionAnnotations } = props;
+        const height_ = imageData['size'][0];
+        const width_ = imageData['size'][1];
         onEditShape(false);
         const { state, points, rotation } = event.detail;
         state.points = points;
         state.rotation = rotation;
-        onUpdateProjectionAnnotations([state]);
+        onUpdateProjectionAnnotations([state], height_, width_);
     };
 
     const onCanvasDragStart = (): void => {
@@ -304,9 +349,9 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     };
 
     const onCanvasPointContextMenu = (e: any): void => {
-        const { activatedStateID, onUpdateContextMenu, annotations } = props;
+        const { activatedStateID, onUpdateContextMenu, projectionAnnotations } = props;
 
-        const [state] = annotations.filter((el: any) => el.clientID === activatedStateID);
+        const [state] = projectionAnnotations.filter((el: any) => el.clientID === activatedStateID && el.contextIndex === contextIndex && el.shapeType === showShapeType);
         if (![ShapeType.CUBOID, ShapeType.RECTANGLE].includes(state.shapeType)) {
             onUpdateContextMenu(
                 activatedStateID !== null,
@@ -407,11 +452,11 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             selectedOpacity,
             aamZoomMargin,
             workspace,
-            annotations,
+            projectionAnnotations,
         } = props;
 
         if (activatedStateID !== null) {
-            const [activatedState] = annotations.filter((state: any): boolean => state.clientID === activatedStateID);
+            const [activatedState] = projectionAnnotations.filter((state: any): boolean => state.clientID === activatedStateID && state.shapeType === showShapeType);
             if (workspace === Workspace.ATTRIBUTE_ANNOTATION) {
                 if (activatedState.objectType !== ObjectType.TAG) {
                     canvasInstance.focus(activatedStateID, aamZoomMargin);
@@ -466,9 +511,13 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
     const createProjectionAnnotations = (state3D: any) => {
         const { jobInstance, frame, contextIndex, onCreateProjectionAnnotations } = props;
-        const stateToCreate = calCreateProjectionAnno(state3D, cameraParamRef.current);
-        if (stateToCreate !== null) {
-            onCreateProjectionAnnotations(jobInstance, frame, [new cvat.classes.ObjectState(stateToCreate)], contextIndex);
+        const box = calProjectionCuboid(state3D.points, cameraParam);
+        const stateToCreateCuboid = calCreateProjectionCuboidAnno(box, state3D);
+        const stateToCreateRectangle = calProjectionRectAnno(box, state3D, imageData['size'][0], imageData['size'][1]);
+        if (stateToCreateCuboid !== null && stateToCreateRectangle !== null) {
+            const cuboidState = new cvat.classes.ObjectState(stateToCreateCuboid);
+            const rectangleState = new cvat.classes.ObjectState(stateToCreateRectangle);
+            onCreateProjectionAnnotations(jobInstance, frame, [cuboidState, rectangleState], contextIndex);
         }
     }
 
@@ -479,48 +528,76 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
     const onCanvas3DEditDone = (e: any): void => {
         const { points, state } = e.detail;
+        // to prevent updating when points dont change
+        if (state.points.join(",") === points.join(",")) {
+            return;
+        }
         const { jobInstance, frame, contextIndex, onUpdateProjectionAnnotations, onCreateProjectionAnnotations, removeObject } = props;
-        const projectionState = calProjectionAnno(points, cameraParamRef.current);
-        const prevState = projAnnosRef.current.filter((projState: any) => projState.clientID === state.clientID && contextIndex === projState.contextIndex)
-        if (prevState.length > 0 && projectionState !== null) {
-            prevState[0].points = projectionState;
-            prevState[0].label = state.label;
-            prevState[0].color = state.color;
-            prevState[0].zOrder = state.zOrder;
-            prevState[0].hidden = state.hidden;
-            prevState[0].outside = state.outside ? state.outside : false;
-            prevState[0].occluded = state.occluded;
-            prevState[0].pinned = state.pinned;
-            prevState[0].descriptions = state.descriptions;
-            prevState[0].lock = state.lock;
-            prevState[0].attributes = state.attributes;
-            prevState[0].modified2d = state.modified2d;
-            console.log(`Update 2D projection of Client ${state.clientID}.`);
-            onUpdateProjectionAnnotations([prevState[0]]);
+        const box = calProjectionCuboid(points, cameraParamRef.current);
+        const rect = calProjectionRect(box, imageData['size'][0], imageData['size'][1])
+        const prevStates = projAnnosRef.current.filter((projState: any) => projState.clientID === state.clientID && contextIndex === projState.contextIndex);
+        for (const prevState of prevStates) {
+            prevState.label = state.label;
+            prevState.color = state.color;
+            prevState.zOrder = state.zOrder;
+            prevState.hidden = state.hidden;
+            prevState.outside = state.outside ? state.outside : false;
+            prevState.occluded = state.occluded;
+            prevState.pinned = state.pinned;
+            prevState.descriptions = state.descriptions;
+            prevState.lock = state.lock;
+            prevState.attributes = state.attributes;
+            prevState.modified2d = state.modified2d;
         }
-        if (prevState.length === 0 && projectionState !== null) {
+        const cuboidPrevState = prevStates.filter((projState: any) => projState.shapeType === 'cuboid');
+        // update Cuboid
+        const rectPrevState = prevStates.filter((projState: any) => projState.shapeType === 'rectangle');
+        if (cuboidPrevState.length > 0 && box !== null) {
+            console.log(`Update 2D cuboid projection of Client ${state.clientID}.`);
+            cuboidPrevState[0].points = box;
+            onUpdateProjectionAnnotations([cuboidPrevState[0]], imageData['size'][0], imageData['size'][1]);
+        }
+        if (cuboidPrevState.length === 0 && box !== null) {
             // create
-            const stateToCreate = createAnnotationState(state);
-            stateToCreate.points = projectionState;
+            const stateToCreate = createAnnotationState(state, 'cuboid');
+            stateToCreate.points = box;
             onCreateProjectionAnnotations(jobInstance, frame, [new cvat.classes.ObjectState(stateToCreate)], contextIndex);
-            console.log(`Create ouside 2D projection of Client ${state.clientID}.`);
+            console.log(`Create ouside 2D cuboid projection of Client ${state.clientID}.`);
         }
-        if (prevState.length !== 0 && projectionState === null) {
+        if (cuboidPrevState.length !== 0 && box === null) {
             // delete
-            removeObject(jobInstance, prevState[0]);
-            console.log(`Remove ouside 2D projection of Client ${state.clientID}.`);
+            removeObject(jobInstance, cuboidPrevState[0]);
+            console.log(`Remove ouside 2D cuboid projection of Client ${state.clientID}.`);
         }
+
+        // update Rectangle
+        if (rectPrevState.length > 0 && rect !== null) {
+            console.log(`Update 2D rect projection of Client ${state.clientID}.`);
+            rectPrevState[0].points = rect;
+            onUpdateProjectionAnnotations([rectPrevState[0]], imageData['size'][0], imageData['size'][1]);
+        }
+        if (rectPrevState.length === 0 && rect !== null) {
+            // create
+            const stateToCreate = createAnnotationState(state, 'rectangle');
+            stateToCreate.points = rect;
+            onCreateProjectionAnnotations(jobInstance, frame, [new cvat.classes.ObjectState(stateToCreate)], contextIndex);
+            console.log(`Create ouside 2D rect projection of Client ${state.clientID}.`);
+        }
+        if (rectPrevState.length !== 0 && rect === null) {
+            // delete
+            removeObject(jobInstance, rectPrevState[0]);
+            console.log(`Remove ouside 2D rect projection of Client ${state.clientID}.`);
+        }
+        updateShowingShapeType();
     }
 
-    const updateCanvas = (): void => {
+    const updateCanvas = (projectionAnnotations: any[] = []): void => {
         const { contextIndex } = props;
-        if (!projectionAnnotations) return;
         if (projFrameData) {
             canvasInstance.setup(
                 projFrameData,
                 projectionAnnotations.filter((projAnnotation: any) =>
-                    projAnnotation.contextIndex === contextIndex &&
-                    projAnnotation.frame === frame
+                    projAnnotation.contextIndex === contextIndex
                 ),
                 0,
             );
@@ -535,7 +612,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         // and triggers this event
         // in this case we do not need to update our state
         if (state.clientID === activatedStateID) {
-            onActivateObject(null);
+            onActivateObject(null, contextIndex);
         }
     };
 
@@ -548,7 +625,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             return;
         }
 
-        const result = await jobInstance.annotations.select(event.detail.states, event.detail.x, event.detail.y);
+        const result = await jobInstance.annotations.selectProjection(event.detail.states, event.detail.x, event.detail.y);
         if (result && result.state) {
             if (result.state.shapeType === 'polyline' || result.state.shapeType === 'points') {
                 if (result.distance > MAX_DISTANCE_TO_OPEN_SHAPE) {
@@ -557,7 +634,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
             }
 
             if (activatedStateID !== result.state.clientID) {
-                onActivateObject(result.state.clientID);
+                onActivateObject(result.state.clientID, contextIndex);
             }
         }
     };
@@ -677,38 +754,38 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
     const removeListeners = () => {
         canvasInstance.html().removeEventListener('mousedown', onCanvasMouseDown);
-            canvasInstance.html().removeEventListener('click', onCanvasClicked);
-            canvasInstance.html().removeEventListener('contextmenu', onCanvasContextMenu);
-            canvasInstance.html().removeEventListener('canvas.editstart', onCanvasEditStart);
-            canvasInstance.html().removeEventListener('canvas.edited', onCanvasEditDone);
-            canvasInstance.html().removeEventListener('canvas.dragstart', onCanvasDragStart);
-            canvasInstance.html().removeEventListener('canvas.dragstop', onCanvasDragDone);
-            canvasInstance.html().removeEventListener('canvas.zoomstart', onCanvasZoomStart);
-            canvasInstance.html().removeEventListener('canvas.zoomstop', onCanvasZoomDone);
+        canvasInstance.html().removeEventListener('click', onCanvasClicked);
+        canvasInstance.html().removeEventListener('contextmenu', onCanvasContextMenu);
+        canvasInstance.html().removeEventListener('canvas.editstart', onCanvasEditStart);
+        canvasInstance.html().removeEventListener('canvas.edited', onCanvasEditDone);
+        canvasInstance.html().removeEventListener('canvas.dragstart', onCanvasDragStart);
+        canvasInstance.html().removeEventListener('canvas.dragstop', onCanvasDragDone);
+        canvasInstance.html().removeEventListener('canvas.zoomstart', onCanvasZoomStart);
+        canvasInstance.html().removeEventListener('canvas.zoomstop', onCanvasZoomDone);
 
-            canvasInstance.html().removeEventListener('canvas.setup', onCanvasSetup);
-            canvasInstance.html().removeEventListener('canvas.canceled', onCanvasCancel);
-            canvasInstance.html().removeEventListener('canvas.find', onCanvasFindObject);
-            canvasInstance.html().removeEventListener('canvas.deactivated', onCanvasShapeDeactivated);
-            canvasInstance.html().removeEventListener('canvas.moved', onCanvasCursorMoved);
+        canvasInstance.html().removeEventListener('canvas.setup', onCanvasSetup);
+        canvasInstance.html().removeEventListener('canvas.canceled', onCanvasCancel);
+        canvasInstance.html().removeEventListener('canvas.find', onCanvasFindObject);
+        canvasInstance.html().removeEventListener('canvas.deactivated', onCanvasShapeDeactivated);
+        canvasInstance.html().removeEventListener('canvas.moved', onCanvasCursorMoved);
 
-            canvasInstance.html().removeEventListener('canvas.zoom', onCanvasZoomChanged);
-            canvasInstance.html().removeEventListener('canvas.fit', onCanvasImageFitted);
-            canvasInstance.html().removeEventListener('canvas.dragshape', onCanvasShapeDragged);
-            canvasInstance.html().removeEventListener('canvas.resizeshape', onCanvasShapeResized);
-            canvasInstance.html().removeEventListener('canvas.clicked', onCanvasShapeClicked);
-            canvasInstance.html().removeEventListener('canvas.drawn', onCanvasShapeDrawn);
-            canvasInstance.html().removeEventListener('canvas.merged', onCanvasObjectsMerged);
-            canvasInstance.html().removeEventListener('canvas.groupped', onCanvasObjectsGroupped);
-            canvasInstance.html().removeEventListener('canvas.regionselected', onCanvasPositionSelected);
-            canvasInstance.html().removeEventListener('canvas.splitted', onCanvasTrackSplitted);
+        canvasInstance.html().removeEventListener('canvas.zoom', onCanvasZoomChanged);
+        canvasInstance.html().removeEventListener('canvas.fit', onCanvasImageFitted);
+        canvasInstance.html().removeEventListener('canvas.dragshape', onCanvasShapeDragged);
+        canvasInstance.html().removeEventListener('canvas.resizeshape', onCanvasShapeResized);
+        canvasInstance.html().removeEventListener('canvas.clicked', onCanvasShapeClicked);
+        canvasInstance.html().removeEventListener('canvas.drawn', onCanvasShapeDrawn);
+        canvasInstance.html().removeEventListener('canvas.merged', onCanvasObjectsMerged);
+        canvasInstance.html().removeEventListener('canvas.groupped', onCanvasObjectsGroupped);
+        canvasInstance.html().removeEventListener('canvas.regionselected', onCanvasPositionSelected);
+        canvasInstance.html().removeEventListener('canvas.splitted', onCanvasTrackSplitted);
 
-            canvasInstance.html().removeEventListener('canvas.contextmenu', onCanvasPointContextMenu);
-            canvasInstance.html().removeEventListener('canvas.error', onCanvasErrorOccurrence);
+        canvasInstance.html().removeEventListener('canvas.contextmenu', onCanvasPointContextMenu);
+        canvasInstance.html().removeEventListener('canvas.error', onCanvasErrorOccurrence);
 
-            // canvasInstance3D?.html()?.perspective.removeEventListener('canvas.selected', updateCanvas);
-            canvasInstance3D?.html()?.perspective.removeEventListener('canvas.drawn', onCanvas3DShapeDrawn);
-            canvasInstance3D?.html()?.perspective.removeEventListener('canvas.edited', onCanvas3DEditDone);
+        // canvasInstance3D?.html()?.perspective.removeEventListener('canvas.selected', updateCanvas);
+        canvasInstance3D?.html()?.perspective.removeEventListener('canvas.drawn', onCanvas3DShapeDrawn);
+        canvasInstance3D?.html()?.perspective.removeEventListener('canvas.edited', onCanvas3DEditDone);
     }
 
     const setupFramedata = (): void => {
@@ -737,7 +814,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         }
     }
 
-    const updateProjAttribs = () =>  {
+    const updateProjAttribs = () => {
         const { annotations, projectionAnnotations, onUpdateProjectionAnnotations } = props;
         annotations.forEach((anno: any) => {
             const relatedAnnos = projectionAnnotations
@@ -750,8 +827,150 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
                 projAnno.label = anno.label;
                 projAnno.pinned = anno.pinned;
             });
-            onUpdateProjectionAnnotations(relatedAnnos);
+            onUpdateProjectionAnnotations(relatedAnnos, imageData['size'][0], imageData['size'][1]);
         })
+    }
+
+    const updateShowingShapeType = (invisible: Boolean = false) => {
+        const { onActivateObject } = props;
+        canvasInstance.activate(null);  // to advoid text positional problem
+        onActivateObject(null, contextIndex);
+        const containerClassName = `canvas-context-container-${imageData['name']}`;
+        const cuboidEls = window.document.getElementsByClassName(containerClassName)[0]
+            .getElementsByClassName('cvat_canvas_shape_cuboid');
+        const rectEls = window.document.getElementsByClassName(containerClassName)[0]
+            .querySelectorAll(`rect.cvat_canvas_shape`);
+        if (invisible) {
+            for (const el of cuboidEls) el.setAttribute('visibility', 'hidden');
+            for (const el of rectEls) el.setAttribute('visibility', 'hidden');
+            return;
+        }
+        if (showShapeType === 'cuboid') {
+            for (const el of cuboidEls) el.setAttribute('visibility', 'visible');
+            for (const el of rectEls) el.setAttribute('visibility', 'hidden');
+            canvasInstance.setActivatedShapeType('cuboid');
+        }
+        else if (showShapeType === 'rectangle') {
+            for (const el of cuboidEls) el.setAttribute('visibility', 'hidden');
+            for (const el of rectEls) el.setAttribute('visibility', 'visible');
+            canvasInstance.setActivatedShapeType('rectangle');
+        }
+    }
+
+    const handleCreateRectReplica = () => {
+        const { jobInstance, frame, onCreateProjectionAnnotations, onUpdateProjectionAnnotations } = props;
+        // validate object is null
+        const shapeName = showShapeType === 'cuboid' ? '2D 立体框' : '矩形';
+        if (replicaID === null) {
+            notification.error({
+                message: `无法创建${shapeName}分身`,
+                description: '请选择目标 ID',
+            });
+            return;
+        }
+        // validate selected ID already exists
+        const height = imageData['size'][0];  // image height
+        const width = imageData['size'][1];  // image width
+        const centerPoint = [width / 2, height / 2];
+        let points;
+        if (showShapeType === 'cuboid') {
+            const edge = width / 10;
+            const pt1 = [centerPoint[0] - edge / 2, centerPoint[1] + edge / 2];
+            const pt2 = [pt1[0], pt1[1] + edge];
+            const pt3 = [pt1[0] + edge, pt1[1]];
+            const pt4 = [pt1[0] + edge, pt1[1] + edge];
+            const pt5 = [pt3[0] + edge / 2, pt3[1] - edge / 2];
+            const pt6 = [pt5[0], pt5[1] + edge];
+            const pt7 = [pt5[0] - edge, pt5[1]];
+            const pt8 = [pt5[0] - edge, pt5[1] + edge];
+            points = pt1.concat(pt2).concat(pt3).concat(pt4).concat(pt5).concat(pt6).concat(pt7).concat(pt8);
+        } else if (showShapeType === 'rectangle') {
+            const rectSize = [width / 10, height / 10];  // set default rect size to 10% of image
+            points = [
+                centerPoint[0] - rectSize[0],
+                centerPoint[1] - rectSize[1],
+                centerPoint[0] + rectSize[0],
+                centerPoint[1] + rectSize[1],
+            ];
+        }
+        const shapeIDs = projectionAnnotations
+            .filter((projAnno: any) => projAnno.shapeType === showShapeType && projAnno.contextIndex === contextIndex)
+            .map((projAnno: any) => projAnno.clientID)
+        if (shapeIDs.includes(replicaID)) {
+            notification.info({
+                message: `ID ${replicaID} 已存在${shapeName}映射`,
+                description: '将自动更新原映射目标信息',
+            });
+            const statesToUpdate = projectionAnnotations
+                .filter((projAnno: any) =>
+                    projAnno.clientID === replicaID
+                    && projAnno.shapeType === showShapeType
+                    && projAnno.contextIndex === contextIndex);
+            for (const stateToUpdate of statesToUpdate) {
+                stateToUpdate.points = points;
+                onUpdateProjectionAnnotations([stateToUpdate], height, width);
+            }
+        }
+        else {
+            const state3D = annotations.filter((anno: any) => anno.clientID === replicaID)[0];
+            const stateToCreate = createAnnotationState(state3D, showShapeType);
+            stateToCreate.points = points;
+            onCreateProjectionAnnotations(jobInstance, frame, [new cvat.classes.ObjectState(stateToCreate)], contextIndex);
+        }
+        updateShowingShapeType();
+    }
+
+    const handleDeleteReplica = () => {
+        const { jobInstance, removeObject } = props;
+        if (activatedStateID === null) {
+            return;
+        }
+        const statesToRemove = projectionAnnotations.filter((projAnno: any) =>
+            projAnno.clientID === activatedStateID
+            && projAnno.contextIndex === contextIndex
+            && projAnno.shapeType === showShapeType);
+        for (const stateToRemove of statesToRemove) {
+            removeObject(jobInstance, stateToRemove);
+        }
+        updateShowingShapeType();
+    }
+
+    const objectReplicaContent = () => {
+        return (
+            <div>
+                <span>选择目标 ID</span>
+                <Select style={{ width: 80, marginLeft: 10 }} onChange={(v: number) => serReplicaID(v)}>
+                    {annotations.map((anno: any) => <Option key={`replica-${anno.clientID}`} value={anno.clientID}>{anno.clientID}</Option>)}
+                </Select>
+                <br />
+                <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 10 }}>
+                    <Button type="primary" size="small" onClick={handleCreateRectReplica}>创建</Button>
+                </div>
+            </div>
+        );
+    }
+
+    const updateIsolatedShape = (isolatedMode: Boolean) => {
+        if (!isolatedMode) {
+            return
+        }
+        const { activatedStateID } = props;
+        const containerClassName = `canvas-context-container-${imageData['name']}`;
+        const elementID = `#cvat_canvas_shape_${activatedStateID}`;
+        let isolatedEls = [] as any;
+        if (showShapeType === 'cuboid') {
+            isolatedEls = window.document.getElementsByClassName(containerClassName)[0]
+                .querySelectorAll(`g${elementID}`);
+        }
+        else if (showShapeType === 'rectangle') {
+            isolatedEls = window.document.getElementsByClassName(containerClassName)[0]
+                .querySelectorAll(`rect${elementID}`);
+        }
+        const allEls = window.document.getElementsByClassName(containerClassName)[0]
+            .querySelectorAll('.cvat_canvas_shape');
+
+        for (const el of allEls) el.setAttribute('visibility', 'hidden');
+        for (const el of isolatedEls) el.setAttribute('visibility', 'visible');
     }
 
     useEffect(() => {
@@ -793,20 +1012,24 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     useEffect(() => {
         // 初始绘制映射框
         if (annotations && cameraParam) {
-            updateCanvas();
+            // Set default projection type to Cuboid
+            canvasInstance.setActivatedShapeType('cuboid');
+            updateCanvas(projectionAnnotations);
+            updateShowingShapeType();
             updateShapesView();
             cameraParamRef.current = cameraParam;
         }
+        canvasInstance.setActivatedShapeType('cuboid');
     }, [cameraParam, projFrameData]);
 
     useEffect(() => {
         const { jobInstance, removeObject } = props;
         if (removedAnnotation !== null) {
-            const stateToRemove = projectionAnnotations.filter((annotation: any) =>
+            const statesToRemove = projectionAnnotations.filter((annotation: any) =>
                 annotation.clientID === removedAnnotation.clientID
             )
-            if (stateToRemove.length > 0) {
-                removeObject(jobInstance, stateToRemove[0]);
+            for (const stateToRemove of statesToRemove) {
+                removeObject(jobInstance, stateToRemove);
             }
         }
     }, [removedAnnotation]);
@@ -842,8 +1065,14 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
     }, [opacity, outlined, outlineColor, selectedOpacity, colorBy])
 
     useEffect(() => {
-        updateCanvas();
+        updateShowingShapeType(annosInvisibility);
+        updateIsolatedShape(isolatedMode);
+    }, [showShapeType, annosInvisibility, isolatedMode])
+
+    useEffect(() => {
+        updateCanvas(projectionAnnotations);
         updateShapesView();
+        updateShowingShapeType();
         projAnnosRef.current = projectionAnnotations;
     }, [projectionAnnotations])
 
@@ -851,24 +1080,79 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
         updateProjAttribs();
     }, [annotations])
 
+    useEffect(() => {
+        activatedStateRef.current = activatedStateID;
+    }, [activatedStateID])
+
     return (
-        <div
-            style={{
-                margin: 10,
-                marginRight: 20,
-                padding: 10,
-                background: 'rgba(0, 0, 0, 0.05)',
-                borderRadius: 5
-            }}>
-            <div className={`canvas-context-container-${imageData['name']}`}
-                style={{
-                    overflow: 'hidden',
-                    width: '100%',
-                    height: 200,
-                }}
-            />
+        <div className='cvat-canvas-context-wrapper' >
+            <div className='cvat-canvas-context-wrapper-tools' >
+                <span className='cvat-canvas-context-wrapper-tools-index' >
+                    {contextIndex + 1}
+                </span>
+                <CVATTooltip title='显示映射 2D 立体框' placement='topLeft'>
+                    <Tag
+                        color={showShapeType === 'cuboid' ? 'blue' : ''}
+                        className='cvat-canvas-context-wrapper-tools-item'
+                        onClick={() => setShowShapeType('cuboid')}
+                    >
+                        <BsBox />
+                    </Tag>
+                </CVATTooltip>
+                <CVATTooltip title='显示映射矩形框' placement='topLeft'>
+                    <Tag
+                        color={showShapeType === 'rectangle' ? 'blue' : ''}
+                        className='cvat-canvas-context-wrapper-tools-item'
+                        onClick={() => setShowShapeType('rectangle')}
+                    >
+                        <BsBoundingBoxCircles />
+                    </Tag>
+                </CVATTooltip>
+                <span className='cvat-canvas-context-wrapper-tools-divide' />
+                <CVATTooltip title='隐藏所有映射标注框' placement='topLeft'>
+                    <Tag
+                        color={annosInvisibility ? 'blue' : ''}
+                        className='cvat-canvas-context-wrapper-tools-item'
+                        onClick={() => setAnnosInvisibility(!annosInvisibility)}
+                    >
+                        <RiEyeCloseLine />
+                    </Tag>
+                </CVATTooltip>
+                <CVATTooltip title='孤立模式' placement='topLeft'>
+                    <Tag
+                        color={isolatedMode ? 'blue' : ''}
+                        className='cvat-canvas-context-wrapper-tools-item'
+                        onClick={() => setIsolatedMode(!isolatedMode)}
+                    >
+                        <MdOutlineFilterCenterFocus />
+                    </Tag>
+                </CVATTooltip>
+                <CVATTooltip title={showShapeType === 'cuboid' ? `创建 2D 立体框分身` : `创建矩形分身`} placement='topLeft'>
+                    <Popover
+                        placement="rightTop"
+                        title={<span style={{ display: 'flex', alignItems: 'center' }}><BsBoundingBoxCircles style={{ marginRight: 5 }} /> 创建矩形分身</span>}
+                        trigger="click"
+                        content={() => objectReplicaContent()}
+                    >
+                        <Tag
+                            className='cvat-canvas-context-wrapper-tools-item'
+                        >
+                            <BiDuplicate />
+                        </Tag>
+                    </Popover>
+                </CVATTooltip>
+                <CVATTooltip title={showShapeType === 'cuboid' ? `删除 2D 立体框分身` : `删除矩形分身`}  placement='topLeft'>
+                    <Tag
+                        className='cvat-canvas-context-wrapper-tools-item'
+                        onClick={handleDeleteReplica}
+                    >
+                        <AiOutlineDelete />
+                    </Tag>
+                </CVATTooltip>
+            </div>
+            <div className={`canvas-context-container-${imageData['name']} canvas-context-container`} />
             {imageData &&
-                <Paragraph style={{ margin: '-14px 5px -7px 10px' }}>
+                <Paragraph className='cvat-canvas-context-wrapper-imagename'>
                     <pre>{imageData.name}</pre>
                 </Paragraph>
             }

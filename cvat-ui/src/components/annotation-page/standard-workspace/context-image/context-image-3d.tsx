@@ -7,7 +7,7 @@
 // Copyright (C) 2021 Intel Corporation
 //
 // SPDX-License-Identifier: MIT
-
+import '../../styles.scss';
 import React, { useEffect, useState } from 'react';
 import notification from 'antd/lib/notification';
 import { useDispatch, useSelector } from 'react-redux';
@@ -23,27 +23,38 @@ import CanvasWrapperContextContainer from 'containers/annotation-page/canvas/can
 import { wrapPsrToXyz, wrapPoints3dHomoToImage2d } from 'utils/box-operations/box-operations';
 import createModule from "utils/box-operations/box-operations.mjs";
 
-const { Text } = Typography;
+const { Title, Text } = Typography;
 
 
 function ActiveObjectStatistics({ contextNames, activatedStateID, projectionStates }:
     { contextNames: string[], activatedStateID: null | number, projectionStates: any[] }): JSX.Element | null {
-        const activeProjStates = projectionStates.filter((projAnno: any) => projAnno.clientID === activatedStateID);
+        const activeProjStates = projectionStates.filter((projAnno: any) =>
+            projAnno.clientID === activatedStateID && projAnno.shapeType === 'rectangle');
         const activeProjContextIndices = activeProjStates.map((projAnno: any) => projAnno.contextIndex);
-        const element = contextNames.map((contextName: string, contextIndex: number) =>
-        activeProjContextIndices.includes(contextIndex)
-            ? <Tag color='#108ee9' key={`target-calculation-${contextName}`}>{contextIndex + 1}</Tag>
-            : <Tag color='default' key={`target-calculation-${contextName}`}>{contextIndex + 1}</Tag>   // gray background
-        )
+        const element = contextNames.map((contextName: string, contextIndex: number) => {
+            const color = activeProjContextIndices.includes(contextIndex) ? '#108ee9' : 'default';
+            return (
+                <Tag className='cvat-context-image-3d-wrapper-statictics-index-item'
+                    color={color} key={`target-calculation-${contextName}`}
+                >
+                    {contextIndex + 1}
+                </Tag>
+            )
+        })
      return (
-        <div style={{ padding: 10 }}>
+        <div className='cvat-context-image-3d-wrapper-statictics'>
+            <div className='cvat-context-image-3d-wrapper-statictics-title'>
+                <Title level={4}>图像映射</Title>
+                <div className='cvat-context-image-3d-wrapper-statictics-index'>
+                    {element}
+                </div>
+            </div>
             <div>
                 {activeProjStates.length > 0
-                    ? <div>当前选中目标 <Tag color={activeProjStates[0].label.color}>{activatedStateID}</Tag>有 {activeProjStates.length} 张对应图像</div>
-                    : `无选中目标`
+                    ? <div className='cvat-context-image-3d-wrapper-statictics-text'>共 {contextNames.length} 张，当前选中目标 <Tag color={activeProjStates[0].label.color}>{activatedStateID}</Tag> 对应 {activeProjStates.length} 张</div>
+                    : <div className='cvat-context-image-3d-wrapper-statictics-text'>无选中目标</div>
                 }
             </div>
-            <div style={{ marginTop: 5 }}>{element}</div>
         </div>
     );
 }
@@ -83,18 +94,13 @@ function ContextImage(): JSX.Element | null {
     }, [contextImageHidden, requested, hasRelatedContext]);
 
     return (
-        <div style={{ height: '100%', overflow: 'scroll' }}>
-            {contextImageFetching ?
-                <Spin
-                    size='large'
-                    style={{ display: 'flex', height: '100%',
-                             justifyContent: 'center', alignItems: 'center' }}
-                />
+        <div className='cvat-context-image-3d-wrapper'>
+            {contextImageFetching
+                ? <Spin size='large' className='cvat-context-image-3d-wrapper-fetching'/>
                 : null
             }
             {contextImageData === null &&
-                <div style={{ display: 'flex', height: '100%',
-                              justifyContent: 'center', alignItems: 'center' }}>
+                <div className='cvat-context-image-3d-wrapper-empty'>
                     <Empty />
                 </div>
 
@@ -110,7 +116,7 @@ function ContextImage(): JSX.Element | null {
                     </div>
                 )
                 : (
-                    <Text type='secondary' style={{ display: 'flex', justifyContent: 'center' }}>
+                    <Text type='secondary' className='cvat-context-image-3d-wrapper-no-camera'>
                         未找到相机参数
                     </Text>
                 )

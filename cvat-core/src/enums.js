@@ -266,6 +266,7 @@
      * @property {string} CHANGED_LABEL Changed label
      * @property {string} CHANGED_ATTRIBUTES Changed attributes
      * @property {string} CHANGED_POINTS Changed points
+     * @property {string} CHANGED_AMOUNTPOINTS Changed amount points
      * @property {string} CHANGED_OUTSIDE Changed outside
      * @property {string} CHANGED_OCCLUDED Changed occluded
      * @property {string} CHANGED_ZORDER Changed z-order
@@ -287,6 +288,7 @@
         CHANGED_OUTSIDE: 'Changed outside',
         CHANGED_OCCLUDED: 'Changed occluded',
         CHANGED_ZORDER: 'Changed z-order',
+        CHANGED_AMOUNTPOINTS: 'Changed amount points',
         CHANGED_KEYFRAME: 'Changed keyframe',
         CHANGED_LOCK: 'Changed lock',
         CHANGED_PINNED: 'Changed pinned',

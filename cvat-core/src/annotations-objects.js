@@ -327,7 +327,7 @@
             );
         }
 
-        _validateStateBeforeSave(frame, data, updated) {
+        _validateStateBeforeSave(frame, data, updated, height_, width_) {
             let fittedPoints = [];
 
             if (updated.label) {
@@ -370,6 +370,10 @@
                 // cut points
                 const { width, height, filename } = this.frameMeta[frame];
                 fittedPoints = fitPoints(this.shapeType, data.points, data.rotation, width, height);
+                // for 3D projection shape update
+                if (width_ !== null && height_ !== null) {
+                    fittedPoints = fitPoints(this.shapeType, data.points, data.rotation, width_, height_);
+                }
                 let check = true;
                 if (filename && filename.slice(filename.length - 3) === 'pcd') {
                     check = false;
@@ -524,6 +528,7 @@
             this.contextIndex = data.context_index >= 0 ? data.context_index: -1;
             this.modified2d = false;
             this.clientProjID = clientID;
+            this.amountPoints = data.amount_points;
         }
 
         // Method is used to export data to the server
@@ -551,6 +556,7 @@
                 context_index: this.contextIndex,
                 modified_2d: this.modified2d,
                 client_proj_id: this.clientProjID,
+                amount_points: this.amountPoints,
             };
         }
 
@@ -584,6 +590,7 @@
                 contextIndex: this.contextIndex,
                 modified2d: this.modified2d,
                 clientProjID: this.clientProjID,
+                amountPoints: this.amountPoints,
             };
         }
 
@@ -670,7 +677,36 @@
             this.zOrder = zOrder;
         }
 
-        save(frame, data) {
+        _saveAmountPoints(amountPoints, frame) {
+            const undoAmountPoints = this.amountPoints;
+            const redoAmountPoints = amountPoints;
+            const undoSource = this.source;
+            const redoSource = Source.MANUAL;
+
+            this.history.do(
+                HistoryActions.CHANGED_AMOUNTPOINTS,
+                () => {
+                    this.amountPoints = undoAmountPoints;
+                    this.source = undoSource;
+                    this.updated = Date.now();
+                },
+                () => {
+                    this.amountPoints = redoAmountPoints;
+                    this.source = redoSource;
+                    this.updated = Date.now();
+                },
+                [this.clientID],
+                frame,
+            );
+
+            this.source = Source.MANUAL;
+            this.amountPoints = amountPoints;
+        }
+
+        save(frame, data, height_, width_) {
+            if (data.contextIndex < 0) {
+                console.log("🚀 ~ file: annotations-objects.js ~ line 707 ~ Shape ~ save ~ data", data)
+            }
             if (frame !== this.frame) {
                 throw new ScriptingError('Got frame is not equal to the frame of the shape');
             }
@@ -680,7 +716,7 @@
             }
 
             const updated = data.updateFlags;
-            const fittedPoints = this._validateStateBeforeSave(frame, data, updated);
+            const fittedPoints = this._validateStateBeforeSave(frame, data, updated, height_, width_);
             const { rotation } = data;
 
             // Now when all fields are validated, we can apply them
@@ -722,6 +758,10 @@
 
             if (updated.hidden) {
                 this._saveHidden(data.hidden, frame);
+            }
+
+            if (updated.amountPoints) {
+                this._saveAmountPoints(data.amountPoints, frame);
             }
 
             this.updateTimestamp(updated);
@@ -1365,7 +1405,7 @@
             };
         }
 
-        save(frame, data) {
+        save(frame, data, height_, width_) {
             if (frame !== this.frame) {
                 throw new ScriptingError('Got frame is not equal to the frame of the tag');
             }
@@ -1375,7 +1415,7 @@
             }
 
             const updated = data.updateFlags;
-            this._validateStateBeforeSave(frame, data, updated);
+            this._validateStateBeforeSave(frame, data, updated, height_, width_);
 
             // Now when all fields are validated, we can apply them
             if (updated.label) {

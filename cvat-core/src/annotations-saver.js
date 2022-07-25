@@ -108,6 +108,7 @@
                 'spec_id',
                 'source',
                 'outside',
+                'amount_points',
             ];
 
             // Find created and updated objects
