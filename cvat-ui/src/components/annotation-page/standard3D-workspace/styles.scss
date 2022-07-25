@@ -32,6 +32,13 @@
     right: 0;
 }
 
+.cvat-canvas3d-perspective-selection-mode {
+    position: absolute;
+    padding: $grid-unit-size;
+    top: 0;
+    right: 0;
+}
+
 .cvat-canvas3d-perspective-arrow-directions-icons-up {
     margin-left: $grid-unit-size * 5.25;
 }

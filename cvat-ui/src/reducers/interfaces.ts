@@ -561,6 +561,7 @@ export interface AnnotationState {
             clientID: number | null;
         };
         instance: Canvas | Canvas3d | null;
+        instanceSelection: Canvas | null; // for 3D segmentation
         ready: boolean;
         activeControl: ActiveControl;
     };

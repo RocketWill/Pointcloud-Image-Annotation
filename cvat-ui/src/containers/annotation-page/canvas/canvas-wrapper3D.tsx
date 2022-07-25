@@ -7,6 +7,7 @@ import { connect } from 'react-redux';
 import CanvasWrapperComponent from 'components/annotation-page/canvas/canvas-wrapper3D';
 import {
     activateObject,
+    rememberObject,
     confirmCanvasReady,
     createAnnotationsAsync,
     dragCanvas,
@@ -26,12 +27,14 @@ import {
     ContextMenuType,
     GridColor,
     ObjectType,
+    ShapeType,
     Workspace,
 } from 'reducers/interfaces';
 
 import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import { Canvas } from 'cvat-canvas-wrapper';
 import { KeyMap } from '../../../utils/mousetrap-react';
+import { CuboidDrawingMethod, RectDrawingMethod } from 'cvat-canvas/src/typescript/canvasModel';
 
 interface StateToProps {
     canvasInstance: Canvas3d | Canvas;
@@ -82,12 +85,20 @@ interface DispatchToProps {
     onGroupObjects: (enabled: boolean) => void;
     onResetCanvas(): void;
     onCreateAnnotations(sessionInstance: any, frame: number, states: any[]): void;
-    onUpdateAnnotations(states: any[]): void;
+    onUpdateAnnotations(states: any[], fitPoints: Boolean): void;
     onGroupAnnotations(sessionInstance: any, frame: number, states: any[]): void;
     onActivateObject: (activatedStateID: number | null) => void;
     onShapeDrawn: () => void;
     onEditShape: (enabled: boolean) => void;
     onUpdateContextMenu(visible: boolean, left: number, top: number, type: ContextMenuType, pointID?: number): void;
+    onDrawStart(
+        shapeType: ShapeType,
+        labelID: number,
+        objectType: ObjectType,
+        points?: number,
+        rectDrawingMethod?: RectDrawingMethod,
+        cuboidDrawingMethod?: CuboidDrawingMethod,
+    ): void;
 }
 
 function mapStateToProps(state: CombinedState): StateToProps {
@@ -96,6 +107,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
             canvas: {
                 activeControl,
                 instance: canvasInstance,
+                instanceSelection: canvasInstanceSelection,
                 contextMenu: { visible: contextMenuVisibility },
             },
             drawing: { activeLabelID, activeObjectType },
@@ -138,6 +150,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
 
     return {
         canvasInstance,
+        canvasInstanceSelection,
         jobInstance,
         frameData,
         curZLayer,
@@ -217,8 +230,8 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
         onEditShape(enabled: boolean): void {
             dispatch(editShape(enabled));
         },
-        onUpdateAnnotations(states: any[]): void {
-            dispatch(updateAnnotationsAsync(states));
+        onUpdateAnnotations(states: any[], fitPoints: Boolean): void {
+            dispatch(updateAnnotationsAsync(states, fitPoints));
         },
         onUpdateContextMenu(
             visible: boolean,
@@ -228,6 +241,25 @@ function mapDispatchToProps(dispatch: any): DispatchToProps {
             pointID?: number,
         ): void {
             dispatch(updateCanvasContextMenu(visible, left, top, pointID, type));
+        },
+        onDrawStart(
+            shapeType: ShapeType.POLYGON,
+            labelID: number,
+            objectType: ObjectType,
+            points?: number,
+            rectDrawingMethod?: RectDrawingMethod,
+            cuboidDrawingMethod?: CuboidDrawingMethod,
+        ): void {
+            dispatch(
+                rememberObject({
+                    activeObjectType: objectType,
+                    activeShapeType: shapeType,
+                    activeLabelID: labelID,
+                    activeNumOfPoints: points,
+                    activeRectDrawingMethod: rectDrawingMethod,
+                    activeCuboidDrawingMethod: cuboidDrawingMethod,
+                }),
+            );
         },
     };
 }

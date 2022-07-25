@@ -49,6 +49,7 @@ const defaultState: AnnotationState = {
             clientID: null,
         },
         instance: null,
+        instanceSelection: null,
         ready: false,
         activeControl: ActiveControl.CURSOR,
     },
@@ -231,6 +232,7 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                 canvas: {
                     ...state.canvas,
                     instance: job.dimension === DimensionType.DIM_2D ? new Canvas() : new Canvas3d(),
+                    instanceSelection: new Canvas(false, true),  // 3D 点云分割，多边形选取
                 },
                 colors,
                 workspace: isReview ? Workspace.REVIEW_WORKSPACE : workspaceSelected,

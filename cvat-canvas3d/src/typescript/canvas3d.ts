@@ -38,6 +38,8 @@ interface Canvas3d {
     fit(): void;
     group(groupData: GroupData): void;
     destroy(): void;
+
+    createConvexHull(polygon: number[]): void;
 }
 
 class Canvas3dImpl implements Canvas3d {
@@ -49,6 +51,7 @@ class Canvas3dImpl implements Canvas3d {
         this.model = new Canvas3dModelImpl();
         this.controller = new Canvas3dControllerImpl(this.model);
         this.view = new Canvas3dViewImpl(this.model, this.controller);
+        // this.mouseEvents = new MouseEvents(this.view);
     }
 
     public html(): ViewsDOM {
@@ -118,6 +121,15 @@ class Canvas3dImpl implements Canvas3d {
     public destroy(): void {
         this.model.destroy();
     }
+
+    public createConvexHull(state: any): void {
+        this.view.createConvexHull(state);
+    }
+
+    public updateSegmentAnnotation(state: any): void {
+        this.view.updateSegmentAnnotation(state);
+    }
+
 }
 
 export {

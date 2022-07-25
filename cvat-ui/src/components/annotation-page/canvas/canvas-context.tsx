@@ -1036,7 +1036,10 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
     useEffect(() => {
         if (latestAnnotation !== null) {
-            createProjectionAnnotations(latestAnnotation);
+            // 目前只有cuboid需要进行映射
+            if ([latestAnnotation.shapeType].includes(ShapeType.CUBOID)) {
+                createProjectionAnnotations(latestAnnotation);
+            }
         }
         lastestAnnoRef.current = latestAnnotation;
     }, [latestAnnotation]);

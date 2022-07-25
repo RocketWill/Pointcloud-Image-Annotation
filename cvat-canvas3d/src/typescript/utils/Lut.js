@@ -189,7 +189,7 @@ const ColorMapKeywords = {
 	'blackbody': [[ 0.0, 0x000000 ], [ 0.2, 0x780000 ], [ 0.5, 0xE63200 ], [ 0.8, 0xFFFF00 ], [ 1.0, 0xFFFFFF ]],
 	'grayscale': [[ 0.0, 0x000000 ], [ 0.2, 0x404040 ], [ 0.5, 0x7F7F80 ], [ 0.8, 0xBFBFBF ], [ 1.0, 0xFFFFFF ]],
 	'default': [[ 0.0, 0xFFFFFF ], [ 0.2, 0xFFFFFF ], [ 0.5, 0xFFFFFF ], [ 0.8, 0xFFFFFF ], [ 1.0, 0xFFFFFF ]],
-	'mindflow': [[ 0.0, 0xF913E3 ], [ 0.7, 0xF913E3 ], [ 0.8, 0x121CFF ], [ 0.9, 0x3BEAFF ], [ 0.95, 0x40FE00 ], [ 1.0, 0xF5FD00 ]]
+	'mindflow': [[ 0.0, 0xF913E3 ], [ 0.2, 0xF913E3 ], [ 0.6, 0x121CFF ], [ 0.9, 0x3BEAFF ], [ 0.95, 0x40FE00 ], [ 1.0, 0xF5FD00 ]]
 
 };
 

@@ -19,6 +19,9 @@
   "dependencies": {
     "@types/three": "^0.125.3",
     "camera-controls": "^1.25.3",
+    "hull.js": "^1.0.2",
+    "lineclip": "^1.1.5",
+    "polybooljs": "^1.2.0",
     "three": "^0.126.1"
   }
 }

@@ -527,8 +527,8 @@ const { Source } = require('./enums');
          * @throws {module:API.cvat.exceptions.ArgumentError}
          * @returns {module:API.cvat.classes.ObjectState} updated state of an object
          */
-        async save(height_ = null, width_ = null) {
-            const result = await PluginRegistry.apiWrapper.call(this, ObjectState.prototype.save, height_, width_);
+        async save(height_ = null, width_ = null, fitPoints = true) {
+            const result = await PluginRegistry.apiWrapper.call(this, ObjectState.prototype.save, height_, width_, fitPoints);
             return result;
         }
 

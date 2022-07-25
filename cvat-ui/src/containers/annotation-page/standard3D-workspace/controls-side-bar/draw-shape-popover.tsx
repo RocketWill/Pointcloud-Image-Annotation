@@ -9,7 +9,8 @@ import { RadioChangeEvent } from 'antd/lib/radio';
 import { CombinedState, ShapeType, ObjectType } from 'reducers/interfaces';
 import { rememberObject } from 'actions/annotation-actions';
 import { Canvas, RectDrawingMethod, CuboidDrawingMethod } from 'cvat-canvas-wrapper';
-import DrawShapePopoverComponent from 'components/annotation-page/standard-workspace/controls-side-bar/draw-shape-popover';
+import { Canvas3d } from 'cvat-canvas3d/src/typescript/canvas3d';
+import DrawShapePopoverComponent from 'components/annotation-page/standard3D-workspace/controls-side-bar/draw-shape-popover';
 
 interface OwnProps {
     shapeType: ShapeType;
@@ -28,8 +29,8 @@ interface DispatchToProps {
 
 interface StateToProps {
     normalizedKeyMap: Record<string, string>;
-    canvasInstance: Canvas;
-    canvasInstanceSelection: Canvas;
+    canvasInstance: Canvas3d | Canvas;
+    canvasInstanceSelection: Canvas,
     shapeType: ShapeType;
     labels: any[];
     jobInstance: any;
@@ -70,8 +71,8 @@ function mapStateToProps(state: CombinedState, own: OwnProps): StateToProps {
 
     return {
         ...own,
-        canvasInstance: canvasInstance as Canvas,
-        canvasInstanceSelection: canvasInstanceSelection as Canvas,
+        canvasInstance: canvasInstance as Canvas3d,
+        canvasInstanceSelection: canvasInstanceSelection as Canvas, // for 3d segmentation, draw on 2d canvas first
         labels,
         normalizedKeyMap,
         jobInstance,
@@ -119,16 +120,17 @@ class DrawShapePopoverContainer extends React.PureComponent<Props, State> {
             rectDrawingMethod, cuboidDrawingMethod, numberOfPoints, selectedLabelID,
         } = this.state;
 
-        canvasInstanceSelection.cancel();
-        canvasInstanceSelection.html().style.pointerEvents = 'none';
+        canvasInstanceSelection.html().style.pointerEvents = 'inherit';
         canvasInstance.cancel();
-        canvasInstance.draw({
+        canvasInstanceSelection.cancel();
+        canvasInstanceSelection.draw({
             enabled: true,
             rectDrawingMethod,
             cuboidDrawingMethod,
             numberOfPoints,
             shapeType,
             crosshair: [ShapeType.RECTANGLE, ShapeType.CUBOID, ShapeType.ELLIPSE].includes(shapeType),
+            customClassName: 'cvat_canvas_shape_drawing_3d_select',
         });
 
         onDrawStart(shapeType, selectedLabelID, objectType, numberOfPoints, rectDrawingMethod, cuboidDrawingMethod);
