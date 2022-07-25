@@ -29,7 +29,7 @@ from cvat.apps.dataset_manager.formats.utils import get_label_color
 from .annotation import AnnotationIR, AnnotationManager, TrackManager
 from .formats.transformations import EllipsesToMasks
 
-CVAT_INTERNAL_ATTRIBUTES = {'occluded', 'outside', 'keyframe', 'track_id', 'rotation'}
+CVAT_INTERNAL_ATTRIBUTES = {'occluded', 'outside', 'keyframe', 'track_id', 'rotation', 'client_proj_id', 'context_index', 'amount_points'}
 
 class InstanceLabelData:
     Attribute = NamedTuple('Attribute', [('name', str), ('value', Any)])
@@ -166,7 +166,7 @@ class InstanceLabelData:
 class TaskData(InstanceLabelData):
     Shape = namedtuple("Shape", 'id, label_id')  # 3d
     LabeledShape = namedtuple(
-        'LabeledShape', 'type, frame, label, points, occluded, attributes, source, rotation, group, z_order')
+        'LabeledShape', 'type, frame, label, points, occluded, attributes, source, rotation, group, z_order, context_index, amount_points, client_proj_id')
     LabeledShape.__new__.__defaults__ = (0, 0, 0)
     TrackedShape = namedtuple(
         'TrackedShape', 'type, frame, points, occluded, outside, keyframe, attributes, rotation, source, group, z_order, label, track_id')
@@ -327,6 +327,9 @@ class TaskData(InstanceLabelData):
             z_order=shape.get("z_order", 0),
             group=shape.get("group", 0),
             source=shape["source"],
+            client_proj_id=shape["client_proj_id"],
+            context_index=shape["context_index"],
+            amount_points=shape["amount_points"],
             attributes=self._export_attributes(shape["attributes"]),
         )
 
@@ -1314,6 +1317,9 @@ def convert_cvat_anno_to_dm(cvat_frame_anno, label_attrs, map_label, format_name
         anno_label = map_label(shape_obj.label)
         anno_attr = convert_attrs(shape_obj.label, shape_obj.attributes)
         anno_attr['occluded'] = shape_obj.occluded
+        anno_attr['client_proj_id'] = shape_obj.client_proj_id
+        anno_attr['context_index'] = shape_obj.context_index
+
         if shape_obj.type == ShapeType.RECTANGLE:
             anno_attr['rotation'] = shape_obj.rotation
 
@@ -1353,6 +1359,7 @@ def convert_cvat_anno_to_dm(cvat_frame_anno, label_attrs, map_label, format_name
                 z_order=shape_obj.z_order)
         elif shape_obj.type == ShapeType.CUBOID:
             if dimension == DimensionType.DIM_3D:
+                anno_attr['amount_points'] = shape_obj.amount_points
                 if format_name == "sly_pointcloud":
                     anno_id = shapes[index]["id"]
                 else:
