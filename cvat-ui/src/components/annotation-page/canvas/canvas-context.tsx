@@ -1,8 +1,8 @@
 /*
  * @Date: 2022-04-08 16:01:25
  * @Company: Luokung Technology Corp.
- * @LastEditors: Will Cheng
- * @LastEditTime: 2022-04-18 15:10:17
+ * @LastEditors: Will Cheng Yong chengyong@pku.edu.cn
+ * @LastEditTime: 2022-07-25 14:15:13
  */
 import './styles.scss';
 import React, {
@@ -122,7 +122,7 @@ interface Props {
     onFetchAnnotation(): void;
     onGetDataFailed(error: any): void;
     onStartIssue(position: number[]): void;
-    removeObject: (sessionInstance: any, objectState: any) => void;
+    removeObject(sessionInstance: any, objectState: any): void;
 }
 
 const CanvasWrapperContextComponent = (props: Props): ReactElement => {
@@ -593,7 +593,7 @@ const CanvasWrapperContextComponent = (props: Props): ReactElement => {
 
     const updateCanvas = (projectionAnnotations: any[] = []): void => {
         const { contextIndex } = props;
-        if (projFrameData) {
+        if (projFrameData && canvasInstance) {
             canvasInstance.setup(
                 projFrameData,
                 projectionAnnotations.filter((projAnnotation: any) =>

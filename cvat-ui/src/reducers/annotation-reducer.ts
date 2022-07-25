@@ -270,6 +270,12 @@ export default (state = defaultState, action: AnyAction): AnnotationState => {
                         fetching: true,
                     },
                 },
+                // clear latest annotation to avoid
+                // creating duplicated projection annotation
+                annotations: {
+                    ...state.annotations,
+                    latestState: null,
+                },
                 canvas: {
                     ...state.canvas,
                     ready: false,
