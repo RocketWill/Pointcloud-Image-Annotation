@@ -1,8 +1,8 @@
 /*
  * @Date: 2022-04-08 23:15:44
  * @Company: Luokung Technology Corp.
- * @LastEditors: Will Cheng
- * @LastEditTime: 2022-04-12 12:02:11
+ * @LastEditors: Will Cheng Yong chengyong@pku.edu.cn
+ * @LastEditTime: 2022-07-23 10:04:23
  */
 
 import { connect } from 'react-redux';
@@ -149,7 +149,7 @@ interface DispatchToProps {
     onFetchAnnotation(): void;
     onGetDataFailed(error: any): void;
     onStartIssue(position: number[]): void;
-    removeObject: (sessionInstance: any, objectState: any) => void;
+    removeObject(sessionInstance: any, objectState: any): void;
 }
 
 function mapStateToProps(
