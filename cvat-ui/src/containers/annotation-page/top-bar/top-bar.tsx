@@ -63,6 +63,7 @@ interface StateToProps {
     keyMap: KeyMap;
     normalizedKeyMap: Record<string, string>;
     canvasInstance: Canvas | Canvas3d;
+    canvasInstanceSelection: Canvas;
     forceExit: boolean;
     predictor: PredictorState;
     activeControl: ActiveControl;
@@ -99,7 +100,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
                 history,
             },
             job: { instance: jobInstance },
-            canvas: { ready: canvasIsReady, instance: canvasInstance, activeControl },
+            canvas: { ready: canvasIsReady, instance: canvasInstance, instanceSelection: canvasInstanceSelection, activeControl },
             workspace,
             predictor,
         },
@@ -132,6 +133,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
         keyMap,
         normalizedKeyMap,
         canvasInstance,
+        canvasInstanceSelection,
         forceExit,
         predictor,
         activeControl,
@@ -432,7 +434,8 @@ class AnnotationTopBarContainer extends React.PureComponent<Props, State> {
     };
 
     private onFinishDraw = (): void => {
-        const { activeControl, canvasInstance } = this.props;
+        const { activeControl, canvasInstance, canvasInstanceSelection, jobInstance } = this.props;
+        const is2D = jobInstance.dimension === DimensionType.DIM_2D;
         if (
             [ActiveControl.AI_TOOLS, ActiveControl.OPENCV_TOOLS].includes(activeControl) &&
             canvasInstance instanceof Canvas
@@ -440,8 +443,18 @@ class AnnotationTopBarContainer extends React.PureComponent<Props, State> {
             canvasInstance.interact({ enabled: false });
             return;
         }
-
-        canvasInstance.draw({ enabled: false });
+        if (is2D) {
+            canvasInstance.draw({ enabled: false });
+        }
+        else {
+            if ([ActiveControl.DRAW_POLYGON].includes(activeControl)) {
+                // 2d canvas in 3d job
+                canvasInstanceSelection.draw({ enabled: false });
+            }
+            else {
+                canvasInstance.draw({ enabled: false });
+            };
+        }
     };
 
     private onSwitchToolsBlockerState = (): void => {

@@ -17,7 +17,8 @@ import ControlsSideBarComponent from 'components/annotation-page/standard3D-work
 import { ActiveControl, CombinedState } from 'reducers/interfaces';
 
 interface StateToProps {
-    canvasInstance: Canvas | Canvas3d;
+    canvasInstance: Canvas | Canvas3d | null;
+    canvasInstanceSelection: Canvas | null;
     activeControl: ActiveControl;
     keyMap: KeyMap;
     normalizedKeyMap: Record<string, string>;
@@ -36,7 +37,7 @@ interface DispatchToProps {
 function mapStateToProps(state: CombinedState): StateToProps {
     const {
         annotation: {
-            canvas: { instance: canvasInstance, activeControl },
+            canvas: { instance: canvasInstance, instanceSelection: canvasInstanceSelection, activeControl },
             job: { labels, instance: jobInstance },
         },
         shortcuts: { keyMap, normalizedKeyMap },
@@ -44,6 +45,7 @@ function mapStateToProps(state: CombinedState): StateToProps {
 
     return {
         canvasInstance,
+        canvasInstanceSelection,
         activeControl,
         normalizedKeyMap,
         keyMap,

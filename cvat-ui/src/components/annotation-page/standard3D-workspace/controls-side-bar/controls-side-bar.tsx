@@ -5,25 +5,30 @@
 import React from 'react';
 import Layout from 'antd/lib/layout';
 import { ActiveControl } from 'reducers/interfaces';
-import { Canvas3d as Canvas } from 'cvat-canvas3d-wrapper';
+import { Canvas } from 'cvat-canvas-wrapper';
+import { Canvas3d } from 'cvat-canvas3d-wrapper';
 import MoveControl, {
     Props as MoveControlProps,
-} from 'components/annotation-page/standard-workspace/controls-side-bar/move-control';
+} from './move-control';
 import CursorControl, {
     Props as CursorControlProps,
-} from 'components/annotation-page/standard-workspace/controls-side-bar/cursor-control';
+} from './cursor-control';
 import DrawCuboidControl, {
     Props as DrawCuboidControlProps,
-} from 'components/annotation-page/standard-workspace/controls-side-bar/draw-cuboid-control';
+} from './draw-cuboid-control';
 import GroupControl, {
     Props as GroupControlProps,
 } from 'components/annotation-page/standard-workspace/controls-side-bar/group-control';
 import GlobalHotKeys, { KeyMap } from 'utils/mousetrap-react';
-import ControlVisibilityObserver from 'components/annotation-page/standard-workspace/controls-side-bar/control-visibility-observer';
+import ControlVisibilityObserver from './control-visibility-observer';
+import DrawPolygonControl, {
+    Props as DrawPolygonControlProps,
+} from './draw-polygon-control';
 
 interface Props {
     keyMap: KeyMap;
-    canvasInstance: Canvas;
+    canvasInstance: Canvas3d;
+    canvasInstanceSelection: Canvas;
     activeControl: ActiveControl;
     normalizedKeyMap: Record<string, string>;
     labels: any[];
@@ -38,11 +43,13 @@ interface Props {
 const ObservedCursorControl = ControlVisibilityObserver<CursorControlProps>(CursorControl);
 const ObservedMoveControl = ControlVisibilityObserver<MoveControlProps>(MoveControl);
 const ObservedDrawCuboidControl = ControlVisibilityObserver<DrawCuboidControlProps>(DrawCuboidControl);
+const ObservedDrawPolygonControl = ControlVisibilityObserver<DrawPolygonControlProps>(DrawPolygonControl);
 const ObservedGroupControl = ControlVisibilityObserver<GroupControlProps>(GroupControl);
 
 export default function ControlsSideBarComponent(props: Props): JSX.Element {
     const {
         canvasInstance,
+        canvasInstanceSelection,
         pasteShape,
         activeControl,
         normalizedKeyMap,
@@ -55,6 +62,7 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
         jobInstance,
     } = props;
 
+    const selectionDOM = canvasInstanceSelection.html();
     const preventDefault = (event: KeyboardEvent | undefined): void => {
         if (event) {
             event.preventDefault();
@@ -70,6 +78,7 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
             preventDefault(event);
             if (activeControl !== ActiveControl.CURSOR) {
                 canvasInstance.cancel();
+                canvasInstanceSelection.cancel();
             }
         },
     };
@@ -84,10 +93,11 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
             },
             SWITCH_DRAW_MODE: (event: KeyboardEvent | undefined) => {
                 preventDefault(event);
-                const drawing = [ActiveControl.DRAW_CUBOID].includes(activeControl);
+                const drawing = [ActiveControl.DRAW_CUBOID, ActiveControl.DRAW_POLYGON].includes(activeControl);
 
                 if (!drawing) {
                     canvasInstance.cancel();
+                    canvasInstanceSelection.cancel();
                     if (event && event.shiftKey) {
                         redrawShape();
                     } else {
@@ -95,6 +105,7 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
                     }
                 } else {
                     canvasInstance.draw({ enabled: false });
+                    canvasInstanceSelection.draw({ enabled: false });
                 }
             },
             SWITCH_GROUP_MODE: (event: KeyboardEvent | undefined) => {
@@ -132,12 +143,24 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
             <ObservedCursorControl
                 cursorShortkey={normalizedKeyMap.CANCEL}
                 canvasInstance={canvasInstance}
+                canvasInstanceSelection={canvasInstanceSelection}
                 activeControl={activeControl}
             />
-            <ObservedMoveControl canvasInstance={canvasInstance} activeControl={activeControl} />
+            <ObservedMoveControl
+                canvasInstance={canvasInstance}
+                canvasInstanceSelection={canvasInstanceSelection}
+                activeControl={activeControl}
+            />
             <ObservedDrawCuboidControl
                 canvasInstance={canvasInstance}
+                canvasInstanceSelection={canvasInstanceSelection}
                 isDrawing={activeControl === ActiveControl.DRAW_CUBOID}
+                disabled={!labels.length}
+            />
+            <ObservedDrawPolygonControl
+                canvasInstance={canvasInstance}
+                canvasInstanceSelection={canvasInstanceSelection}
+                isDrawing={activeControl === ActiveControl.DRAW_POLYGON}
                 disabled={!labels.length}
             />
             <ObservedGroupControl
