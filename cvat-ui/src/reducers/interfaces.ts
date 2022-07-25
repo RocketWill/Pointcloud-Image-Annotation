@@ -550,6 +550,16 @@ export interface AnnotationState {
             pointID: number | null;
             clientID: number | null;
         };
+        // for 3d annotation
+        contextContextMenu: {
+            visible: boolean;
+            top: number;
+            left: number;
+            type: ContextMenuType;
+            contextIndex: number;
+            pointID: number | null;
+            clientID: number | null;
+        };
         instance: Canvas | Canvas3d | null;
         ready: boolean;
         activeControl: ActiveControl;

@@ -252,6 +252,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 const { x: rotationX, y: rotationY, z: rotationZ } = this.cube.perspective.rotation;
                 const points = [x, y, z, rotationX, rotationY, rotationZ, width, height, depth, 0, 0, 0, 0, 0, 0, 0];
                 const initState = this.model.data.drawData.initialState;
+                const pointIndices = this.calPointsInCube(this.cube);
                 let label;
                 if (initState) {
                     ({ label } = initState);
@@ -267,6 +268,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                                 frame: this.model.data.imageID,
                                 points,
                                 label,
+                                amountPoints: pointIndices.length
                             },
                             continue: true,
                             duration: 0,
@@ -387,6 +389,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             const { x: rotationX, y: rotationY, z: rotationZ } = this.cube.perspective.rotation;
             const points = [x, y, z, rotationX, rotationY, rotationZ, width, height, depth, 0, 0, 0, 0, 0, 0, 0];
             const initState = this.model.data.drawData.initialState;
+            const pointIndices = this.calPointsInCube(this.cube);
             let label;
             if (initState) {
                 ({ label } = initState);
@@ -403,6 +406,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                         detail: {
                             state,
                             points,
+                            amountPoints: pointIndices.length,
                         },
                     }),
                 );
@@ -418,6 +422,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                                 frame: this.model.data.imageID,
                                 points,
                                 label,
+                                amountPoints: pointIndices.length,
                             },
                             continue: undefined,
                             duration: 0,
@@ -666,7 +671,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
     }
 
     private completeActions(): void {
-        const { scan, detected } = this.action;
+        const { scan, detected } = this.action;  // scan是视图
         if (this.model.mode === Mode.DRAG_CANVAS) return;
         if (!detected) {
             this.resetActions();
@@ -680,7 +685,8 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         const points = [x, y, z, rotationX, rotationY, rotationZ, width, height, depth, 0, 0, 0, 0, 0, 0, 0];
         const [state] = this.model.data.objects.filter(
             (_state: any): boolean => _state.clientID === Number(this.model.data.selected[scan].name),
-        );
+            );
+        const pointIndices = this.calPointsInCube(this.model.data.selected);
         this.dispatchEvent(
             new CustomEvent('canvas.edited', {
                 bubbles: false,
@@ -688,6 +694,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 detail: {
                     state,
                     points,
+                    amountPoints: pointIndices.length,
                 },
             }),
         );
@@ -726,6 +733,41 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         });
 
         this.mode = Mode.IDLE;
+    }
+
+    private calPointsInCube(cuboid: CuboidModel): any[] {
+        const { perspective: { position, rotation, scale }} = cuboid;
+        const scaleRatio = 1;
+        const positionArray = this.points.geometry.getAttribute("position").array;
+        const pointIndices: number[] = [];  // 顶点编号
+        const relativePosition = [] as any[];
+        const relativePositionWithoutRotation = [];
+        const trans = transpose(euler_angle_to_rotate_matrix(rotation, { x: 0, y: 0, z: 0 }), 4);  // 4*4，第二个参数没用到，旋转矩阵的转置 == 逆矩阵
+        const candPointIndices = getCoveringPositionIndices(
+            this.points,
+            position,
+            scale,
+            rotation,
+            scaleRatio,
+            this.pointsIndexGridSize
+        );
+        candPointIndices.forEach((i: number) => {
+            const x = positionArray[i * 3];
+            const y = positionArray[i * 3 + 1];
+            const z = positionArray[i * 3 + 2];
+            const p = [x - position.x, y - position.y, z - position.z, 1];
+            const tp = matmul(trans, p, 4);
+            // 在这里过滤掉不在cube的点
+            if ((Math.abs(tp[0]) > scale.x / 2 * scaleRatio + 0.01)
+                || (Math.abs(tp[1]) > scale.y / 2 * scaleRatio + 0.01)
+                || (Math.abs(tp[2]) > scale.z / 2 * scaleRatio + 0.01)) {
+                return;
+            }
+            pointIndices.push(i);
+            relativePosition.push([tp[0], tp[1], tp[2]]);
+            relativePositionWithoutRotation.push([p[0], p[1], p[2]]);
+        });
+        return pointIndices;
     }
 
     private setupObject(object: any, addToScene: boolean): CuboidModel {
@@ -814,40 +856,8 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         // position(Vector3): x, y, z
         // rotate(Euler): x, y, z,
         // scale(Vector3): x, y, z
-        const { perspective: {
-            position, rotation, scale
-        }, top, front, side } = cuboid;
-        const scaleRatio = 1;
-        const positionArray = this.points.geometry.getAttribute("position").array;
         const colorArray: number[] = this.points.geometry.getAttribute("color").array as number[];
-        const pointIndices: number[] = [];  // 顶点编号
-        const relativePosition = [];
-        const relativePositionWithoutRotation = [];
-        const trans = transpose(euler_angle_to_rotate_matrix(rotation, { x: 0, y: 0, z: 0 }), 4);  // 4*4，第二个参数没用到，旋转矩阵的转置 == 逆矩阵
-        const candPointIndices = getCoveringPositionIndices(
-            this.points,
-            position,
-            scale,
-            rotation,
-            scaleRatio,
-            this.pointsIndexGridSize
-        );
-        candPointIndices.forEach((i: number) => {
-            const x = positionArray[i * 3];
-            const y = positionArray[i * 3 + 1];
-            const z = positionArray[i * 3 + 2];
-            const p = [x - position.x, y - position.y, z - position.z, 1];
-            const tp = matmul(trans, p, 4);
-            // 在这里过滤掉不在cube的点
-            if ((Math.abs(tp[0]) > scale.x / 2 * scaleRatio + 0.01)
-                || (Math.abs(tp[1]) > scale.y / 2 * scaleRatio + 0.01)
-                || (Math.abs(tp[2]) > scale.z / 2 * scaleRatio + 0.01)) {
-                return;
-            }
-            pointIndices.push(i);
-            relativePosition.push([tp[0], tp[1], tp[2]]);
-            relativePositionWithoutRotation.push([p[0], p[1], p[2]])
-        });
+        const pointIndices = this.calPointsInCube(cuboid);
         // 绘制框内的颜色
         const objectColor = new THREE.Color(color);
         pointIndices.forEach((i: number) => {
@@ -1145,6 +1155,21 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         // return [mesh, new Float32Array(flattenPoints)];
     }
 
+    private addRangeCircle() {
+        const distance = [30, 50, 100]
+        for (let i = 0; i < distance.length; i++) {
+            let points = new THREE.Path().absarc(0, 0, distance[i], 0, Math.PI * 2, false).getPoints(90);
+            let pointsWithZ = [];
+            for (let i = 0; i < points.length; i++) {
+                pointsWithZ.push(new THREE.Vector3(points[i].x, points[i].y, -3))  // let the point lower
+            }
+            let meterCircleGeometry = new THREE.BufferGeometry().setFromPoints(pointsWithZ);
+            let meterCircleMaterial = new THREE.LineBasicMaterial( { color: 0xffee00, transparent: true, opacity: 0.3 } );
+            let meterCircleLine = new THREE.Line(meterCircleGeometry, meterCircleMaterial);
+            this.views.perspective.scene.add(meterCircleLine);
+        }
+    }
+
     // 渲染点云数据
     private addScene(points: any): void {
         // [CY] Camera Helper
@@ -1156,6 +1181,10 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
 
         // const helperFront = new THREE.CameraHelper( this.views.front.camera );
         // this.views.perspective.scene.add(helperFront)
+
+        // Add 30m, 50m, and 100m circle
+        this.addRangeCircle();
+
 
         this.addColor(points)
         // eslint-disable-next-line no-param-reassign

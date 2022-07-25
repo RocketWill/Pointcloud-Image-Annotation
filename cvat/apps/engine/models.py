@@ -571,6 +571,8 @@ class Shape(models.Model):
     context_index = models.IntegerField(default=-1)
     modified_2d = models.BooleanField(default=False)
     client_proj_id = models.IntegerField(default=-1)
+    amount_points = models.IntegerField(default=-1)
+
     class Meta:
         abstract = True
         default_permissions = ()

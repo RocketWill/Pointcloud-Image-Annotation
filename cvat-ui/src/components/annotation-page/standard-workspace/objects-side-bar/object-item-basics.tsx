@@ -7,8 +7,9 @@ import { Row, Col } from 'antd/lib/grid';
 import { MoreOutlined } from '@ant-design/icons';
 import Dropdown from 'antd/lib/dropdown';
 import Text from 'antd/lib/typography/Text';
+import Badge from 'antd/lib/badge';
 
-import { ObjectType, ShapeType, ColorBy } from 'reducers/interfaces';
+import { ObjectType, ShapeType, ColorBy, DimensionType } from 'reducers/interfaces';
 import CVATTooltip from 'components/common/cvat-tooltip';
 import LabelSelector from 'components/label-selector/label-selector';
 import ItemMenu from './object-item-menu';
@@ -18,6 +19,8 @@ interface Props {
     readonly: boolean;
     clientID: number;
     serverID: number | undefined;
+    amountPoints: number,
+    dimension: DimensionType.DIM_2D | DimensionType.DIM_3D;
     labelID: number;
     labels: any[];
     shapeType: ShapeType;
@@ -50,6 +53,8 @@ function ItemTopComponent(props: Props): JSX.Element {
         readonly,
         clientID,
         serverID,
+        amountPoints,
+        dimension,
         labelID,
         labels,
         shapeType,
@@ -96,7 +101,22 @@ function ItemTopComponent(props: Props): JSX.Element {
     return (
         <Row align='middle'>
             <Col span={10}>
-                <Text style={{ fontSize: 12 }}>{clientID}</Text>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: -10 }}>
+                    <Text style={{ fontSize: 12 }}>{clientID}</Text>
+                    {dimension === DimensionType.DIM_3D &&
+                        <Badge
+                            size="small"
+                            count={amountPoints}
+                            overflowCount={100000}
+                            showZero={true}
+                            style={{
+                                backgroundColor: 'rgba(0, 0, 0, 0.2)',
+                                marginRight: 10
+                            }}
+                        />
+                    }
+                </div>
+
                 <br />
                 <Text
                     type='secondary'

@@ -5,6 +5,7 @@
 (() => {
     const {
         CuboidShape,
+        RectangleShape,
         CuboidTrack,
         Track,
         Shape,
@@ -30,6 +31,9 @@
         switch (type) {
             case 'cuboid':
                 shapeModel = new CuboidShape(shapeData, clientID, color, injection);
+                break;
+            case 'rectangle':
+                shapeModel = new RectangleShape(shapeData, clientID, color, injection);
                 break;
             default:
                 throw new DataError(`An unexpected type of shape "${type}"`);
@@ -80,7 +84,7 @@
                 // TODO
                 // check if objectKey is already in shapes (update projection)
                 const clientID = shape.client_proj_id;
-                const objectKey = `${clientID}-${shape.context_index}`  // a clientID could exist in many canvas
+                const objectKey = `${clientID}-${shape.context_index}-${shape.type}`  // a clientID could exist in many canvas
                 const shapeModel = shapeFactory(shape, clientID, this.injection);
                 this.shapes[shapeModel.frame] = this.shapes[shapeModel.frame] || [];
 
@@ -349,13 +353,7 @@
                         checkObjectType('point coordinate', coord, 'number', null);
                     }
 
-                    // if (!Object.values(ObjectShape).includes(state.shapeType)) {
-                    //     throw new ArgumentError(
-                    //         `Object shape must be one of: ${JSON.stringify(Object.values(ObjectShape))}`,
-                    //     );
-                    // }
-                    // if (state.objectType === 'cuboid')
-                    if (state.shapeType === 'cuboid') {
+                    if (state.shapeType === 'cuboid' || state.shapeType === 'rectangle') {
                         constructed.shapes.push({
                             client_id: state.clientID,
                             attributes,
@@ -364,6 +362,7 @@
                             context_index: state.contextIndex,
                             modified_2d: false,
                             client_proj_id: state.clientProjID,
+                            amount_points: state.amountPoints || -1,
                             group: 0,
                             label_id: state.label.id,
                             occluded: state.occluded || false,
@@ -420,7 +419,7 @@
                 if (state.outside || state.hidden || state.objectType === ObjectType.TAG) {
                     continue;
                 }
-                const objectKey = `${state.clientID}-${state.contextIndex}`
+                const objectKey = `${state.clientID}-${state.contextIndex}-${state.shapeType}`;
                 const object = this.objects[objectKey];
                 if (typeof object === 'undefined') {
                     throw new ArgumentError('The object has not been saved yet. Call annotations.put([state]) before');
