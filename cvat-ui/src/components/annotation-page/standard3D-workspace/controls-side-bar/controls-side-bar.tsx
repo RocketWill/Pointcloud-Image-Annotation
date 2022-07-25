@@ -62,7 +62,6 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
         jobInstance,
     } = props;
 
-    const selectionDOM = canvasInstanceSelection.html();
     const preventDefault = (event: KeyboardEvent | undefined): void => {
         if (event) {
             event.preventDefault();
@@ -127,6 +126,20 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
                 canvasInstance.group({ enabled: false });
                 groupObjects(false);
             },
+            MOVE_IMAGE: (event: KeyboardEvent | undefined) => {
+                preventDefault(event);
+                if (activeControl === ActiveControl.DRAG_CANVAS) {
+                    canvasInstance.dragCanvas(false);
+                    canvasInstance.cancel();
+                    canvasInstanceSelection.cancel();
+                } else {
+                    canvasInstance.cancel();
+                    canvasInstanceSelection.cancel();
+                    canvasInstanceSelection.html().style.pointerEvents = 'none';
+                    canvasInstance.dragCanvas(true);
+                }
+                canvasInstanceSelection.clearScene();
+            },
         };
         subKeyMap = {
             ...subKeyMap,
@@ -134,6 +147,7 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
             SWITCH_DRAW_MODE: keyMap.SWITCH_DRAW_MODE,
             SWITCH_GROUP_MODE: keyMap.SWITCH_GROUP_MODE,
             RESET_GROUP: keyMap.RESET_GROUP,
+            MOVE_IMAGE: keyMap.MOVE_IMAGE,
         };
     }
 

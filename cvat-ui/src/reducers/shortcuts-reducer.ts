@@ -420,6 +420,13 @@ const defaultKeyMap = ({
         action: 'keydown',
         applicable: [DimensionType.DIM_3D],
     },
+    MOVE_IMAGE: {
+        name: 'Move the Image',
+        description: 'Performs move image',
+        sequences: ['w'],
+        action: 'keydown',
+        applicable: [DimensionType.DIM_3D],
+    },
 } as any) as KeyMap;
 
 const defaultState: ShortcutsState = {

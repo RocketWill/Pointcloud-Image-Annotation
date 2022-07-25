@@ -32,6 +32,8 @@ function MoveControl(props: Props): JSX.Element {
                 onClick={(): void => {
                     if (activeControl === ActiveControl.DRAG_CANVAS) {
                         canvasInstance.dragCanvas(false);
+                        canvasInstance.cancel();
+                        canvasInstanceSelection.cancel();
                     } else {
                         canvasInstance.cancel();
                         canvasInstanceSelection.cancel();
