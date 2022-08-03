@@ -176,6 +176,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     const [showSelectionModeButton, setShowSelectionModeButton] = useState(false);
     const [selectionMode, setSelectionMode] = useState(null);
     const annotationsRef = useRef([] as any[]);
+    const [activatedState, setActivatedState] = useState(null as any);
     const selectionModeRef = useRef(null);
     const activatedStateIDRef: any = useRef(null);
 
@@ -235,7 +236,12 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         state.label = state.label || jobInstance.labels.filter((label: any) => label.id === activeLabelID)[0];
         state.occluded = state.occluded || false;
         state.frame = frame;
-        canvasInstance.createConvexHull(state);
+        if (state.shapeType === ShapeType.POLYGON) {
+            canvasInstance.createConvexHull(state);
+        } else if (state.shapeType === ShapeType.RECTANGLE) {
+
+        }
+
         canvasInstance2DDOM.style.pointerEvents = 'none';
     }
 
@@ -529,6 +535,14 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
     useEffect(() => {
         annotationsRef.current = annotations;
         activatedStateIDRef.current = activatedStateID;
+        const [state] = annotations.filter((annotation: any) =>
+            annotation.clientID === activatedStateID &&
+            annotation.shapeType === ShapeType.POLYGON ||
+            annotation.shapeType === ShapeType.CUBOID
+        )
+        if (state) {
+            setActivatedState(state);
+        }
     }, [annotations, activatedStateID])
 
     useEffect(() => {

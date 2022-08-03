@@ -398,7 +398,7 @@ export class DrawHandlerImpl implements DrawHandler {
         this.drawInstance
             .on('drawstop', (e: Event): void => {
                 const points = readPointsFromShape((e.target as any as { instance: SVG.Rect }).instance);
-                const [xtl, ytl, xbr, ybr] = this.getFinalRectCoordinates(points, true);
+                const [xtl, ytl, xbr, ybr] = this.getFinalRectCoordinates(points, false);  // change to false
                 const { shapeType, redraw: clientID } = this.drawData;
                 this.release();
 
@@ -420,6 +420,10 @@ export class DrawHandlerImpl implements DrawHandler {
                 'stroke-width': consts.BASE_STROKE_WIDTH / this.geometry.scale,
                 'fill-opacity': this.configuration.creationOpacity,
             });
+        // 增加自定义css class name
+        if (this.drawData.customClassName) {
+            this.drawInstance.addClass(this.drawData.customClassName);
+        }
     }
 
     private drawEllipse(): void {
