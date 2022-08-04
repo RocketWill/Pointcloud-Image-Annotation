@@ -24,6 +24,8 @@ import ControlVisibilityObserver from './control-visibility-observer';
 import DrawPolygonControl, {
     Props as DrawPolygonControlProps,
 } from './draw-polygon-control';
+import DrawRectangleControl, { Props as DrawRectangleControlProps } from './draw-rectangle-control';
+
 
 interface Props {
     keyMap: KeyMap;
@@ -44,6 +46,7 @@ const ObservedCursorControl = ControlVisibilityObserver<CursorControlProps>(Curs
 const ObservedMoveControl = ControlVisibilityObserver<MoveControlProps>(MoveControl);
 const ObservedDrawCuboidControl = ControlVisibilityObserver<DrawCuboidControlProps>(DrawCuboidControl);
 const ObservedDrawPolygonControl = ControlVisibilityObserver<DrawPolygonControlProps>(DrawPolygonControl);
+const ObservedDrawRectangleControl = ControlVisibilityObserver<DrawRectangleControlProps>(DrawRectangleControl);
 const ObservedGroupControl = ControlVisibilityObserver<GroupControlProps>(GroupControl);
 
 export default function ControlsSideBarComponent(props: Props): JSX.Element {
@@ -175,6 +178,12 @@ export default function ControlsSideBarComponent(props: Props): JSX.Element {
                 canvasInstance={canvasInstance}
                 canvasInstanceSelection={canvasInstanceSelection}
                 isDrawing={activeControl === ActiveControl.DRAW_POLYGON}
+                disabled={!labels.length}
+            />
+            <ObservedDrawRectangleControl
+                canvasInstance={canvasInstance}
+                canvasInstanceSelection={canvasInstanceSelection}
+                isDrawing={activeControl === ActiveControl.DRAW_RECTANGLE}
                 disabled={!labels.length}
             />
             <ObservedGroupControl

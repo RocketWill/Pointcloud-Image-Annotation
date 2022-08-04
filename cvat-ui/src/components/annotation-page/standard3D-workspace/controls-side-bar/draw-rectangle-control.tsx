@@ -12,9 +12,10 @@ import { ShapeType } from 'reducers/interfaces';
 
 import DrawShapePopoverContainer from 'containers/annotation-page/standard3D-workspace/controls-side-bar/draw-shape-popover';
 import withVisibilityHandling from './handle-popover-visibility';
+import { Canvas3d } from 'cvat-canvas3d/src/typescript/canvas3d';
 
 export interface Props {
-    canvasInstance: Canvas;
+    canvasInstance: Canvas3d;
     canvasInstanceSelection: Canvas;
     isDrawing: boolean;
     disabled?: boolean;
