@@ -20,7 +20,9 @@ import {
 import { matmul, euler_angle_to_rotate_matrix, transpose, getPointInBetweenByLen } from "./utils/util"
 
 import { SelectModel, ScreenSize, MousePosition } from './select';
+import { RectangleModel, Cube } from './rectangle';
 import { ShapeType } from '../../../cvat-ui/src/reducers/interfaces';
+import { Camera } from 'three';
 
 export interface Canvas3dView {
     html(): ViewsDOM;
@@ -257,7 +259,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 const { x: rotationX, y: rotationY, z: rotationZ } = this.cube.perspective.rotation;
                 const points = [x, y, z, rotationX, rotationY, rotationZ, width, height, depth, 0, 0, 0, 0, 0, 0, 0];
                 const initState = this.model.data.drawData.initialState;
-                const pointIndices = this.calPointsInCube(this.cube);
+                const pointIndices = this.calPointsInCube(this.cube.perspective);
                 let label;
                 if (initState) {
                     ({ label } = initState);
@@ -427,7 +429,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             const { x: rotationX, y: rotationY, z: rotationZ } = this.cube.perspective.rotation;
             const points = [x, y, z, rotationX, rotationY, rotationZ, width, height, depth, 0, 0, 0, 0, 0, 0, 0];
             const initState = this.model.data.drawData.initialState;
-            const pointIndices = this.calPointsInCube(this.cube);
+            const pointIndices = this.calPointsInCube(this.cube.perspective);
             let label;
             if (initState) {
                 ({ label } = initState);
@@ -755,7 +757,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         const [state] = this.model.data.objects.filter(
             (_state: any): boolean => _state.clientID === Number(this.model.data.selected[scan].name),
             );
-        const pointIndices = this.calPointsInCube(this.model.data.selected);
+        const pointIndices = this.calPointsInCube(this.model.data.selected?.perspective);
         this.dispatchEvent(
             new CustomEvent('canvas.edited', {
                 bubbles: false,
@@ -804,8 +806,8 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         this.mode = Mode.IDLE;
     }
 
-    private calPointsInCube(cuboid: CuboidModel): any[] {
-        const { perspective: { position, rotation, scale }} = cuboid;
+    private calPointsInCube(cuboid: any): any[] {
+        const { position, rotation, scale } = cuboid;
         const scaleRatio = 1;
         const positionArray = this.points.geometry.getAttribute("position").array;
         const pointIndices: number[] = [];  // 顶点编号
@@ -905,6 +907,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
             setEdges(cuboid.top);
             setEdges(cuboid.side);
             setEdges(cuboid.front);
+            console.log("🚀 ~ file: canvas3dView.ts ~ line 908 ~ Canvas3dViewImpl ~ setupObject ~ cuboid", cuboid)
             this.translateReferencePlane(new THREE.Vector3(object.points[0], object.points[1], object.points[2]));
             this.model.data.selected = cuboid;
             if (object.hidden) {
@@ -950,7 +953,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         // rotate(Euler): x, y, z,
         // scale(Vector3): x, y, z
         const colorArray: number[] = this.points.geometry.getAttribute("color").array as number[];
-        const pointIndices = this.calPointsInCube(cuboid);
+        const pointIndices = this.calPointsInCube(cuboid.perspective);
         // 绘制框内的颜色
         const objectColor = new THREE.Color(color);
         pointIndices.forEach((i: number) => {
@@ -1138,6 +1141,14 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                 this.model.data.activeElement.clientID = 'null';
                 this.setupObjects();
             }
+        } else if (reason === UpdateReasons.SCENE_UPDATED) {
+            // change point size
+            this.dispatchEvent(
+                new CustomEvent('canvas.sceneupdated', {
+                    bubbles: false,
+                    cancelable: true,
+                }),
+            );
         }
     }
 
@@ -1336,6 +1347,7 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
         const coloredPoints = this.addColor(points);
         // const [mesh, newPoints] = this.addColor(points);
         coloredPoints.geometry.attributes.color.needsUpdate = true;
+        coloredPoints.material.needsUpdate = true;
 
         // points.geometry.attributes.position.array = newPoints;
         this.buildPointsIndex(coloredPoints);  // add points index field
@@ -2693,6 +2705,42 @@ export class Canvas3dViewImpl implements Canvas3dView, Listener {
                     },
                     polygon: polygonPoints,
                     points: Array.from(indices)
+                },
+            }),
+        );
+    }
+
+    public createCuboidFromRect(state: any): void {
+        const { points, label } = state;
+        const rectSelect = new RectangleModel(this.points);
+        const rect = [];
+        for (let i = 0; i < points.length / 2; i++) {
+            const mp = this.getMousePosition(points[i * 2], points[i * 2 + 1])
+            rect.push(mp[0], mp[1]);  // to mouse position
+        }
+        const cuboid = rectSelect.createAnno(rect, this.views.perspective.camera);
+        if (cuboid === null)
+            return;
+
+        const { position, scale, rotation } = cuboid;
+        const cuboidPoints = [position.x, position.y, position.z, rotation.x, rotation.y, rotation.z, scale.x, scale.y, scale.z, 0, 0, 0, 0, 0, 0, 0];
+        const initState = this.model.data.drawData.initialState;
+        const pointIndices = this.calPointsInCube(cuboid);
+        this.dispatchEvent(
+            new CustomEvent('canvas.drawn', {
+                bubbles: false,
+                cancelable: true,
+                detail: {
+                    state: {
+                        ...initState,
+                        shapeType: 'cuboid',
+                        frame: this.model.data.imageID,
+                        points: cuboidPoints,
+                        label,
+                        amountPoints: pointIndices.length,
+                    },
+                    continue: undefined,
+                    duration: 0,
                 },
             }),
         );

@@ -40,6 +40,7 @@ interface Canvas3d {
     destroy(): void;
 
     createConvexHull(polygon: number[]): void;
+    createCuboidFromRect(state: any): any
 }
 
 class Canvas3dImpl implements Canvas3d {
@@ -128,6 +129,10 @@ class Canvas3dImpl implements Canvas3d {
 
     public updateSegmentAnnotation(state: any): void {
         this.view.updateSegmentAnnotation(state);
+    }
+
+    public createCuboidFromRect(state: any): any {
+        this.view.createCuboidFromRect(state);
     }
 
 }

@@ -239,7 +239,7 @@ const CanvasWrapperComponent = (props: Props): ReactElement => {
         if (state.shapeType === ShapeType.POLYGON) {
             canvasInstance.createConvexHull(state);
         } else if (state.shapeType === ShapeType.RECTANGLE) {
-
+            canvasInstance.createCuboidFromRect(state);
         }
 
         canvasInstance2DDOM.style.pointerEvents = 'none';
